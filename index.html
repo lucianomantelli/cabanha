@@ -6525,64 +6525,37 @@ let usuarioAtual = null;
 async function fazerLogin() {
   const login = document.getElementById('login-user').value.trim();
   const senha = document.getElementById('login-senha').value;
-  if(!login || !senha) {
-    const err = document.getElementById('login-error');
-    err.textContent = 'Informe login e senha.';
-    err.style.display = 'block';
-    setTimeout(()=>err.style.display='none', 3000);
-    return;
-  }
-  // Desabilitar botão e mostrar loading
+  const errEl = document.getElementById('login-error');
+  const showErr = (msg) => { errEl.textContent=msg; errEl.style.display='block'; setTimeout(()=>errEl.style.display='none',4000); };
+  if(!login || !senha) { showErr('Informe login e senha.'); return; }
   const btn = document.querySelector('.login-btn');
-  if(btn) { btn.disabled=true; btn.textContent='Entrando...'; }
+  if(btn){btn.disabled=true; btn.textContent='Verificando...';}
   let user = null;
-  let onlineOk = false;
   try {
     const dbUser = await _verificarLoginBanco(login, senha);
-    onlineOk = true;
     if(dbUser) {
-      user = { id: dbUser.id, db_id: dbUser.id, login: dbUser.login,
-               senha: senha, nome: dbUser.nome, perfil: dbUser.perfil,
-               label: PERFIS_INFO[dbUser.perfil]?.label || dbUser.perfil,
-               ativo: dbUser.ativo };
+      user = { id:dbUser.id, db_id:dbUser.id, login:dbUser.login, senha:senha,
+               nome:dbUser.nome, perfil:dbUser.perfil, ativo:dbUser.ativo,
+               label: PERFIS_INFO[dbUser.perfil]?.label||dbUser.perfil };
     }
   } catch(e) {
-    // Sem internet — fallback para usuários locais com senha real
-    user = USUARIOS.find(u => u.login===login && u.senha===senha && u.senha!=='***');
+    // Offline: tentar cache local com senha real
+    user = USUARIOS.find(u=>u.login===login && u.senha===senha && u.senha!=='***');
   }
-  // Se banco está online mas não encontrou → senha errada (não tentar local)
-  // Se banco offline → já tentou local acima
-  if(btn) { btn.disabled=false; btn.textContent='Entrar'; }
-  if(user && user.ativo===false) {
-    const err = document.getElementById('login-error');
-    err.textContent = 'Usuário suspenso. Contate o administrador.';
-    err.style.display = 'block';
-    setTimeout(()=>err.style.display='none', 4000);
-    return;
-  }
-  if(!user) {
-    const err = document.getElementById('login-error');
-    err.textContent = 'Usuário ou senha incorretos. Tente novamente.';
-    err.style.display = 'block';
-    setTimeout(()=>err.style.display='none', 4000);
-    return;
-  }
+  if(btn){btn.disabled=false; btn.textContent='Entrar';}
+  if(!user){ showErr('Usuário ou senha incorretos. Tente novamente.'); return; }
+  if(user.ativo===false){ showErr('Usuário suspenso. Contate o administrador.'); return; }
   usuarioAtual = user;
   document.getElementById('login-screen').style.display='none';
-  // Atualizar sidebar
-  const badge = document.getElementById('sidebar-perfil-badge');
-  const uname = document.getElementById('sidebar-username');
+  const badge=document.getElementById('sidebar-perfil-badge');
+  const uname=document.getElementById('sidebar-username');
   if(badge) badge.innerHTML=`<span class="perfil-badge perfil-${user.perfil}">${user.label}</span>`;
   if(uname) uname.textContent=user.nome;
-  // Aplicar restrições de menu
   _aplicarPermissoes();
   populaCiclos();
   renderDashboard();
   atualizarBadgePendencias();
-  // Sincronizar com Supabase ao fazer login
-  _sincronizarAoLogin().then(()=>{
-    populaCiclos(); renderDashboard(); atualizarBadgePendencias();
-  });
+  _sincronizarAoLogin().then(()=>{ populaCiclos(); renderDashboard(); atualizarBadgePendencias(); });
 }
 
 function fazerLogout() {
