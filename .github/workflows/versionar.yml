@@ -1,0 +1,30 @@
+name: Controle de Versoes (ultimas 10)
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'index.html' ]
+jobs:
+  versionar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Arquivar versao anterior
+        run: |
+          PREV=$(git log --skip=1 -1 --format="%H" -- index.html 2>/dev/null || echo "")
+          if [ -z "$PREV" ]; then exit 0; fi
+          TS=$(git log --skip=1 -1 --format="%ci" -- index.html | cut -c1-19 | tr ' :' '--')
+          SH=$(echo $PREV | cut -c1-7)
+          mkdir -p versions
+          git show "${PREV}:index.html" > "versions/v_${TS}_${SH}.html"
+          COUNT=$(ls versions/*.html | wc -l)
+          if [ "$COUNT" -gt 10 ]; then
+            ls versions/*.html | sort | head -$(($COUNT-10)) | xargs rm -f
+          fi
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add versions/
+          git diff --staged --quiet || git commit -m "chore: versao arquivada [skip ci]" && git push
