@@ -298,6 +298,8 @@
   .login-screen { position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center; }
   .login-box { background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:2.5rem 2rem;width:380px;max-width:95vw; }
   .login-logo { text-align:center;margin-bottom:1.5rem; }
+  .login-logo img { mix-blend-mode:lighten; background:transparent; max-width:280px; }
+  @media (prefers-color-scheme:dark) { .login-logo img { mix-blend-mode:screen; } }
   .login-logo-icon { font-size:42px;margin-bottom:8px; }
   .login-logo-title { font-size:18px;font-weight:800;color:var(--text);letter-spacing:-0.5px; }
   .login-logo-sub { font-size:12px;color:var(--text2);margin-top:3px; }
@@ -1921,12 +1923,14 @@ function renderAnimais(){
 
 function alterarSituacao(i, val) {
   animais[i].situacao = val;
+  _dbSalvarAnimal(animais[i], i);
   renderDashboard();
   atualizarBadgePendencias();
 }
 
 function alterarEstagio(i, val) {
   animais[i].estagio = val || '-';
+  _dbSalvarAnimal(animais[i], i);
   renderDashboard();
 }
 
@@ -2508,7 +2512,8 @@ function abrirLaudo(b64, nome, tipo) {
   if(!win) { alert('Pop-up bloqueado. Permita pop-ups para visualizar o laudo.'); return; }
   const isPdf = tipo==='application/pdf' || nome?.toLowerCase().endsWith('.pdf');
   win.document.write(isPdf
-    ? `<html><head><title>${nome||'Laudo'}</title></head><body style="margin:0;background:#333"><iframe src="${b64}" style="width:100%;height:100vh;border:none"></iframe></body></html>`
+    ? `<html><head><title>${nome||'Laudo'}</title></head><body style="margin:0;background:#333"><iframe src="${b64}" style="width:100%;height:100vh;border:none"></iframe><div id="sync-status" style="display:none;position:fixed;bottom:4rem;right:1rem;padding:8px 16px;border-radius:99px;font-size:12px;font-weight:700;z-index:200"></div>
+</body></html>`
     : `<html><head><title>${nome||'Laudo'}</title><style>body{margin:0;background:#222;display:flex;align-items:center;justify-content:center;min-height:100vh}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${b64}" alt="${nome||'Laudo'}"></body></html>`
   );
   win.document.close();
@@ -3629,6 +3634,7 @@ function salvarAnimal(){
     ult_vac:'',prox_vac:document.getElementById('npvac').value,
     ult_verm:'',val_exame:document.getElementById('npexame').value,
   });
+  _dbSalvarAnimal(animais[animais.length-1], animais.length-1);
   closeModal('modal-novo');
   populaCiclos();renderDashboard();renderAnimais();
 }
@@ -3701,8 +3707,9 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelect
 
 // ─── NUTRIÇÃO ──────────────────────────────────────────────────────────────────
 
-const MORTOS = ['MORTO(A)'];
-function isAtivo(a) { return !MORTOS.includes(a.situacao); }
+const MORTOS = ['MORTO(A)','MORTO','TRANSFERIDO','DOADO(A)','VENDIDO','VENDIDO(A)'];
+const INATIVOS = ['MORTO(A)','MORTO','TRANSFERIDO','DOADO(A)','VENDIDO','VENDIDO(A)'];
+function isAtivo(a) { return !INATIVOS.includes(a.situacao); }
 function isNaCabanha(a) { return a.situacao==='NA CABANHA'||a.situacao==='EMPRESTIMO'; }
 
 // Estrutura padrão de projeto nutricional por animal
@@ -4577,6 +4584,51 @@ function atualizarBadgePendencias() {
   const el = document.getElementById('pend-count-badge');
   if(el) el.innerHTML = abertas > 0 ? `<span class="badge br" style="margin-left:4px;font-size:9px">${abertas}</span>` : '';
 }
+
+// ─── PENDÊNCIAS AUTOMÁTICAS POR ANIMAL ─────────────────────────────────
+function _gerarPendenciasAnimaisAtivos() {
+  const hoje = new Date().toISOString().slice(0,10);
+  animais.forEach((a, i) => {
+    if (!isNaCabanha(a)) return;
+    const nome = a.nome;
+    const vacinas = getHistVac ? getHistVac(i) : (histVacinas[i]||[]);
+    const exames  = getHistExam ? getHistExam(i) : (histExames[i]||[]);
+    // Sem vacina
+    if (!vacinas.length) {
+      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Vacina'&&!p.resolvida&&!p.evento)) {
+        const p={id:gerarIdPend(),animal:nome,tipo:'Vacina',nivel:'alta',
+          descricao:nome+' não possui nenhuma vacina registrada.',
+          evento:null,dataEvento:null,geradaEm:hoje,resolvida:false};
+        pendencias.push(p); _dbSalvarPendencia(p);
+      }
+    } else if (a.prox_vac && a.prox_vac < hoje) {
+      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Vacina vencida'&&!p.resolvida)) {
+        const p={id:gerarIdPend(),animal:nome,tipo:'Vacina vencida',nivel:'alta',
+          descricao:'Próxima vacina de '+nome+' estava prevista para '+fd(a.prox_vac)+'.',
+          evento:null,dataEvento:a.prox_vac,geradaEm:hoje,resolvida:false};
+        pendencias.push(p); _dbSalvarPendencia(p);
+      }
+    }
+    // Sem exame
+    if (!exames.length) {
+      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Exame sanitário'&&!p.resolvida&&!p.evento)) {
+        const p={id:gerarIdPend(),animal:nome,tipo:'Exame sanitário',nivel:'alta',
+          descricao:nome+' não possui nenhum exame sanitário registrado.',
+          evento:null,dataEvento:null,geradaEm:hoje,resolvida:false};
+        pendencias.push(p); _dbSalvarPendencia(p);
+      }
+    } else if (a.val_exame && a.val_exame < hoje) {
+      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Exame vencido'&&!p.resolvida)) {
+        const p={id:gerarIdPend(),animal:nome,tipo:'Exame vencido',nivel:'alta',
+          descricao:'Exame sanitário de '+nome+' venceu em '+fd(a.val_exame)+'.',
+          evento:null,dataEvento:a.val_exame,geradaEm:hoje,resolvida:false};
+        pendencias.push(p); _dbSalvarPendencia(p);
+      }
+    }
+  });
+  atualizarBadgePendencias();
+}
+
 
 function irParaPendencia(idx) {
   // Navegar para saúde > pendências e abrir modal de resolução
@@ -5844,9 +5896,11 @@ function salvarUsuario() {
       ativo: true,
       criadoEm: new Date().toISOString().slice(0,10),
     });
+    _dbSalvarUsuario(USUARIOS[USUARIOS.length-1], true);
   } else {
     const idx = USUARIOS.findIndex(u => u.id === editId);
     if(idx < 0) return alert('Usuário não encontrado.');
+    _dbSalvarUsuario({...USUARIOS[idx], db_id: USUARIOS[idx].db_id||USUARIOS[idx].id}, false);
     USUARIOS[idx].nome   = nome;
     USUARIOS[idx].login  = login;
     USUARIOS[idx].perfil = perfil;
@@ -6156,6 +6210,7 @@ async function _sincronizarAoLogin() {
       {usuario: usuarioAtual?.nome, ts: new Date().toISOString()});
 
     populaCiclos(); renderDashboard(); renderAnimais(); atualizarBadgePendencias();
+    _gerarPendenciasAnimaisAtivos();
     _mostrarStatusSync('✅ Dados sincronizados', 'green');
 
   } catch(err) {
