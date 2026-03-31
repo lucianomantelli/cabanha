@@ -50,6 +50,8 @@
   }
   .logo { margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 0.5px solid var(--border); }
   .logo-icon { font-size: 24px; margin-bottom: 4px; }
+  .logo img { max-width:160px; mix-blend-mode:lighten; }
+  .sidebar .logo img { mix-blend-mode:screen; filter:brightness(1.1); }
   .logo-title { font-size: 14px; font-weight: 600; color: var(--text); }
   .logo-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
   .logo-badge { display:inline-block; background: var(--green-l); color: var(--green-d); font-size:10px; padding:2px 8px; border-radius:99px; margin-top:5px; font-weight:500; }
@@ -299,7 +301,6 @@
   .login-box { background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:2.5rem 2rem;width:380px;max-width:95vw; }
   .login-logo { text-align:center;margin-bottom:1.5rem; }
   .login-logo img { mix-blend-mode:screen; background:transparent; max-width:240px; filter:brightness(1.05); }
-  .logo img { max-width:160px; mix-blend-mode:screen; filter:brightness(1.1); }
   .login-logo-icon { font-size:42px;margin-bottom:8px; }
   .login-logo-title { font-size:18px;font-weight:800;color:var(--text);letter-spacing:-0.5px; }
   .login-logo-sub { font-size:12px;color:var(--text2);margin-top:3px; }
@@ -2388,7 +2389,12 @@ function salvarRegistroVac() {
   _rvAnexos=[];
   closeModal('modal-reg-vac');
   renderSaude(); renderHistVac(); renderDashboard();
-  {const _vi=parseInt(document.getElementById('rv-animal-idx').value); if(!isNaN(_vi)) _dbSalvarVacina(getHistVac(_vi)[getHistVac(_vi).length-1],_vi);}
+  {const _vi=parseInt(document.getElementById('rv-animal-idx').value);
+   if(!isNaN(_vi)) {
+     _dbSalvarVacina(getHistVac(_vi)[getHistVac(_vi).length-1],_vi);
+     _dbSalvarAnimal(animais[_vi], _vi);
+   }
+  }
 }
 
 
@@ -2503,7 +2509,12 @@ function salvarRegistroExame() {
   _exameAnexos = [];
   closeModal('modal-reg-exam');
   renderSaude(); renderHistExam(); renderDashboard();
-  {const _ei=parseInt(document.getElementById('re-animal-idx').value); if(!isNaN(_ei)) _dbSalvarExame(getHistExam(_ei)[getHistExam(_ei).length-1],_ei);}
+  {const _ei=parseInt(document.getElementById('re-animal-idx').value);
+   if(!isNaN(_ei)) {
+     _dbSalvarExame(getHistExam(_ei)[getHistExam(_ei).length-1],_ei);
+     _dbSalvarAnimal(animais[_ei], _ei);
+   }
+  }
 }
 
 
@@ -4585,44 +4596,74 @@ function atualizarBadgePendencias() {
   if(el) el.innerHTML = abertas > 0 ? `<span class="badge br" style="margin-left:4px;font-size:9px">${abertas}</span>` : '';
 }
 
-// ─── PENDÊNCIAS AUTOMÁTICAS POR ANIMAL ─────────────────────────────────
+// ─── PENDÊNCIAS AUTOMÁTICAS POR ANIMAL ────────────────────
+// Gera pendências para animais ativos sem vacinas ou exames cadastrados
 function _gerarPendenciasAnimaisAtivos() {
   const hoje = new Date().toISOString().slice(0,10);
   animais.forEach((a, i) => {
-    if (!isNaCabanha(a)) return;
+    if (!isNaCabanha(a)) return; // só ativos na cabanha ou empréstimo
     const nome = a.nome;
-    const vacinas = getHistVac ? getHistVac(i) : (histVacinas[i]||[]);
-    const exames  = getHistExam ? getHistExam(i) : (histExames[i]||[]);
-    // Sem vacina
-    if (!vacinas.length) {
-      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Vacina'&&!p.resolvida&&!p.evento)) {
-        const p={id:gerarIdPend(),animal:nome,tipo:'Vacina',nivel:'alta',
-          descricao:nome+' não possui nenhuma vacina registrada.',
-          evento:null,dataEvento:null,geradaEm:hoje,resolvida:false};
-        pendencias.push(p); _dbSalvarPendencia(p);
+
+    // ── Vacina ──
+    const vacinas = getHistVac(i);
+    if (!vacinas || vacinas.length === 0) {
+      // Sem nenhuma vacina registrada
+      const jaExiste = pendencias.find(p => p.animal === nome && p.tipo === 'Vacina' && !p.resolvida && !p.evento);
+      if (!jaExiste) {
+        const pend = {
+          id: gerarIdPend(), animal: nome,
+          tipo: 'Vacina', nivel: 'alta',
+          descricao: `${nome} não possui nenhuma vacina registrada no sistema.`,
+          evento: null, dataEvento: null,
+          geradaEm: hoje, resolvida: false
+        };
+        pendencias.push(pend);
+        _dbSalvarPendencia(pend);
       }
     } else if (a.prox_vac && a.prox_vac < hoje) {
-      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Vacina vencida'&&!p.resolvida)) {
-        const p={id:gerarIdPend(),animal:nome,tipo:'Vacina vencida',nivel:'alta',
-          descricao:'Próxima vacina de '+nome+' estava prevista para '+fd(a.prox_vac)+'.',
-          evento:null,dataEvento:a.prox_vac,geradaEm:hoje,resolvida:false};
-        pendencias.push(p); _dbSalvarPendencia(p);
+      // Vacina vencida
+      const jaExiste = pendencias.find(p => p.animal === nome && p.tipo === 'Vacina vencida' && !p.resolvida);
+      if (!jaExiste) {
+        const pend = {
+          id: gerarIdPend(), animal: nome,
+          tipo: 'Vacina vencida', nivel: 'alta',
+          descricao: `Próxima vacina de ${nome} estava prevista para ${fd(a.prox_vac)}.`,
+          evento: null, dataEvento: a.prox_vac,
+          geradaEm: hoje, resolvida: false
+        };
+        pendencias.push(pend);
+        _dbSalvarPendencia(pend);
       }
     }
-    // Sem exame
-    if (!exames.length) {
-      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Exame sanitário'&&!p.resolvida&&!p.evento)) {
-        const p={id:gerarIdPend(),animal:nome,tipo:'Exame sanitário',nivel:'alta',
-          descricao:nome+' não possui nenhum exame sanitário registrado.',
-          evento:null,dataEvento:null,geradaEm:hoje,resolvida:false};
-        pendencias.push(p); _dbSalvarPendencia(p);
+
+    // ── Exame sanitário (AIE/Brucelose) ──
+    const exames = getHistExam(i);
+    if (!exames || exames.length === 0) {
+      const jaExiste = pendencias.find(p => p.animal === nome && p.tipo === 'Exame sanitário' && !p.resolvida && !p.evento);
+      if (!jaExiste) {
+        const pend = {
+          id: gerarIdPend(), animal: nome,
+          tipo: 'Exame sanitário', nivel: 'alta',
+          descricao: `${nome} não possui nenhum exame sanitário (AIE/Brucelose) registrado.`,
+          evento: null, dataEvento: null,
+          geradaEm: hoje, resolvida: false
+        };
+        pendencias.push(pend);
+        _dbSalvarPendencia(pend);
       }
     } else if (a.val_exame && a.val_exame < hoje) {
-      if (!pendencias.find(p=>p.animal===nome&&p.tipo==='Exame vencido'&&!p.resolvida)) {
-        const p={id:gerarIdPend(),animal:nome,tipo:'Exame vencido',nivel:'alta',
-          descricao:'Exame sanitário de '+nome+' venceu em '+fd(a.val_exame)+'.',
-          evento:null,dataEvento:a.val_exame,geradaEm:hoje,resolvida:false};
-        pendencias.push(p); _dbSalvarPendencia(p);
+      // Exame vencido
+      const jaExiste = pendencias.find(p => p.animal === nome && p.tipo === 'Exame vencido' && !p.resolvida);
+      if (!jaExiste) {
+        const pend = {
+          id: gerarIdPend(), animal: nome,
+          tipo: 'Exame vencido', nivel: 'alta',
+          descricao: `Exame sanitário de ${nome} venceu em ${fd(a.val_exame)}.`,
+          evento: null, dataEvento: a.val_exame,
+          geradaEm: hoje, resolvida: false
+        };
+        pendencias.push(pend);
+        _dbSalvarPendencia(pend);
       }
     }
   });
@@ -5996,19 +6037,25 @@ async function _supa(method, table, body=null, query='') {
     },
     body: body ? JSON.stringify(body) : null
   });
-  if(!r.ok) { const e=await r.text(); if(r.status!==403&&r.status!==401)console.error('Supabase error',r.status,e); return null; }
+  if(!r.ok) {
+    const e=await r.text();
+    if(r.status !== 403 && r.status !== 401) console.error('Supabase error',r.status,e);
+    return null;
+  }
   if(method==='GET' || method==='POST') { try{ return await r.json(); }catch(e){ return []; } }
   return true;
 }
 
 // ── Audit log manual (para login/logout) ──────────────────────────────────────
- } catch(e){}async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
-  try { await _supa('POST', 'audit_log', {
-    tabela, registro_id: String(registroId), acao,
-    usuario_id: usuarioAtual?.db_id || null,
-    usuario_nome: usuarioAtual?.nome || null,
-    dados_depois: dadosDepois
-  });
+async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
+  try {
+    await _supa('POST', 'audit_log', {
+      tabela, registro_id: String(registroId), acao,
+      usuario_id: usuarioAtual?.db_id || null,
+      usuario_nome: usuarioAtual?.nome || null,
+      dados_depois: dadosDepois
+    });
+  } catch(e) { /* audit_log usa triggers automáticos — silenciar erro de RLS */ }
 }
 
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
@@ -6026,14 +6073,19 @@ function _mostrarStatusSync(msg, tipo) {
 // SYNC COMPLETO — carrega todos os dados do banco relacional
 // ══════════════════════════════════════════════════════════════════════════════
 async function _sincronizarAoLogin() {
-  // Limpar estado local para evitar duplicatas ao recarregar
-  animais.length=0; coberturas2.length=0; eventosEsp.length=0;
-  estoque.length=0; movimentos.length=0; lancamentos.length=0; pendencias.length=0;
+  _mostrarStatusSync('🔄 Carregando dados do banco...', 'amber');
+  // Limpar arrays locais antes de carregar do banco (evitar duplicatas)
+  animais.length = 0;
+  coberturas2.length = 0;
+  eventosEsp.length = 0;
+  estoque.length = 0;
+  movimentos.length = 0;
+  lancamentos.length = 0;
+  pendencias.length = 0;
   Object.keys(histVacinas).forEach(k=>delete histVacinas[k]);
   Object.keys(histExames).forEach(k=>delete histExames[k]);
   Object.keys(medidas).forEach(k=>delete medidas[k]);
   Object.keys(histVermifugacoes).forEach(k=>delete histVermifugacoes[k]);
-  _mostrarStatusSync('🔄 Carregando dados do banco...', 'amber');
   try {
     // 1. Animais
     const dbAnimais = await _supa('GET','animais','',
