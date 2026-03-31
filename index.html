@@ -298,8 +298,8 @@
   .login-screen { position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center; }
   .login-box { background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:2.5rem 2rem;width:380px;max-width:95vw; }
   .login-logo { text-align:center;margin-bottom:1.5rem; }
-  .login-logo img { mix-blend-mode:lighten; background:transparent; max-width:280px; }
-  @media (prefers-color-scheme:dark) { .login-logo img { mix-blend-mode:screen; } }
+  .login-logo img { mix-blend-mode:screen; background:transparent; max-width:240px; filter:brightness(1.05); }
+  .logo img { max-width:160px; mix-blend-mode:screen; filter:brightness(1.1); }
   .login-logo-icon { font-size:42px;margin-bottom:8px; }
   .login-logo-title { font-size:18px;font-weight:800;color:var(--text);letter-spacing:-0.5px; }
   .login-logo-sub { font-size:12px;color:var(--text2);margin-top:3px; }
@@ -5996,14 +5996,14 @@ async function _supa(method, table, body=null, query='') {
     },
     body: body ? JSON.stringify(body) : null
   });
-  if(!r.ok) { const e=await r.text(); console.error('Supabase error',r.status,e); return null; }
+  if(!r.ok) { const e=await r.text(); if(r.status!==403&&r.status!==401)console.error('Supabase error',r.status,e); return null; }
   if(method==='GET' || method==='POST') { try{ return await r.json(); }catch(e){ return []; } }
   return true;
 }
 
 // ── Audit log manual (para login/logout) ──────────────────────────────────────
-async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
-  await _supa('POST', 'audit_log', {
+ } catch(e){}async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
+  try { await _supa('POST', 'audit_log', {
     tabela, registro_id: String(registroId), acao,
     usuario_id: usuarioAtual?.db_id || null,
     usuario_nome: usuarioAtual?.nome || null,
@@ -6026,6 +6026,13 @@ function _mostrarStatusSync(msg, tipo) {
 // SYNC COMPLETO — carrega todos os dados do banco relacional
 // ══════════════════════════════════════════════════════════════════════════════
 async function _sincronizarAoLogin() {
+  // Limpar estado local para evitar duplicatas ao recarregar
+  animais.length=0; coberturas2.length=0; eventosEsp.length=0;
+  estoque.length=0; movimentos.length=0; lancamentos.length=0; pendencias.length=0;
+  Object.keys(histVacinas).forEach(k=>delete histVacinas[k]);
+  Object.keys(histExames).forEach(k=>delete histExames[k]);
+  Object.keys(medidas).forEach(k=>delete medidas[k]);
+  Object.keys(histVermifugacoes).forEach(k=>delete histVermifugacoes[k]);
   _mostrarStatusSync('🔄 Carregando dados do banco...', 'amber');
   try {
     // 1. Animais
@@ -6202,6 +6209,7 @@ async function _sincronizarAoLogin() {
           label: PERFIS_INFO[u.perfil]?.label || u.perfil,
           ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10)
         }));
+        renderUsuarios();
       }
     }
 
@@ -6482,8 +6490,9 @@ async function fazerLogin() {
   }
   if(!user) {
     const err = document.getElementById('login-error');
+    err.textContent = 'Usuário ou senha incorretos. Tente novamente.';
     err.style.display='block';
-    setTimeout(()=>err.style.display='none',3000);
+    setTimeout(()=>err.style.display='none',4000);
     return;
   }
   usuarioAtual = user;
