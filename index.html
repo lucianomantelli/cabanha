@@ -2384,7 +2384,7 @@ function salvarRegistroVac() {
   _rvAnexos=[];
   closeModal('modal-reg-vac');
   renderSaude(); renderHistVac(); renderDashboard();
-  _autoSalvar();
+  {const _vi=parseInt(document.getElementById('rv-animal-idx').value); if(!isNaN(_vi)) _dbSalvarVacina(getHistVac(_vi)[getHistVac(_vi).length-1],_vi);}
 }
 
 
@@ -2499,7 +2499,7 @@ function salvarRegistroExame() {
   _exameAnexos = [];
   closeModal('modal-reg-exam');
   renderSaude(); renderHistExam(); renderDashboard();
-  _autoSalvar();
+  {const _ei=parseInt(document.getElementById('re-animal-idx').value); if(!isNaN(_ei)) _dbSalvarExame(getHistExam(_ei)[getHistExam(_ei).length-1],_ei);}
 }
 
 
@@ -2560,6 +2560,7 @@ function salvarMedida() {
     obs:      document.getElementById('rm-obs').value,
   };
   getMedidas(idx).push(reg);
+  _dbSalvarMedida(reg, idx);
   if(window._medProjTipo && window._medProjTipo.animalIdx===idx) {
     const t = window._medProjTipo.tipo;
     if(!nutProj[idx]) nutProj[idx]=nutVazio();
@@ -3653,6 +3654,7 @@ function salvarLancamento(){
     desc,valor:Number(val),data:document.getElementById('lan-data').value,
     animal:document.getElementById('lan-animal').value
   });
+  _dbSalvarLancamento(lancamentos[lancamentos.length-1], lancamentos.length-1);
   closeModal('modal-lanc');renderFinanceiro();
 }
 
@@ -5195,6 +5197,7 @@ function salvarCoberturaGest() {
     obs:      document.getElementById('cg-obs').value,
   };
   if(idx>=0) coberturas2[idx]=obj; else coberturas2.push(obj);
+  _dbSalvarCobertura(obj, coberturas2.length-1);
   window._padrilloExtra = null;
   closeModal('modal-cobertura-gest');
   renderGestacao(); renderGestAgenda();
@@ -5376,7 +5379,7 @@ function salvarItemEstoque(){
   const nome=document.getElementById('ei-nome').value.trim();if(!nome)return alert('Nome obrigatório.');
   const idx=parseInt(document.getElementById('ei-edit-idx').value||'-1');
   const obj={nome,cat:document.getElementById('ei-cat').value,marca:document.getElementById('ei-marca').value,unidade:document.getElementById('ei-unidade').value,atual:parseFloat(document.getElementById('ei-atual').value||0),minimo:parseFloat(document.getElementById('ei-minimo').value||0),custo:parseFloat(document.getElementById('ei-custo').value||0),local:document.getElementById('ei-local').value,obs:document.getElementById('ei-obs').value};
-  if(idx>=0)estoque[idx]=obj;else estoque.push(obj);
+  if(idx>=0){estoque[idx]=obj;_dbSalvarItemEstoque(obj,idx);}else{estoque.push(obj);_dbSalvarItemEstoque(obj,estoque.length-1);}
   closeModal('modal-estoque-item');renderEstoque();
 }
 
@@ -5410,6 +5413,8 @@ function salvarMovimento(){
   if(tipo==='entrada')estoque[itemIdx].atual+=qty;
   else if(tipo==='saida')estoque[itemIdx].atual=Math.max(0,Number(estoque[itemIdx].atual)-qty);
   else estoque[itemIdx].atual=qty;
+  _dbSalvarMovimento(mv);
+  _dbSalvarItemEstoque(estoque[itemIdx],itemIdx);
   closeModal('modal-movimento');renderEstoque();renderMovimentos();
 }
 
@@ -5426,21 +5431,7 @@ function _montarDados(){
   return {versao:11,dataExportacao:new Date().toISOString(),animais,nutProj,coberturas2,eventosEsp,estoque,movimentos,lancamentos,pendencias,histVacinas,histExames,medidas,histVermifugacoes,registrosAIE,nutTemplatesCustom,usuarios_v2:USUARIOS};
 }
 
-async function salvarDados(){
-  const dados = _montarDados();
-  // 1. Salvar na nuvem (Supabase) se configurado
-  const salvouNuvem = await _salvarNuvem(dados);
-  // 2. Sempre oferecer download local como backup
-  const blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url;
-  a.download=`CabanhaMaeDeDeus_${new Date().toISOString().slice(0,10)}.json`;
-  a.click(); URL.revokeObjectURL(url);
-  const badge=document.getElementById('save-badge');
-  if(badge){badge.classList.add('show');setTimeout(()=>badge.classList.remove('show'),2500);}
-  if(salvouNuvem) _mostrarStatusSync('✅ Salvo na nuvem + arquivo baixado', 'green');
-  else _mostrarStatusSync('📥 Arquivo baixado (nuvem indisponível)', 'amber');
-}
+
 
 // Auto-salvar na nuvem silenciosamente (sem download)
 async function _autoSalvar(){
@@ -5931,8 +5922,474 @@ function salvarTrocarSenha() {
 }
 
 
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// CONFIGURAÇÃO SUPABASE — preencha após criar seu projeto em supabase.com
+// SUPABASE — BANCO DE DADOS RELACIONAL
+// Projeto: fmjfvfufkqswweyasjyp | Cabanha Mãe de Deus
+// ═══════════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://fmjfvfufkqswweyasjyp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtamZ2ZnVma3Fzd3dleWFzanlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTA1NzAsImV4cCI6MjA5MDQ2NjU3MH0.wKwB51Ug80T8cYML9Dh8GcbXc5pRxMQKrdK7Y49f7AU';
+
+// ── Helper base ───────────────────────────────────────────────────────────────
+async function _supa(method, table, body=null, query='') {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
+    method,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': method==='POST' ? 'return=representation' : 'return=minimal'
+    },
+    body: body ? JSON.stringify(body) : null
+  });
+  if(!r.ok) { const e=await r.text(); console.error('Supabase error',r.status,e); return null; }
+  if(method==='GET' || method==='POST') { try{ return await r.json(); }catch(e){ return []; } }
+  return true;
+}
+
+// ── Audit log manual (para login/logout) ──────────────────────────────────────
+async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
+  await _supa('POST', 'audit_log', {
+    tabela, registro_id: String(registroId), acao,
+    usuario_id: usuarioAtual?.db_id || null,
+    usuario_nome: usuarioAtual?.nome || null,
+    dados_depois: dadosDepois
+  });
+}
+
+// ── STATUS SYNC ───────────────────────────────────────────────────────────────
+function _mostrarStatusSync(msg, tipo) {
+  const el = document.getElementById('sync-status');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = tipo==='green'?'var(--green-l)':tipo==='red'?'var(--red-l)':'var(--amber-l)';
+  el.style.color = tipo==='green'?'var(--green-d)':tipo==='red'?'var(--red-d)':'var(--amber-d)';
+  setTimeout(()=>el.style.display='none', 4000);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SYNC COMPLETO — carrega todos os dados do banco relacional
+// ══════════════════════════════════════════════════════════════════════════════
+async function _sincronizarAoLogin() {
+  _mostrarStatusSync('🔄 Carregando dados do banco...', 'amber');
+  try {
+    // 1. Animais
+    const dbAnimais = await _supa('GET','animais','',
+      '?select=*&ativo=eq.true&order=nome');
+    if(dbAnimais) {
+      animais.length = 0;
+      dbAnimais.forEach(a => animais.push({
+        db_id: a.id, rp: a.rp||'', sbb: a.sbb||'', nome: a.nome,
+        ciclo: a.ciclo||'', nasc: a.nasc||'', mae: a.mae||'', pai: a.pai||'',
+        situacao: a.situacao||'NA CABANHA', estagio: a.estagio||'',
+        obs: a.obs||'', sexo: a.sexo||'', pelagem: a.pelagem||'',
+        ult_vac: '', prox_vac: a.prox_vac||'', ult_verm:'', val_exame: a.val_exame||'',
+        ativo: a.ativo
+      }));
+    }
+
+    // 2. Vacinações por animal
+    const dbVac = await _supa('GET','vacinacoes','','?select=*&order=data.desc');
+    if(dbVac) {
+      Object.keys(histVacinas).forEach(k => delete histVacinas[k]);
+      dbVac.forEach(v => {
+        const idx = animais.findIndex(a => a.db_id === v.animal_id);
+        if(idx < 0) return;
+        if(!histVacinas[idx]) histVacinas[idx] = [];
+        histVacinas[idx].push({
+          db_id: v.id, data: v.data, prox: v.prox_data||'',
+          vacina: v.vacina, vet: v.vet, dose: v.dose||'',
+          obs: v.obs||'', isAIE: v.is_aie,
+          aieResultado: v.aie_resultado, aieNum: v.aie_num, aieLab: v.aie_lab,
+          laudo: v.laudo_url||null
+        });
+      });
+    }
+
+    // 3. Exames
+    const dbExam = await _supa('GET','exames','','?select=*&order=data.desc');
+    if(dbExam) {
+      Object.keys(histExames).forEach(k => delete histExames[k]);
+      dbExam.forEach(e => {
+        const idx = animais.findIndex(a => a.db_id === e.animal_id);
+        if(idx < 0) return;
+        if(!histExames[idx]) histExames[idx] = [];
+        histExames[idx].push({
+          db_id: e.id, data: e.data, tipo: e.tipo,
+          vet: e.vet||'', numLaudo: e.num_laudo||'',
+          resultado: e.resultado, validade: e.validade||'',
+          motivo: e.motivo||'', obs: e.obs||'',
+          laudo: e.laudo_url||null
+        });
+      });
+    }
+
+    // 4. Vermifugações
+    const dbVerm = await _supa('GET','vermifugacoes','','?select=*&order=data.desc');
+    if(dbVerm) {
+      Object.keys(histVermifugacoes).forEach(k => delete histVermifugacoes[k]);
+      dbVerm.forEach(v => {
+        const idx = animais.findIndex(a => a.db_id === v.animal_id);
+        if(idx < 0) return;
+        if(!histVermifugacoes[idx]) histVermifugacoes[idx] = [];
+        histVermifugacoes[idx].push({
+          db_id: v.id, data: v.data, produto: v.produto,
+          via: v.via||'', dose: v.dose||'', resp: v.resp||'',
+          prox: v.prox_data||'', obs: v.obs||''
+        });
+      });
+    }
+
+    // 5. Coberturas
+    const dbCob = await _supa('GET','coberturas','','?select=*&order=data.desc');
+    if(dbCob) {
+      coberturas2.length = 0;
+      dbCob.forEach(c => coberturas2.push({
+        db_id: c.id, egua: c.egua_nome, garanhao: c.garanhao||'',
+        sbb_padrillo: c.sbb_padrillo||'', data: c.data,
+        tipo: c.tipo, resultado: c.resultado, diag: c.diag||'',
+        parto_prev: c.parto_prev||'', parto_real: c.parto_real||'',
+        cria_nome: c.cria_nome||'', cria_sexo: c.cria_sexo||'',
+        vet: c.vet||'', obs: c.obs||''
+      }));
+    }
+
+    // 6. Medidas
+    const dbMed = await _supa('GET','medidas','','?select=*&order=data.desc');
+    if(dbMed) {
+      Object.keys(medidas).forEach(k => delete medidas[k]);
+      dbMed.forEach(m => {
+        const idx = animais.findIndex(a => a.db_id === m.animal_id);
+        if(idx < 0) return;
+        if(!medidas[idx]) medidas[idx] = [];
+        medidas[idx].push({
+          db_id: m.id, data: m.data, contexto: m.contexto||'',
+          cernelha: m.cernelha||'', torax: m.torax||'',
+          canela: m.canela||'', peso: m.peso||'',
+          escore: m.escore||'', resp: m.resp||'', obs: m.obs||''
+        });
+      });
+    }
+
+    // 7. Eventos
+    const dbEvt = await _supa('GET','eventos','','?select=*,eventos_animais(*)&order=data.desc');
+    if(dbEvt) {
+      eventosEsp.length = 0;
+      dbEvt.forEach(e => {
+        const animaisEvt = (e.eventos_animais||[]).map(ea => ({
+          animal: ea.animal_nome, classe: ea.classe||'',
+          resultado: ea.resultado||'', colocacao: ea.colocacao||null,
+          pontos: ea.pontos||null, obs: ea.obs||''
+        }));
+        eventosEsp.push({
+          db_id: e.id, nome: e.nome, tipo: e.tipo, data: e.data,
+          local: e.local||'', nucleo: e.nucleo||'',
+          status: e.status, obs: e.obs||'',
+          animais: animaisEvt
+        });
+      });
+    }
+
+    // 8. Estoque
+    const dbEst = await _supa('GET','estoque_itens','','?select=*&ativo=eq.true&order=nome');
+    if(dbEst) {
+      estoque.length = 0;
+      dbEst.forEach(e => estoque.push({
+        db_id: e.id, nome: e.nome, cat: e.categoria||'',
+        marca: e.marca||'', unidade: e.unidade||'kg',
+        atual: Number(e.quantidade), minimo: Number(e.minimo),
+        custo: Number(e.custo_unit||0), local: e.local||'', obs: e.obs||''
+      }));
+    }
+
+    // 9. Movimentos de estoque
+    const dbMov = await _supa('GET','estoque_movimentos','','?select=*&order=criado_em.desc&limit=500');
+    if(dbMov) {
+      movimentos.length = 0;
+      dbMov.forEach(m => movimentos.push({
+        db_id: m.id, item: m.item_nome, tipo: m.tipo,
+        qty: Number(m.quantidade), data: m.data,
+        animal: m.animal_nome||'', obs: m.obs||''
+      }));
+    }
+
+    // 10. Lançamentos financeiros
+    const dbLanc = await _supa('GET','lancamentos','','?select=*&order=data.desc&limit=1000');
+    if(dbLanc) {
+      lancamentos.length = 0;
+      dbLanc.forEach(l => lancamentos.push({
+        db_id: l.id, tipo: l.tipo, cat: l.categoria||'',
+        desc: l.descricao, valor: Number(l.valor),
+        data: l.data, animal: l.animal_nome||'', obs: l.obs||''
+      }));
+    }
+
+    // 11. Pendências
+    const dbPend = await _supa('GET','pendencias','','?select=*&resolvida=eq.false&order=gerada_em.desc');
+    if(dbPend) {
+      pendencias.length = 0;
+      dbPend.forEach(p => pendencias.push({
+        db_id: p.id, animal: p.animal_nome||'',
+        tipo: p.tipo, nivel: p.nivel, descricao: p.descricao,
+        evento: p.evento||'', dataEvento: p.data_evento||'',
+        geradaEm: p.gerada_em, resolvida: p.resolvida
+      }));
+    }
+
+    // 12. Usuários (só adm vê todos)
+    if(usuarioAtual?.perfil === 'adm') {
+      const dbUsr = await _supa('GET','usuarios','','?select=id,login,nome,perfil,ativo,criado_em&order=nome');
+      if(dbUsr) {
+        USUARIOS.length = 0;
+        dbUsr.forEach(u => USUARIOS.push({
+          id: u.id, db_id: u.id, login: u.login, senha: '***',
+          nome: u.nome, perfil: u.perfil,
+          label: PERFIS_INFO[u.perfil]?.label || u.perfil,
+          ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10)
+        }));
+      }
+    }
+
+    // Registrar login no audit
+    await _auditLog('sessao', 'LOGIN', usuarioAtual?.id || '?',
+      {usuario: usuarioAtual?.nome, ts: new Date().toISOString()});
+
+    populaCiclos(); renderDashboard(); renderAnimais(); atualizarBadgePendencias();
+    _mostrarStatusSync('✅ Dados sincronizados', 'green');
+
+  } catch(err) {
+    console.error('Sync error:', err);
+    _mostrarStatusSync('⚠️ Erro ao sincronizar — usando dados locais', 'amber');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SALVAR ENTIDADES NO BANCO RELACIONAL
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Animais ────────────────────────────────────────────────────────────────
+async function _dbSalvarAnimal(a, idx) {
+  const payload = {
+    rp: a.rp||null, sbb: a.sbb||null, nome: a.nome,
+    ciclo: a.ciclo||null, nasc: a.nasc||null,
+    sexo: a.sexo||null, pelagem: a.pelagem||null,
+    mae: a.mae||null, pai: a.pai||null,
+    situacao: a.situacao||'NA CABANHA', estagio: a.estagio||null,
+    obs: a.obs||null, prox_vac: a.prox_vac||null,
+    val_exame: a.val_exame||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  if(a.db_id) {
+    await _supa('PATCH','animais',payload,`?id=eq.${a.db_id}`);
+  } else {
+    const res = await _supa('POST','animais',payload);
+    if(res?.[0]?.id) animais[idx].db_id = res[0].id;
+  }
+}
+
+// ── Vacinações ────────────────────────────────────────────────────────────
+async function _dbSalvarVacina(reg, animalIdx) {
+  const a = animais[animalIdx];
+  if(!a?.db_id) return;
+  const payload = {
+    animal_id: a.db_id,
+    data: reg.data, vacina: reg.vacina, vet: reg.vet,
+    dose: reg.dose||null, prox_data: reg.prox||null,
+    is_aie: reg.isAIE||false,
+    aie_resultado: reg.aieResultado||null,
+    aie_num: reg.aieNum||null, aie_lab: reg.aieLab||null,
+    obs: reg.obs||null,
+    laudo_url: reg.laudo?.url||reg.laudo||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  if(reg.db_id) {
+    await _supa('PATCH','vacinacoes',payload,`?id=eq.${reg.db_id}`);
+  } else {
+    const res = await _supa('POST','vacinacoes',payload);
+    if(res?.[0]?.id) reg.db_id = res[0].id;
+    // Atualizar prox_vac no animal
+    if(reg.prox) await _supa('PATCH','animais',{prox_vac:reg.prox},`?id=eq.${a.db_id}`);
+  }
+}
+
+// ── Exames ─────────────────────────────────────────────────────────────────
+async function _dbSalvarExame(reg, animalIdx) {
+  const a = animais[animalIdx];
+  if(!a?.db_id) return;
+  const payload = {
+    animal_id: a.db_id,
+    data: reg.data, tipo: reg.tipo||'AIE',
+    vet: reg.vet||null, num_laudo: reg.numLaudo||null,
+    resultado: reg.resultado||'PENDENTE',
+    validade: reg.validade||null, motivo: reg.motivo||null,
+    obs: reg.obs||null,
+    laudo_url: reg.laudo?.url||reg.laudo||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  if(reg.db_id) {
+    await _supa('PATCH','exames',payload,`?id=eq.${reg.db_id}`);
+  } else {
+    const res = await _supa('POST','exames',payload);
+    if(res?.[0]?.id) reg.db_id = res[0].id;
+    if(reg.validade) await _supa('PATCH','animais',{val_exame:reg.validade},`?id=eq.${a.db_id}`);
+  }
+}
+
+// ── Vermifugação ───────────────────────────────────────────────────────────
+async function _dbSalvarVermifugacao(reg, animalIdx) {
+  const a = animais[animalIdx];
+  if(!a?.db_id) return;
+  const payload = {
+    animal_id: a.db_id,
+    data: reg.data, produto: reg.produto,
+    via: reg.via||null, dose: reg.dose||null,
+    resp: reg.resp||null, prox_data: reg.prox||null,
+    obs: reg.obs||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  const res = await _supa('POST','vermifugacoes',payload);
+  if(res?.[0]?.id) reg.db_id = res[0].id;
+}
+
+// ── Coberturas ─────────────────────────────────────────────────────────────
+async function _dbSalvarCobertura(cob, idx) {
+  const eguaAnimal = animais.find(a => a.nome === cob.egua);
+  const payload = {
+    egua_id: eguaAnimal?.db_id || null,
+    egua_nome: cob.egua, garanhao: cob.garanhao||null,
+    sbb_padrillo: cob.sbb_padrillo||null, data: cob.data,
+    tipo: cob.tipo||'Natural', resultado: cob.resultado||'Aguardando',
+    diag: cob.diag||null, parto_prev: cob.parto_prev||null,
+    parto_real: cob.parto_real||null,
+    cria_nome: cob.cria_nome||null, cria_sexo: cob.cria_sexo||null,
+    vet: cob.vet||null, obs: cob.obs||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  if(cob.db_id) {
+    await _supa('PATCH','coberturas',payload,`?id=eq.${cob.db_id}`);
+  } else {
+    const res = await _supa('POST','coberturas',payload);
+    if(res?.[0]?.id) coberturas2[idx].db_id = res[0].id;
+  }
+}
+
+// ── Medidas ────────────────────────────────────────────────────────────────
+async function _dbSalvarMedida(reg, animalIdx) {
+  const a = animais[animalIdx];
+  if(!a?.db_id) return;
+  const payload = {
+    animal_id: a.db_id, data: reg.data, contexto: reg.contexto||null,
+    cernelha: reg.cernelha||null, torax: reg.torax||null,
+    canela: reg.canela||null, peso: reg.peso||null,
+    escore: reg.escore||null, resp: reg.resp||null, obs: reg.obs||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  const res = await _supa('POST','medidas',payload);
+  if(res?.[0]?.id) reg.db_id = res[0].id;
+}
+
+// ── Lançamento Financeiro ─────────────────────────────────────────────────
+async function _dbSalvarLancamento(lanc, idx) {
+  const payload = {
+    tipo: lanc.tipo, categoria: lanc.cat||null,
+    descricao: lanc.desc, valor: lanc.valor,
+    data: lanc.data, animal_nome: lanc.animal||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  const res = await _supa('POST','lancamentos',payload);
+  if(res?.[0]?.id) lancamentos[idx].db_id = res[0].id;
+}
+
+// ── Estoque ────────────────────────────────────────────────────────────────
+async function _dbSalvarItemEstoque(item, idx) {
+  const payload = {
+    nome: item.nome, categoria: item.cat||null,
+    marca: item.marca||null, unidade: item.unidade||'kg',
+    quantidade: item.atual||0, minimo: item.minimo||0,
+    custo_unit: item.custo||null, local: item.local||null, obs: item.obs||null
+  };
+  if(item.db_id) {
+    await _supa('PATCH','estoque_itens',payload,`?id=eq.${item.db_id}`);
+  } else {
+    const res = await _supa('POST','estoque_itens',payload);
+    if(res?.[0]?.id) estoque[idx].db_id = res[0].id;
+  }
+}
+
+async function _dbSalvarMovimento(mv) {
+  const item = estoque.find(e => e.nome === mv.item);
+  const payload = {
+    item_id: item?.db_id || null, item_nome: mv.item,
+    tipo: mv.tipo, quantidade: mv.qty,
+    saldo_apos: item?.atual || null,
+    data: mv.data||new Date().toISOString().slice(0,10),
+    animal_nome: mv.animal||null, obs: mv.obs||null,
+    criado_por: usuarioAtual?.db_id || null
+  };
+  await _supa('POST','estoque_movimentos',payload);
+}
+
+// ── Pendências ─────────────────────────────────────────────────────────────
+async function _dbSalvarPendencia(pend) {
+  const animal = animais.find(a => a.nome === pend.animal);
+  const payload = {
+    animal_id: animal?.db_id || null,
+    animal_nome: pend.animal||null,
+    tipo: pend.tipo, nivel: pend.nivel||'media',
+    descricao: pend.descricao, evento: pend.evento||null,
+    data_evento: pend.dataEvento||null
+  };
+  await _supa('POST','pendencias',payload);
+}
+
+async function _dbResolverPendencia(pend) {
+  if(!pend.db_id) return;
+  await _supa('PATCH','pendencias',
+    {resolvida: true, resolvida_em: new Date().toISOString(),
+     resolvida_por: usuarioAtual?.db_id || null},
+    `?id=eq.${pend.db_id}`
+  );
+}
+
+// ── Usuários ───────────────────────────────────────────────────────────────
+async function _dbSalvarUsuario(u, isNovo) {
+  const payload = {
+    login: u.login, senha_hash: u.senha,
+    nome: u.nome, perfil: u.perfil, ativo: u.ativo !== false
+  };
+  if(!isNovo && u.db_id) {
+    await _supa('PATCH','usuarios',payload,`?id=eq.${u.db_id}`);
+  } else {
+    const res = await _supa('POST','usuarios',payload);
+    if(res?.[0]?.id) u.db_id = res[0].id;
+  }
+}
+
+// ── Salvar dados (botão sidebar) ───────────────────────────────────────────
+async function salvarDados() {
+  _mostrarStatusSync('💾 Salvando...', 'amber');
+  // Download local como backup
+  const dados = {versao:11, dataExportacao:new Date().toISOString(),
+    animais, nutProj, coberturas2, eventosEsp, estoque, movimentos,
+    lancamentos, pendencias, histVacinas, histExames, medidas,
+    histVermifugacoes, registrosAIE, nutTemplatesCustom, usuarios_v2:USUARIOS};
+  const blob = new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url;
+  a.download = `CabanhaMaeDeDeus_${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  const badge = document.getElementById('save-badge');
+  if(badge){badge.classList.add('show');setTimeout(()=>badge.classList.remove('show'),2500);}
+  _mostrarStatusSync('✅ Backup local baixado', 'green');
+}
+
+// ── Verificar login no banco ───────────────────────────────────────────────
+async function _verificarLoginBanco(login, senha) {
+  const res = await _supa('GET','usuarios','',
+    `?login=eq.${encodeURIComponent(login)}&senha_hash=eq.${encodeURIComponent(senha)}&ativo=eq.true&select=id,login,nome,perfil,ativo`);
+  return res?.[0] || null;
+}
 // ═══════════════════════════════════════════════════════════════════════════════
 const SUPABASE_URL = '%%SUPABASE_URL%%';   // ex: https://xyzxyz.supabase.co
 const SUPABASE_KEY = '%%SUPABASE_KEY%%';   // chave anon/public do projeto
@@ -5979,28 +6436,9 @@ async function _carregarNuvem() {
   } catch(e) { console.warn('Supabase load error:', e.message); return null; }
 }
 
-function _mostrarStatusSync(msg, tipo) {
-  const el = document.getElementById('sync-status');
-  if(!el) return;
-  el.textContent = msg;
-  el.style.display = 'block';
-  el.style.background = tipo==='green'?'var(--green-l)':tipo==='red'?'var(--red-l)':'var(--amber-l)';
-  el.style.color = tipo==='green'?'var(--green-d)':tipo==='red'?'var(--red-d)':'var(--amber-d)';
-  setTimeout(()=>el.style.display='none', 4000);
-}
 
-async function _sincronizarAoLogin() {
-  if(!_SUPABASE_OK()) return;
-  _mostrarStatusSync('🔄 Sincronizando com a nuvem...', 'amber');
-  const dadosNuvem = await _carregarNuvem();
-  if(!dadosNuvem) {
-    _mostrarStatusSync('☁️ Sem dados na nuvem ainda — use "Salvar dados" para enviar', 'amber');
-    return;
-  }
-  // Aplicar dados da nuvem (mesma lógica do carregarDados)
-  _aplicarDados(dadosNuvem);
-  _mostrarStatusSync('✅ Sincronizado com a nuvem', 'green');
-}
+
+async 
 
 function _aplicarDados(dados) {
   if(dados.animais){animais.length=0;dados.animais.forEach(a=>animais.push(a));}
@@ -6042,10 +6480,20 @@ const PERMISSOES = {
 
 let usuarioAtual = null;
 
-function fazerLogin() {
+async function fazerLogin() {
   const login = document.getElementById('login-user').value.trim();
   const senha = document.getElementById('login-senha').value;
-  const user  = USUARIOS.find(u=>u.login===login && u.senha===senha);
+  let user = null;
+  try {
+    const dbUser = await _verificarLoginBanco(login, senha);
+    if(dbUser) {
+      user = { id: dbUser.id, db_id: dbUser.id, login: dbUser.login,
+               senha: senha, nome: dbUser.nome, perfil: dbUser.perfil,
+               label: PERFIS_INFO[dbUser.perfil]?.label || dbUser.perfil,
+               ativo: dbUser.ativo };
+    }
+  } catch(e) { /* offline: fallback para cache local */ }
+  if(!user) user = USUARIOS.find(u=>u.login===login && u.senha===senha);
   if(user && user.ativo===false) {
     const err = document.getElementById('login-error');
     err.textContent='Usuário suspenso. Contate o administrador.';
