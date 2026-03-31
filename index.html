@@ -50,8 +50,7 @@
   }
   .logo { margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 0.5px solid var(--border); }
   .logo-icon { font-size: 24px; margin-bottom: 4px; }
-  .logo img { max-width:160px; mix-blend-mode:lighten; }
-  .sidebar .logo img { mix-blend-mode:screen; filter:brightness(1.1); }
+  .logo img { max-width:160px; mix-blend-mode:screen; filter:brightness(1.1); }
   .logo-title { font-size: 14px; font-weight: 600; color: var(--text); }
   .logo-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
   .logo-badge { display:inline-block; background: var(--green-l); color: var(--green-d); font-size:10px; padding:2px 8px; border-radius:99px; margin-top:5px; font-weight:500; }
@@ -363,7 +362,7 @@
       <input type="password" id="login-senha" placeholder="Sua senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
     </div>
     <button class="login-btn" onclick="fazerLogin()">Entrar</button>
-    <div class="login-error" id="login-error">Usuário ou senha incorretos.</div>
+    <div class="login-error" id="login-error" style="display:none"></div>
   </div>
 </div>
 
@@ -6252,11 +6251,13 @@ async function _sincronizarAoLogin() {
 
     // 12. Usuários (só adm vê todos)
     if(usuarioAtual?.perfil === 'adm') {
-      const dbUsr = await _supa('GET','usuarios','','?select=id,login,nome,perfil,ativo,criado_em&order=nome');
+      const dbUsr = await _supa('GET','usuarios','','?select=id,login,senha_hash,nome,perfil,ativo,criado_em&order=nome');
       if(dbUsr) {
         USUARIOS.length = 0;
         dbUsr.forEach(u => USUARIOS.push({
-          id: u.id, db_id: u.id, login: u.login, senha: '***',
+          id: u.id, db_id: u.id, login: u.login,
+          // Preservar senha_hash para fallback offline (não exibir na tela)
+          senha: u.senha_hash || '***',
           nome: u.nome, perfil: u.perfil,
           label: PERFIS_INFO[u.perfil]?.label || u.perfil,
           ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10)
@@ -6524,27 +6525,46 @@ let usuarioAtual = null;
 async function fazerLogin() {
   const login = document.getElementById('login-user').value.trim();
   const senha = document.getElementById('login-senha').value;
+  if(!login || !senha) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Informe login e senha.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 3000);
+    return;
+  }
+  // Desabilitar botão e mostrar loading
+  const btn = document.querySelector('.login-btn');
+  if(btn) { btn.disabled=true; btn.textContent='Entrando...'; }
   let user = null;
+  let onlineOk = false;
   try {
     const dbUser = await _verificarLoginBanco(login, senha);
+    onlineOk = true;
     if(dbUser) {
       user = { id: dbUser.id, db_id: dbUser.id, login: dbUser.login,
                senha: senha, nome: dbUser.nome, perfil: dbUser.perfil,
                label: PERFIS_INFO[dbUser.perfil]?.label || dbUser.perfil,
                ativo: dbUser.ativo };
     }
-  } catch(e) { /* offline: fallback para cache local */ }
-  if(!user) user = USUARIOS.find(u=>u.login===login && u.senha===senha);
+  } catch(e) {
+    // Sem internet — fallback para usuários locais com senha real
+    user = USUARIOS.find(u => u.login===login && u.senha===senha && u.senha!=='***');
+  }
+  // Se banco está online mas não encontrou → senha errada (não tentar local)
+  // Se banco offline → já tentou local acima
+  if(btn) { btn.disabled=false; btn.textContent='Entrar'; }
   if(user && user.ativo===false) {
     const err = document.getElementById('login-error');
-    err.textContent='Usuário suspenso. Contate o administrador.';
-    err.style.display='block'; return;
+    err.textContent = 'Usuário suspenso. Contate o administrador.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 4000);
+    return;
   }
   if(!user) {
     const err = document.getElementById('login-error');
     err.textContent = 'Usuário ou senha incorretos. Tente novamente.';
-    err.style.display='block';
-    setTimeout(()=>err.style.display='none',4000);
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 4000);
     return;
   }
   usuarioAtual = user;
