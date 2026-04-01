@@ -5820,7 +5820,8 @@ function dashClick(tipo){ dashDrill(tipo); }
 
 
 
-// ─── GESTÃO DE USUÁRIOS ────────────────────────────────────────────────────────
+// ─── GESTÃO DE USUÁRIOS
+let USUARIOS = []; // Array global de usuários ────────────────────────────────────────────────────────
 const PERFIS_INFO = {
   adm: { label:'Administrador', cor:'var(--green-d)', bg:'var(--green-l)',
          desc:'Acesso total ao sistema: animais, saúde, financeiro, estoque, gestação, eventos, nutrição, medidas e gestão de usuários.' },
