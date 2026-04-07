@@ -506,7 +506,7 @@
   </div>
   <div class="filter-row">
     <input style="width:210px" type="text" id="busca" placeholder="Buscar por nome ou SBB..." oninput="filtrar()">
-    <select id="f-sit" onchange="filtrar()"><option value="">Todas situações</option><option>NA CABANHA</option><option>MORTO(A)</option><option>DOADO(A)</option><option>EMPRESTIMO</option></select>
+    <select id="f-sit" onchange="filtrar()"><option value="">Todas situações</option><option value="ativo" selected>Ativos (Cabanha + Empréstimo)</option><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option></select>
     <select id="f-sexo" onchange="filtrar()"><option value="">Todos sexos</option><option>Fêmea</option><option>Macho</option></select>
     <select id="f-ciclo" onchange="filtrar()"><option value="">Ciclos</option></select>
   </div>
@@ -1887,12 +1887,16 @@ function abrirAbccc(sbb) {
 function brl(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2});}
 
 // ─── FILTROS ──────────────────────────────────────────────────────────────────
-let fB='',fS='',fSx='',fC='';
+let fB='',fS='ativo',fSx='',fC='';
 function filtrar(){fB=document.getElementById('busca').value.toLowerCase();fS=document.getElementById('f-sit').value;fSx=document.getElementById('f-sexo').value;fC=document.getElementById('f-ciclo').value;renderAnimais();}
 
 // ─── RENDER ANIMAIS ───────────────────────────────────────────────────────────
 function renderAnimais(){
-  const lista=animais.filter(a=>(a.nome.toLowerCase().includes(fB)||a.sbb.toLowerCase().includes(fB))&&(!fS||a.situacao===fS)&&(!fSx||a.sexo===fSx)&&(!fC||a.ciclo===fC));
+  const lista=animais.filter(a=>{
+    const nOk=(a.nome||'').toLowerCase().includes(fB)||(a.sbb||'').toLowerCase().includes(fB);
+    const sOk=!fS||(fS==='ativo'?isNaCabanha(a):a.situacao===fS);
+    return nOk&&sOk&&(!fSx||a.sexo===fSx)&&(!fC||a.ciclo===fC);
+  });
   document.getElementById('tbody-animais').innerHTML=lista.map((a,_)=>{
     const i=animais.indexOf(a);
     return`<tr>
@@ -1906,7 +1910,7 @@ function renderAnimais(){
       <td>
         <select style="font-size:11px;padding:2px 4px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-family:var(--font);cursor:pointer"
           onchange="alterarSituacao(${i},this.value)">
-          ${['NA CABANHA','EMPRESTIMO','DOADO(A)','MORTO(A)'].map(s=>`<option value="${s}"${a.situacao===s?' selected':''}>${s}</option>`).join('')}
+          ${[{v:'NA CABANHA',l:'Na Cabanha'},{v:'EMPRESTIMO',l:'Empréstimo'},{v:'VENDIDO',l:'Vendido(a)'},{v:'TRANSFERIDO',l:'Transferido/Doado'},{v:'MORTO',l:'Morto(a)'}].map(o=>`<option value="${o.v}"${a.situacao===o.v?' selected':''}>${o.l}</option>`).join('')}
         </select>
       </td>
       <td>
@@ -3717,8 +3721,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelect
 
 // ─── NUTRIÇÃO ──────────────────────────────────────────────────────────────────
 
-const MORTOS = ['MORTO(A)','MORTO','TRANSFERIDO','DOADO(A)','VENDIDO','VENDIDO(A)'];
-const INATIVOS = ['MORTO(A)','MORTO','TRANSFERIDO','DOADO(A)','VENDIDO','VENDIDO(A)'];
+const MORTOS = ['MORTO','TRANSFERIDO','VENDIDO','MORTO(A)','DOADO(A)','VENDIDO(A)'];
+const INATIVOS = ['MORTO','TRANSFERIDO','VENDIDO','MORTO(A)','DOADO(A)','VENDIDO(A)'];
 function isAtivo(a) { return !INATIVOS.includes(a.situacao); }
 function isNaCabanha(a) { return a.situacao==='NA CABANHA'||a.situacao==='EMPRESTIMO'; }
 
@@ -5820,8 +5824,8 @@ function dashClick(tipo){ dashDrill(tipo); }
 
 
 
-// ─── GESTÃO DE USUÁRIOS
-let USUARIOS = []; // Array global de usuários ────────────────────────────────────────────────────────
+// ─── GESTÃO DE USUÁRIOS ────────────────────────────────────────────────────────
+let USUARIOS = []; // Array global de usuários — populado pelo sync do banco
 const PERFIS_INFO = {
   adm: { label:'Administrador', cor:'var(--green-d)', bg:'var(--green-l)',
          desc:'Acesso total ao sistema: animais, saúde, financeiro, estoque, gestação, eventos, nutrição, medidas e gestão de usuários.' },
@@ -6095,7 +6099,7 @@ async function _sincronizarAoLogin() {
       dbAnimais.forEach(a => animais.push({
         db_id: a.id, rp: a.rp||'', sbb: a.sbb||'', nome: a.nome,
         ciclo: a.ciclo||'', nasc: a.nasc||'', mae: a.mae||'', pai: a.pai||'',
-        situacao: a.situacao||'NA CABANHA', estagio: a.estagio||'',
+        situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||'',
         obs: a.obs||'', sexo: a.sexo||'', pelagem: a.pelagem||'',
         ult_vac: '', prox_vac: a.prox_vac||'', ult_verm:'', val_exame: a.val_exame||'',
         ativo: a.ativo
@@ -6292,7 +6296,7 @@ async function _dbSalvarAnimal(a, idx) {
     ciclo: a.ciclo||null, nasc: a.nasc||null,
     sexo: a.sexo||null, pelagem: a.pelagem||null,
     mae: a.mae||null, pai: a.pai||null,
-    situacao: a.situacao||'NA CABANHA', estagio: a.estagio||null,
+    situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||null,
     obs: a.obs||null, prox_vac: a.prox_vac||null,
     val_exame: a.val_exame||null,
     criado_por: usuarioAtual?.db_id || null
@@ -6526,37 +6530,64 @@ let usuarioAtual = null;
 async function fazerLogin() {
   const login = document.getElementById('login-user').value.trim();
   const senha = document.getElementById('login-senha').value;
-  const errEl = document.getElementById('login-error');
-  const showErr = (msg) => { errEl.textContent=msg; errEl.style.display='block'; setTimeout(()=>errEl.style.display='none',4000); };
-  if(!login || !senha) { showErr('Informe login e senha.'); return; }
+  if(!login || !senha) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Informe login e senha.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 3000);
+    return;
+  }
+  // Desabilitar botão e mostrar loading
   const btn = document.querySelector('.login-btn');
-  if(btn){btn.disabled=true; btn.textContent='Verificando...';}
+  if(btn) { btn.disabled=true; btn.textContent='Entrando...'; }
   let user = null;
+  let onlineOk = false;
   try {
     const dbUser = await _verificarLoginBanco(login, senha);
+    onlineOk = true;
     if(dbUser) {
-      user = { id:dbUser.id, db_id:dbUser.id, login:dbUser.login, senha:senha,
-               nome:dbUser.nome, perfil:dbUser.perfil, ativo:dbUser.ativo,
-               label: PERFIS_INFO[dbUser.perfil]?.label||dbUser.perfil };
+      user = { id: dbUser.id, db_id: dbUser.id, login: dbUser.login,
+               senha: senha, nome: dbUser.nome, perfil: dbUser.perfil,
+               label: PERFIS_INFO[dbUser.perfil]?.label || dbUser.perfil,
+               ativo: dbUser.ativo };
     }
   } catch(e) {
-    // Offline: tentar cache local com senha real
-    user = USUARIOS.find(u=>u.login===login && u.senha===senha && u.senha!=='***');
+    // Sem internet — fallback para usuários locais com senha real
+    user = USUARIOS.find(u => u.login===login && u.senha===senha && u.senha!=='***');
   }
-  if(btn){btn.disabled=false; btn.textContent='Entrar';}
-  if(!user){ showErr('Usuário ou senha incorretos. Tente novamente.'); return; }
-  if(user.ativo===false){ showErr('Usuário suspenso. Contate o administrador.'); return; }
+  // Se banco está online mas não encontrou → senha errada (não tentar local)
+  // Se banco offline → já tentou local acima
+  if(btn) { btn.disabled=false; btn.textContent='Entrar'; }
+  if(user && user.ativo===false) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Usuário suspenso. Contate o administrador.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 4000);
+    return;
+  }
+  if(!user) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Usuário ou senha incorretos. Tente novamente.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 4000);
+    return;
+  }
   usuarioAtual = user;
   document.getElementById('login-screen').style.display='none';
-  const badge=document.getElementById('sidebar-perfil-badge');
-  const uname=document.getElementById('sidebar-username');
+  // Atualizar sidebar
+  const badge = document.getElementById('sidebar-perfil-badge');
+  const uname = document.getElementById('sidebar-username');
   if(badge) badge.innerHTML=`<span class="perfil-badge perfil-${user.perfil}">${user.label}</span>`;
   if(uname) uname.textContent=user.nome;
+  // Aplicar restrições de menu
   _aplicarPermissoes();
   populaCiclos();
   renderDashboard();
   atualizarBadgePendencias();
-  _sincronizarAoLogin().then(()=>{ populaCiclos(); renderDashboard(); atualizarBadgePendencias(); });
+  // Sincronizar com Supabase ao fazer login
+  _sincronizarAoLogin().then(()=>{
+    populaCiclos(); renderDashboard(); atualizarBadgePendencias();
+  });
 }
 
 function fazerLogout() {
