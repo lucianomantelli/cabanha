@@ -6655,7 +6655,24 @@ async function _dbSalvarCobertura(cob, idx) {
     egua_id: eguaAnimal?.db_id || null,
     egua_nome: cob.egua, garanhao: cob.garanhao||null,
     sbb_padrillo: cob.sbb_padrillo||null, data: cob.data,
-    tipo: cob.tipo||'Natural', resultado: cob.resultado||'Aguardando',
+    tipo: (()=>{
+      const m={
+        'IA (Inseminação Artificial)':'IA',
+        'IATF (IA Tempo Fixo)':'IATF',
+        'TE (Transferência de Embrião)':'TE',
+        'PIV (Produção in vitro)':'PIV',
+      };
+      return m[cob.tipo]||cob.tipo||'Natural';
+    })(),
+    resultado: (()=>{
+      const m={
+        'Abortou':'Aborto',
+        'Aguardando diagnóstico':'Aguardando',
+        'Prenha ✓':'Prenha',
+        'Vazia ✗':'Vazia',
+      };
+      return m[cob.resultado]||cob.resultado||'Aguardando';
+    })(),
     diag: cob.diag||null, parto_prev: cob.parto_prev||null,
     parto_real: cob.parto_real||null,
     cria_nome: cob.cria_nome||null, cria_sexo: cob.cria_sexo||null,
