@@ -1632,7 +1632,7 @@
       <div class="form-group" style="grid-column:1/-1">
         <label>SBB do padrillo (busca na ABCCC)</label>
         <div style="display:flex;gap:6px;align-items:center">
-          <input type="text" id="cg-sbb-padrillo" placeholder="Ex: B512814" style="width:140px;font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          <input type="text" id="cg-sbb-padrillo" placeholder="Ex: B512814" style="width:140px;font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onblur="if(this.value.trim().length>=4)buscarPadrilloSBB()">
           <button class="btn btn-sm" onclick="buscarPadrilloSBB()" id="btn-buscar-sbb">🔍 Buscar na ABCCC</button>
           <span id="cg-sbb-status" style="font-size:11px;color:var(--text2)"></span>
         </div>
@@ -5341,18 +5341,16 @@ function toggleCampoPadrillo() {
 }
 
 // Busca SBB na ABCCC — abre página em nova aba e preenche dados manualmente via formulário
-function buscarPadrilloSBB() {
-  const sbb = document.getElementById('cg-sbb-padrillo').value.trim().toUpperCase();
+async function buscarPadrilloSBB() {
+  const sbb = (document.getElementById('cg-sbb-padrillo')?.value||'').trim().toUpperCase();
   if(!sbb) { alert('Digite o código SBB do padrillo.'); return; }
 
   const statusEl = document.getElementById('cg-sbb-status');
   const resultEl = document.getElementById('cg-sbb-resultado');
-  const infoEl   = document.getElementById('cg-padrillo-info');
-  const dadosEl  = document.getElementById('cg-padrillo-dados');
   const btnEl    = document.getElementById('btn-buscar-sbb');
 
-  // 1. Verificar se já temos esse SBB em animais cadastrados
-  const animalLocal = animais.find(a=>a.sbb && a.sbb.toUpperCase()===sbb);
+  // 1. Verificar se já existe na cabanha
+  const animalLocal = animais.find(a => a.sbb && a.sbb.toUpperCase() === sbb);
   if(animalLocal) {
     _preencherDadosPadrillo({
       nome: animalLocal.nome, sbb: animalLocal.sbb,
@@ -5360,44 +5358,81 @@ function buscarPadrilloSBB() {
       rp: animalLocal.rp, pai: animalLocal.pai, mae: animalLocal.mae,
       fonte: 'Cabanha Mãe de Deus (cadastrado)',
     });
+    if(statusEl){ statusEl.textContent='✅ Padrillo encontrado na cabanha.'; statusEl.style.color='var(--green-d)'; }
     return;
   }
 
-  // 2. Abrir ABCCC com SBB no GET — a página aceita ?sbb= e pré-preenche
-  const urlAbccc = `https://www.cavalocrioulo.org.br/pesquisa/pesquisas.php?sbb=${encodeURIComponent(sbb)}`;
-  statusEl.textContent = '';
-  btnEl.disabled = false;
+  // 2. Buscar na ABCCC via Edge Function
+  if(btnEl){ btnEl.disabled=true; btnEl.textContent='🔄 Buscando...'; }
+  if(statusEl){ statusEl.textContent='Consultando ABCCC...'; statusEl.style.color='var(--text2)'; }
+  if(resultEl) resultEl.style.display='none';
 
-  // Mostrar painel com link direto (com SBB na URL) + formulário de retorno
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-      <strong style="font-size:12px">SBB ${sbb}</strong>
-      <a href="${urlAbccc}" target="_blank" class="btn btn-sm" style="background:var(--blue);color:white;border-color:var(--blue)">
-        🔍 Abrir na ABCCC (SBB já preenchido)
+  let dados = null;
+  try {
+    const res = await fetch(
+      SUPABASE_URL+'/functions/v1/buscar-abccc?sbb='+encodeURIComponent(sbb),
+      { headers:{'apikey':SUPABASE_KEY}, signal:AbortSignal.timeout(15000) }
+    );
+    if(res.ok) dados = await res.json();
+  } catch(e){ console.warn('ABCCC err:',e); }
+
+  if(btnEl){ btnEl.disabled=false; btnEl.textContent='🔍 Buscar na ABCCC'; }
+
+  if(dados?.encontrado==='sim') {
+    _preencherDadosPadrillo({
+      nome:dados.nome, sbb, pelagem:dados.pelagem,
+      sexo:dados.sexo, rp:dados.rp, pai:dados.pai, mae:dados.mae,
+      fonte:'ABCCC (automático)',
+    });
+    if(statusEl){
+      const n=[dados.nome,dados.pelagem,dados.nasc].filter(Boolean).length;
+      statusEl.textContent='✅ '+n+' dado(s) importado(s) da ABCCC.';
+      statusEl.style.color='var(--green-d)';
+    }
+  } else {
+    if(statusEl){
+      statusEl.textContent = dados?.encontrado==='nao'
+        ? '⚠️ SBB '+sbb+' não encontrado. Preencha manualmente.'
+        : 'ℹ️ Serviço indisponível. Preencha manualmente.';
+      statusEl.style.color='var(--amber-d)';
+    }
+    _mostrarCamposManuaisPadrillo(sbb);
+  }
+}
+
+function _mostrarCamposManuaisPadrillo(sbb) {
+  const resultEl = document.getElementById('cg-sbb-resultado');
+  if(!resultEl) return;
+  resultEl.style.display='block';
+  resultEl.innerHTML=`
+    <div style="margin-bottom:8px;font-size:11px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <strong>SBB ${sbb}</strong>
+      <a href="https://www.cavalocrioulo.org.br/pesquisa/pesquisas.php" target="_blank"
+         class="btn btn-sm" style="background:var(--blue);color:white;border-color:var(--blue);font-size:10px">
+        🔍 Consultar na ABCCC
       </a>
-      <span style="font-size:10px;color:var(--text3)">Copie os dados e preencha abaixo</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Nome do animal</label>
-        <input type="text" id="sbb-nome-manual" placeholder="Nome completo" style="width:100%;font-size:11px;margin-top:3px"
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Nome</label>
+        <input id="sbb-nome-manual" type="text" placeholder="Nome completo" style="width:100%;font-size:11px;margin-top:3px"
           oninput="document.getElementById('cg-garanhao').value=this.value"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">RP</label>
-        <input type="text" id="sbb-rp-manual" placeholder="RP" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Pelagem</label>
-        <input type="text" id="sbb-pel-manual" placeholder="Pelagem" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Pai (nome)</label>
-        <input type="text" id="sbb-pai-manual" placeholder="Nome do pai" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Mãe (nome)</label>
-        <input type="text" id="sbb-mae-manual" placeholder="Nome da mãe" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Criador / Cabanha</label>
-        <input type="text" id="sbb-criador-manual" placeholder="Criador" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">RP</label>
+        <input id="sbb-rp-manual" type="text" placeholder="RP" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Pelagem</label>
+        <input id="sbb-pel-manual" type="text" placeholder="Pelagem" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Pai</label>
+        <input id="sbb-pai-manual" type="text" placeholder="Nome do pai" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Mãe</label>
+        <input id="sbb-mae-manual" type="text" placeholder="Nome da mãe" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Criador</label>
+        <input id="sbb-criador-manual" type="text" placeholder="Criador/Cabanha" style="width:100%;font-size:11px;margin-top:3px"></div>
     </div>
     <div style="margin-top:8px;display:flex;gap:6px">
-      <button class="btn btn-sm" style="background:var(--green-l);color:var(--green-d);border-color:var(--green)" onclick="confirmarDadosManuaisPadrillo('${sbb}')">✓ Confirmar dados</button>
-      <button class="btn btn-sm" onclick="document.getElementById('cg-sbb-resultado').style.display='none'">Cancelar</button>
+      <button class="btn btn-sm" style="background:var(--green-l);color:var(--green-d);border-color:var(--green)"
+        onclick="confirmarDadosManuaisPadrillo('${sbb}')">✓ Confirmar dados</button>
+      <button class="btn btn-sm"
+        onclick="document.getElementById('cg-sbb-resultado').style.display='none'">Cancelar</button>
     </div>`;
-  infoEl.style.display = 'none';
 }
 
 function confirmarDadosManuaisPadrillo(sbb) {
@@ -5477,8 +5512,8 @@ function salvarCoberturaGest() {
     parto_prev:document.getElementById('cg-parto-prev').value,
     obs:      document.getElementById('cg-obs').value,
   };
-  if(idx>=0) coberturas2[idx]=obj; else coberturas2.push(obj);
-  _dbSalvarCobertura(obj, coberturas2.length-1);
+  if(idx>=0) { coberturas2[idx]=obj; _dbSalvarCobertura(obj, idx); }
+  else { coberturas2.push(obj); _dbSalvarCobertura(obj, coberturas2.length-1); }
   window._padrilloExtra = null;
   closeModal('modal-cobertura-gest');
   renderGestacao(); renderGestAgenda();
