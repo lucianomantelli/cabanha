@@ -5124,8 +5124,13 @@ function salvarEventoEsp() {
     verificacaoSanitaria: pendsPrev.length > 0 ? pendsPrev : null,
   };
   const editIdx = parseInt(document.getElementById('evt-edit-idx').value);
-  if(editIdx>=0) eventosEsp[editIdx]=evt;
-  else eventosEsp.push(evt);
+  if(editIdx>=0) {
+    eventosEsp[editIdx] = evt;
+    _dbSalvarEvento(evt, editIdx);
+  } else {
+    eventosEsp.push(evt);
+    _dbSalvarEvento(evt, eventosEsp.length-1);
+  }
 
   // Gerar pendências
   gerarPendenciasEvento(nome, dataEvt);
@@ -6280,6 +6285,56 @@ async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
       dados_depois: dadosDepois
     });
   } catch(e) { /* audit_log usa triggers automáticos — silenciar erro de RLS */ }
+}
+
+
+// ─── PERSISTÊNCIA EVENTOS ────────────────────────────────────────────────────
+async function _dbSalvarEvento(evt, idx) {
+  const payload = {
+    nome:   evt.nome,
+    tipo:   evt.tipo,
+    data:   evt.data,
+    local:  evt.local  || null,
+    nucleo: evt.nucleo || null,
+    status: evt.status || 'Programado',
+    obs:    evt.obs    || null,
+    criado_por: usuarioAtual?.db_id || null,
+  };
+
+  let eventoId = evt.db_id || null;
+
+  if(eventoId) {
+    // PATCH — atualizar evento existente
+    await _supa('PATCH', 'eventos', payload, `?id=eq.${eventoId}`);
+    // Deletar participantes antigos e reinserir (mais simples que diff)
+    await _supa('DELETE', 'eventos_animais', null, `?evento_id=eq.${eventoId}`);
+  } else {
+    // POST — criar novo evento
+    const res = await _supa('POST', 'eventos', payload);
+    if(res?.[0]?.id) {
+      eventoId = res[0].id;
+      eventosEsp[idx].db_id = eventoId;
+    }
+  }
+
+  // Inserir participantes
+  const _parts = evt.participantes || evt.animais || [];
+  if(eventoId && _parts.length) {
+    const partsArr = _parts.map(p => {
+      const animal = animais.find(a => a.nome === p.animal);
+      return {
+        evento_id:   eventoId,
+        animal_id:   animal?.db_id || null,
+        animal_nome: p.animal || p.nome || '',
+        classe:      p.classe     || null,
+        resultado:   p.resultado  || null,
+        colocacao:   p.colocacao  ? parseInt(p.colocacao) : null,
+        pontos:      p.pontos     ? parseFloat(p.pontos)  : null,
+        obs:         p.obs        || null,
+      };
+    }).filter(p => p.animal_nome);
+    if(partsArr.length) await _supa('POST', 'eventos_animais', partsArr);
+  }
 }
 
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
