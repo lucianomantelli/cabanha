@@ -5580,6 +5580,7 @@ function renderGestacao(){
           <span class="badge ${triC}">${tri}</span>
           <span class="badge ${c.resultado==='Prenha'?'bg':'ba'}">${c.resultado}</span>
           <button class="btn btn-sm" onclick="editCobGest(${i})">editar</button>
+          <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="excluirCobertura(${i})" title="Excluir esta gestação">🗑</button>
         </div>
       </div>
       <div class="gest-prog"><div class="gest-prog-fill" style="width:${pct}%;background:${corB}"></div></div>
@@ -5607,7 +5608,7 @@ function renderGestacao(){
       <td style="font-size:11px;color:var(--text3)">${c.obs||'—'}</td>
       <td>
         <button class="btn btn-sm" onclick="editCobGest(${i})">editar</button>
-        <button class="btn btn-sm" style="color:var(--red-d)" onclick="if(confirm('Excluir?')){coberturas2.splice(${i},1);renderGestacao()}">×</button>
+        <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="excluirCobertura(${i})" title="Excluir">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -6335,6 +6336,25 @@ async function _dbSalvarEvento(evt, idx) {
     }).filter(p => p.animal_nome);
     if(partsArr.length) await _supa('POST', 'eventos_animais', partsArr);
   }
+}
+
+
+// ─── EXCLUSÃO DE COBERTURA/GESTAÇÃO ──────────────────────────────────────────
+async function _dbExcluirCobertura(db_id) {
+  if(!db_id) return;
+  await _supa('DELETE', 'coberturas', null, '?id=eq.' + db_id);
+}
+
+function excluirCobertura(i) {
+  const cob = coberturas2[i];
+  if(!cob) return;
+  const desc = cob.egua + (cob.data ? ' — ' + fd(cob.data) : '') + (cob.garanhao ? ' × ' + cob.garanhao : '');
+  if(!confirm('Excluir esta gestação/cobertura?\n\n' + desc + '\n\nEsta ação não pode ser desfeita.')) return;
+  coberturas2.splice(i, 1);
+  _dbExcluirCobertura(cob.db_id);
+  renderGestacao();
+  renderGestAgenda();
+  _mostrarStatusSync('🗑️ Cobertura excluída', 'green');
 }
 
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
