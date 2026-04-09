@@ -5142,6 +5142,8 @@ async function salvarEventoEsp() {
   const editIdx = parseInt(document.getElementById('evt-edit-idx').value);
   try {
     if(editIdx>=0) {
+      // Preservar o db_id do objeto existente antes de substituir
+      if(eventosEsp[editIdx]?.db_id) evt.db_id = eventosEsp[editIdx].db_id;
       eventosEsp[editIdx] = evt;
       await _dbSalvarEvento(evt, editIdx);
     } else {
