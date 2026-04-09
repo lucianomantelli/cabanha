@@ -4538,7 +4538,15 @@ function abrirModalEvento(editIdx) {
     document.getElementById('evt-nucleo').value = e.nucleo;
     document.getElementById('evt-status-esp').value = e.status;
     document.getElementById('evt-obs-geral').value = e.obs;
-    evtAnimaisTemp = JSON.parse(JSON.stringify(e.participantes||[]));
+    const rawPartic = e.participantes || e.animais || [];
+    evtAnimaisTemp = rawPartic.map(p => ({
+      nome:       p.nome || p.animal || '',
+      modalidade: p.modalidade || 'Individual',
+      resultado:  p.resultado  || '',
+      classe:     p.classe     || '',
+      pontos:     p.pontos     || '',
+      obs:        p.obs        || '',
+    }));
   } else {
     document.getElementById('evt-esp-titulo').textContent = 'Registrar evento';
     ['evt-nome','evt-local','evt-nucleo','evt-obs-geral'].forEach(id=>document.getElementById(id).value='');
@@ -4568,7 +4576,10 @@ function renderEvtAnimaisTemp() {
         <option ${p.modalidade==='Conjunto'?'selected':''}>Conjunto</option>
         <option ${p.modalidade==='Coletivo'?'selected':''}>Coletivo</option>
       </select>
-      <select style="min-width:180px;font-size:11px;padding:4px" onchange="evtAnimaisTemp[${pi}].resultado=this.value">
+      <input type="text" placeholder="Classe" value="${p.classe||''}"
+        style="width:80px;font-size:11px;padding:4px"
+        onchange="evtAnimaisTemp[${pi}].classe=this.value" title="Classe do animal">
+      <select style="min-width:150px;font-size:11px;padding:4px" onchange="evtAnimaisTemp[${pi}].resultado=this.value">
         ${gerarOpcoesClassificacao(document.getElementById('evt-tipo-esp')?.value||'', p.resultado)}
       </select>
       <button class="nut-item-edit" style="color:var(--red-d)" onclick="evtAnimaisTemp.splice(${pi},1);renderEvtAnimaisTemp();verificarTodosNaData()">×</button>
@@ -5099,7 +5110,12 @@ function confirmarResolucaoPend(i) {
   renderDashboard();
 }
 
-function salvarEventoEsp() {
+let _salvandoEvento = false;
+async function salvarEventoEsp() {
+  if(_salvandoEvento) return;
+  _salvandoEvento = true;
+  const _btnEvt = document.querySelector('#modal-evt-esp .btn-primary');
+  if(_btnEvt) { _btnEvt.disabled=true; _btnEvt.textContent='Salvando...'; }
   const nome = document.getElementById('evt-nome').value.trim();
   if(!nome) return alert('Nome do evento obrigatório.');
   const dataEvt = document.getElementById('evt-data-esp').value;
@@ -5124,12 +5140,17 @@ function salvarEventoEsp() {
     verificacaoSanitaria: pendsPrev.length > 0 ? pendsPrev : null,
   };
   const editIdx = parseInt(document.getElementById('evt-edit-idx').value);
-  if(editIdx>=0) {
-    eventosEsp[editIdx] = evt;
-    _dbSalvarEvento(evt, editIdx);
-  } else {
-    eventosEsp.push(evt);
-    _dbSalvarEvento(evt, eventosEsp.length-1);
+  try {
+    if(editIdx>=0) {
+      eventosEsp[editIdx] = evt;
+      await _dbSalvarEvento(evt, editIdx);
+    } else {
+      eventosEsp.push(evt);
+      await _dbSalvarEvento(evt, eventosEsp.length-1);
+    }
+  } finally {
+    _salvandoEvento = false;
+    if(_btnEvt) { _btnEvt.disabled=false; _btnEvt.textContent='Salvar evento'; }
   }
 
   // Gerar pendências
@@ -6291,14 +6312,15 @@ async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
 
 // ─── PERSISTÊNCIA EVENTOS ────────────────────────────────────────────────────
 async function _dbSalvarEvento(evt, idx) {
+  const _vStr = x => (x && String(x).trim() !== '') ? String(x).trim() : null;
   const payload = {
     nome:   evt.nome,
     tipo:   evt.tipo,
-    data:   evt.data,
-    local:  evt.local  || null,
-    nucleo: evt.nucleo || null,
-    status: evt.status || 'Programado',
-    obs:    evt.obs    || null,
+    data:   _vStr(evt.data),
+    local:  _vStr(evt.local),
+    nucleo: _vStr(evt.nucleo),
+    status: _vStr(evt.status) || 'Programado',
+    obs:    _vStr(evt.obs),
     criado_por: usuarioAtual?.db_id || null,
   };
 
@@ -6322,16 +6344,17 @@ async function _dbSalvarEvento(evt, idx) {
   const _parts = evt.participantes || evt.animais || [];
   if(eventoId && _parts.length) {
     const partsArr = _parts.map(p => {
-      const animal = animais.find(a => a.nome === p.animal);
+      const nomeAnimal = p.nome || p.animal || '';
+      const animal = animais.find(a => a.nome === nomeAnimal);
       return {
         evento_id:   eventoId,
         animal_id:   animal?.db_id || null,
-        animal_nome: p.animal || p.nome || '',
-        classe:      p.classe     || null,
-        resultado:   p.resultado  || null,
-        colocacao:   p.colocacao  ? parseInt(p.colocacao) : null,
-        pontos:      p.pontos     ? parseFloat(p.pontos)  : null,
-        obs:         p.obs        || null,
+        animal_nome: nomeAnimal,
+        classe:      (p.classe    && p.classe    !== '') ? p.classe    : null,
+        resultado:   (p.resultado && p.resultado !== '') ? p.resultado : null,
+        colocacao:   p.colocacao  ? parseInt(p.colocacao)  : null,
+        pontos:      p.pontos     ? parseFloat(p.pontos)   : null,
+        obs:         (p.obs       && p.obs       !== '') ? p.obs       : null,
       };
     }).filter(p => p.animal_nome);
     if(partsArr.length) await _supa('POST', 'eventos_animais', partsArr);
