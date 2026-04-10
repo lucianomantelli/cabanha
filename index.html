@@ -1016,69 +1016,49 @@
     Na primeira vez leva ~1 minuto. Nas próximas: <strong>instantâneo</strong> — só busca animais novos.
   </div>
   <div id="sangues-resultado" style="display:none">
-    <div id="sangues-meta" style="font-size:11px;color:var(--text2);margin-bottom:1rem"></div>
+    <div id="sangues-meta" style="font-size:11px;color:var(--text2);margin-bottom:1.2rem"></div>
 
-    <div class="tab-bar" style="margin-bottom:1rem">
-      <button class="tab active" onclick="switchTab(this,'stab-afixos')">🏠 Afixos</button>
-      <button class="tab" onclick="switchTab(this,'stab-pais')">👨 Pais</button>
-      <button class="tab" onclick="switchTab(this,'stab-avopat')">🔵 Avós Paternos</button>
-      <button class="tab" onclick="switchTab(this,'stab-avomat')">🔴 Avós Maternos</button>
-      <button class="tab" onclick="switchTab(this,'stab-ancestrais')">🐴 Ancestrais</button>
-      <button class="tab" onclick="switchTab(this,'stab-detalhe')">📋 Por animal</button>
-    </div>
-
-    <div id="stab-afixos">
-      <div class="two-col" style="gap:1rem">
-        <div class="card">
-          <div class="card-title">🏠 Afixos / Cabanhas mais presentes</div>
-          <div id="sangues-afixos"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">📛 Prefixos / Marcas mais frequentes</div>
-          <div id="sangues-prefixos"></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="stab-pais" style="display:none">
+    <!-- Linha 1: Pais | Avós Paternos | Avós Maternos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem">
       <div class="card">
-        <div class="card-title">👨 Principais Pais na manada
-          <span style="font-size:11px;font-weight:400;color:var(--text2)"> — garanhões que geraram mais animais da cabanha</span>
-        </div>
+        <div class="card-title" style="font-size:13px">👨 Principais Pais</div>
         <div id="sangues-pais"></div>
       </div>
-    </div>
-
-    <div id="stab-avopat" style="display:none">
       <div class="card">
-        <div class="card-title">🔵 Principais Avós Paternos
-          <span style="font-size:11px;font-weight:400;color:var(--text2)"> — pai do pai de cada animal</span>
-        </div>
+        <div class="card-title" style="font-size:13px">🔵 Avós Paternos</div>
         <div id="sangues-avopat"></div>
       </div>
-    </div>
-
-    <div id="stab-avomat" style="display:none">
       <div class="card">
-        <div class="card-title">🔴 Principais Avós Maternos
-          <span style="font-size:11px;font-weight:400;color:var(--text2)"> — pai da mãe de cada animal</span>
-        </div>
+        <div class="card-title" style="font-size:13px">🔴 Avós Maternos</div>
         <div id="sangues-avomat"></div>
       </div>
     </div>
 
-    <div id="stab-ancestrais" style="display:none">
+    <!-- Linha 2: Afixos | Ancestrais -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
       <div class="card">
-        <div class="card-title">🐴 Ancestrais mais repetidos em toda a manada</div>
+        <div class="card-title" style="font-size:13px">🏠 Afixos / Cabanhas mais presentes</div>
+        <div id="sangues-afixos"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size:13px">🐴 Ancestrais mais repetidos</div>
         <div id="sangues-ancestrais"></div>
       </div>
     </div>
 
-    <div id="stab-detalhe" style="display:none">
-      <div class="card">
-        <div class="card-title">📋 Detalhes genealógicos por animal</div>
-        <div id="sangues-detalhe"></div>
+    <!-- Linha 3: Prefixos -->
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title" style="font-size:13px">📛 Prefixos / Marcas mais frequentes</div>
+      <div id="sangues-prefixos" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 2rem"></div>
+    </div>
+
+    <!-- Detalhes por animal -->
+    <div class="card">
+      <div class="card-title" style="cursor:pointer;font-size:13px" onclick="toggleSanguesDetalhe()">
+        📋 Detalhes por animal
+        <span id="sangues-detalhe-icon" style="float:right;font-size:11px;color:var(--text2)">▼ expandir</span>
       </div>
+      <div id="sangues-detalhe" style="display:none;margin-top:8px"></div>
     </div>
   </div><div id="sangues-resultado" style="display:none">
     <div id="sangues-meta" style="font-size:11px;color:var(--text2);margin-bottom:1rem"></div>
