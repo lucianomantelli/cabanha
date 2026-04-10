@@ -247,6 +247,13 @@
     .metrics { grid-template-columns:1fr 1fr; }
     .two-col { grid-template-columns:1fr; }
   }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sangue-bar { display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border); }
+  .sangue-bar:last-child { border-bottom:none; }
+  .sangue-bar-fill { height:8px;border-radius:99px;min-width:4px;transition:width 0.4s; }
+  .sangue-bar-label { font-size:12px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+  .sangue-bar-count { font-size:11px;color:var(--text2);white-space:nowrap; }
+  .sangue-tag { display:inline-block;background:var(--bg3);border-radius:var(--radius);padding:2px 7px;font-size:10px;margin:2px; }
   /* KANBAN SAÚDE */
   .kanban-board { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; align-items:start; }
   @media(max-width:900px){ .kanban-board { grid-template-columns:1fr; } }
@@ -382,6 +389,7 @@
   <button class="nav-btn" onclick="showPage('gestacao')"><span class="nav-icon">🤰</span><span>Gestação</span></button>
   <button class="nav-btn" onclick="showPage('estoque')"><span class="nav-icon">📦</span><span>Estoque</span></button>
   <button class="nav-btn" onclick="showPage('medidas')"><span class="nav-icon">📏</span><span>Medidas</span></button>
+  <button class="nav-btn" onclick="showPage('sangues')"><span class="nav-icon">🧬</span><span>Sangues</span></button>
   <button class="nav-btn nav-btn-usuarios" id="nav-btn-usuarios" onclick="showPage('usuarios')" style="display:none"><span class="nav-icon">👤</span><span>Usuários</span></button>
   <div style="margin-top:auto;padding-top:1rem;border-top:0.5px solid var(--border)">
     <div id="sidebar-user" style="font-size:11px;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:6px">
@@ -982,6 +990,123 @@
       </select>
     </div>
     <div id="med-historico-content"></div>
+  </div>
+</div>
+
+<div class="page" id="page-sangues">
+  <div class="page-header">
+    <div><div class="page-title">🧬 Análise de Sangues</div>
+    <div class="page-sub">Sangues e afixos mais presentes na manada — 5ª geração ABCCC</div></div>
+    <button class="btn btn-primary" id="btn-analisar-sangues" onclick="iniciarAnaliseSangues(false)">🔍 Analisar manada</button>
+  </div>
+  <div id="sangues-status" style="display:none;margin-bottom:1rem">
+    <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <div id="sangues-spinner" style="width:16px;height:16px;border:2px solid var(--green);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+        <span id="sangues-status-txt" style="font-size:12px;font-weight:600">Iniciando...</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:99px;height:6px;overflow:hidden">
+        <div id="sangues-progress-bar" style="height:6px;background:var(--green);border-radius:99px;transition:width 0.3s;width:0%"></div>
+      </div>
+      <div id="sangues-progress-txt" style="font-size:11px;color:var(--text2);margin-top:4px"></div>
+    </div>
+  </div>
+  <div id="sangues-aviso" class="alert alert-b" style="margin-bottom:1rem">
+    <strong>ℹ️ Como funciona:</strong> O sistema consulta a 5ª geração de cada animal na ABCCC e salva os resultados no banco.
+    Na primeira vez leva ~1 minuto. Nas próximas: <strong>instantâneo</strong> — só busca animais novos.
+  </div>
+  <div id="sangues-resultado" style="display:none">
+    <div id="sangues-meta" style="font-size:11px;color:var(--text2);margin-bottom:1rem"></div>
+
+    <div class="tab-bar" style="margin-bottom:1rem">
+      <button class="tab active" onclick="switchTab(this,'stab-afixos')">🏠 Afixos</button>
+      <button class="tab" onclick="switchTab(this,'stab-pais')">👨 Pais</button>
+      <button class="tab" onclick="switchTab(this,'stab-avopat')">🔵 Avós Paternos</button>
+      <button class="tab" onclick="switchTab(this,'stab-avomat')">🔴 Avós Maternos</button>
+      <button class="tab" onclick="switchTab(this,'stab-ancestrais')">🐴 Ancestrais</button>
+      <button class="tab" onclick="switchTab(this,'stab-detalhe')">📋 Por animal</button>
+    </div>
+
+    <div id="stab-afixos">
+      <div class="two-col" style="gap:1rem">
+        <div class="card">
+          <div class="card-title">🏠 Afixos / Cabanhas mais presentes</div>
+          <div id="sangues-afixos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📛 Prefixos / Marcas mais frequentes</div>
+          <div id="sangues-prefixos"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="stab-pais" style="display:none">
+      <div class="card">
+        <div class="card-title">👨 Principais Pais na manada
+          <span style="font-size:11px;font-weight:400;color:var(--text2)"> — garanhões que geraram mais animais da cabanha</span>
+        </div>
+        <div id="sangues-pais"></div>
+      </div>
+    </div>
+
+    <div id="stab-avopat" style="display:none">
+      <div class="card">
+        <div class="card-title">🔵 Principais Avós Paternos
+          <span style="font-size:11px;font-weight:400;color:var(--text2)"> — pai do pai de cada animal</span>
+        </div>
+        <div id="sangues-avopat"></div>
+      </div>
+    </div>
+
+    <div id="stab-avomat" style="display:none">
+      <div class="card">
+        <div class="card-title">🔴 Principais Avós Maternos
+          <span style="font-size:11px;font-weight:400;color:var(--text2)"> — pai da mãe de cada animal</span>
+        </div>
+        <div id="sangues-avomat"></div>
+      </div>
+    </div>
+
+    <div id="stab-ancestrais" style="display:none">
+      <div class="card">
+        <div class="card-title">🐴 Ancestrais mais repetidos em toda a manada</div>
+        <div id="sangues-ancestrais"></div>
+      </div>
+    </div>
+
+    <div id="stab-detalhe" style="display:none">
+      <div class="card">
+        <div class="card-title">📋 Detalhes genealógicos por animal</div>
+        <div id="sangues-detalhe"></div>
+      </div>
+    </div>
+  </div><div id="sangues-resultado" style="display:none">
+    <div id="sangues-meta" style="font-size:11px;color:var(--text2);margin-bottom:1rem"></div>
+    <div class="two-col" style="gap:1.5rem">
+      <div>
+        <div class="card">
+          <div class="card-title">🏠 Afixos / Cabanhas mais presentes</div>
+          <div id="sangues-afixos"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📛 Prefixos / Marcas mais frequentes</div>
+          <div id="sangues-prefixos"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">🐴 Ancestrais mais repetidos</div>
+          <div id="sangues-ancestrais"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-title" style="cursor:pointer" onclick="toggleSanguesDetalhe()">
+        📋 Detalhes por animal
+        <span id="sangues-detalhe-icon" style="float:right;font-size:11px;color:var(--text2)">▼ expandir</span>
+      </div>
+      <div id="sangues-detalhe" style="display:none;margin-top:8px"></div>
+    </div>
   </div>
 </div>
 
@@ -6381,6 +6506,193 @@ function excluirCobertura(i) {
   renderGestAgenda();
   _mostrarStatusSync('🗑️ Cobertura excluída', 'green');
 }
+
+
+
+// ─── ANÁLISE DE SANGUES ───────────────────────────────────────────────────────
+// Cache local por sessão (os dados persistentes ficam no banco Supabase)
+let _cacheSanguesSessao = null;
+
+async function iniciarAnaliseSangues(forceAll) {
+  const animaisComSBB = animais.filter(a => a.sbb && a.sbb.trim() !== '' && isNaCabanha(a));
+  if(!animaisComSBB.length) { alert('Nenhum animal ativo com SBB cadastrado.'); return; }
+
+  // Se já temos cache de sessão e não é force, mostrar direto
+  if(_cacheSanguesSessao && !forceAll) { _renderSangues(_cacheSanguesSessao); return; }
+
+  // Verificar no banco quais SBBs já têm dados salvos
+  const sbbs = animaisComSBB.map(a => a.sbb.trim().toUpperCase());
+  const cached = await _supa('GET','sangues_linhagem','',
+    '?animal_sbb=in.('+sbbs.map(s=>`"${s}"`).join(',')+')&select=animal_sbb,total_anc,consultado_em');
+
+  const cachedSBBs = (cached||[]).filter(r => r.total_anc > 0).map(r => r.animal_sbb);
+  const pendentes  = sbbs.filter(s => !cachedSBBs.includes(s));
+  const forceList  = forceAll ? sbbs : pendentes;
+
+  // UI
+  const btn = document.getElementById('btn-analisar-sangues');
+  const btnForce = document.getElementById('btn-rebuscar-sangues');
+  if(btn) { btn.disabled=true; btn.textContent='⏳ Buscando...'; }
+  if(btnForce) btnForce.disabled = true;
+  document.getElementById('sangues-aviso').style.display='none';
+
+  if(forceList.length === 0) {
+    // Tudo no banco — só calcular ranking
+    document.getElementById('sangues-status').style.display='none';
+    await _carregarESalvar(sbbs, false);
+    return;
+  }
+
+  // Mostrar progress com info de quantos já temos
+  document.getElementById('sangues-status').style.display='';
+  document.getElementById('sangues-resultado').style.display='none';
+  const jaTemos = sbbs.length - forceList.length;
+  document.getElementById('sangues-status-txt').textContent =
+    (jaTemos > 0 ? jaTemos+' já em cache · ' : '')+'Buscando '+forceList.length+' animal(is) na ABCCC...';
+  document.getElementById('sangues-progress-bar').style.width = (jaTemos/sbbs.length*90)+'%';
+  document.getElementById('sangues-progress-txt').textContent =
+    'Estimativa: ~'+Math.ceil(forceList.length * 1.2)+' segundos';
+
+  await _carregarESalvar(sbbs, forceAll);
+
+  if(btn) { btn.disabled=false; btn.textContent='🔄 Atualizar'; }
+  if(btnForce) btnForce.disabled = false;
+}
+
+async function _carregarESalvar(sbbs, force) {
+  const btn = document.getElementById('btn-analisar-sangues');
+  const btnForce = document.getElementById('btn-rebuscar-sangues');
+  try {
+    const res = await fetch(SUPABASE_URL+'/functions/v1/analise-sangues', {
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
+      body: JSON.stringify({ sbbs, force: !!force }),
+      signal: AbortSignal.timeout(180000),
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    // Enriquecer com nomes dos animais locais
+    data.qtdAnimais = sbbs.length;
+    data.timestamp  = Date.now();
+    _cacheSanguesSessao = data;
+    document.getElementById('sangues-progress-bar').style.width='100%';
+    document.getElementById('sangues-status-txt').textContent='✅ Pronto!';
+    setTimeout(() => {
+      document.getElementById('sangues-status').style.display='none';
+      _renderSangues(data);
+    }, 500);
+  } catch(e) {
+    document.getElementById('sangues-status-txt').textContent='❌ Erro: '+e.message;
+    document.getElementById('sangues-spinner').style.display='none';
+    console.error(e);
+    if(btn) { btn.disabled=false; btn.textContent='🔄 Atualizar'; }
+    if(btnForce) btnForce.disabled = false;
+  }
+}
+
+function switchSanguesTab(btn, tabId) {
+  document.querySelectorAll('#page-sangues .tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const tabs = ['sangues-tab-pais','sangues-tab-maes','sangues-tab-avopat','sangues-tab-avomat','sangues-tab-geral','sangues-tab-detalhe'];
+  tabs.forEach(id => { const el=document.getElementById(id); if(el) el.style.display = id===tabId?'':'none'; });
+}
+
+function _renderSangues(data) {
+  document.getElementById('sangues-resultado').style.display='';
+  const {ranking, qtdAnimais, timestamp, resultados, stats} = data;
+  const dt = timestamp ? new Date(timestamp).toLocaleString('pt-BR') : '';
+  const doCacheInfo = stats ? ' · '+stats.doCache+' do banco · '+stats.buscados+' buscados' : '';
+  document.getElementById('sangues-meta').innerHTML =
+    'Análise de <strong>'+qtdAnimais+'</strong> animais · '+dt+doCacheInfo
+    +' <button class="btn btn-sm" style="margin-left:6px;font-size:10px" onclick="iniciarAnaliseSangues(false)">🔄 Incrementar</button>'
+    +' <button class="btn btn-sm" id="btn-rebuscar-sangues" style="font-size:10px;color:var(--text2)" onclick="iniciarAnaliseSangues(true)">↺ Rebuscar todos</button>';
+
+  const barHTML = (items, maxVal, getLabel, getCor) => {
+    if(!items || !items.length) return '<div style="color:var(--text3);font-size:12px;padding:12px 0">Dados ainda não disponíveis — execute a análise primeiro.</div>';
+    return items.map((d,i) => {
+      const pct = Math.round(d.total/maxVal*100);
+      const animNomes = (d.animais||[]).map(s => { const a=animais.find(x=>x.sbb===s); return a?a.nome.split(' ').slice(0,2).join(' '):s; }).join(', ');
+      return '<div class="sangue-bar" title="Presente em: '+animNomes+'">'
+        +'<span style="font-size:10px;color:var(--text3);width:18px;text-align:right;flex-shrink:0">'+(i+1)+'º</span>'
+        +'<span class="sangue-bar-label">'+getLabel(d)+'</span>'
+        +'<div style="flex:1;background:var(--bg3);border-radius:99px;height:8px;min-width:60px">'
+        +'<div class="sangue-bar-fill" style="width:'+pct+'%;background:'+getCor(i)+'"></div></div>'
+        +'<span class="sangue-bar-count">'+d.total+'x · '+d.qtdAnimais+' anim.</span></div>';
+    }).join('');
+  };
+
+  const maxA   = ranking.topAfixo[0]?.total || 1;
+  const maxN   = ranking.topAncestral[0]?.total || 1;
+  const maxP   = ranking.topPrefixo[0]?.total || 1;
+  const maxPai    = (ranking.topPai||[])[0]?.total || 1;
+  const maxAvoPat = (ranking.topAvoPat||[])[0]?.total || 1;
+  const maxAvoMat = (ranking.topAvoMat||[])[0]?.total || 1;
+
+  document.getElementById('sangues-afixos').innerHTML = barHTML(
+    ranking.topAfixo.slice(0,20), maxA, d=>d.afixo,
+    i=>i<3?'var(--green)':i<8?'var(--blue)':'var(--gray-d)'
+  );
+  document.getElementById('sangues-prefixos').innerHTML = barHTML(
+    ranking.topPrefixo.slice(0,15), maxP,
+    d=>'<span style="font-family:var(--mono)">'+d.prefixo+'</span>',
+    ()=>'var(--purple)'
+  );
+  document.getElementById('sangues-ancestrais').innerHTML = barHTML(
+    ranking.topAncestral.slice(0,20), maxN,
+    d => {
+      const badge = d.total>=10?' <span class="badge br" style="font-size:9px">🔥</span>'
+                  : d.total>=5 ?' <span class="badge ba" style="font-size:9px">⭐</span>':'';
+      return d.nome+badge;
+    },
+    i=>i<3?'var(--amber)':i<8?'var(--teal)':'var(--gray-d)'
+  );
+  document.getElementById('sangues-pais').innerHTML = barHTML(
+    (ranking.topPai||[]).slice(0,20), maxPai,
+    d=>'<strong>'+d.nome+'</strong>',
+    i=>i<3?'var(--green)':i<8?'var(--blue)':'var(--gray-d)'
+  );
+  document.getElementById('sangues-avopat').innerHTML = barHTML(
+    (ranking.topAvoPat||[]).slice(0,20), maxAvoPat,
+    d=>d.nome,
+    i=>i<3?'var(--blue)':i<8?'var(--teal)':'var(--gray-d)'
+  );
+  document.getElementById('sangues-avomat').innerHTML = barHTML(
+    (ranking.topAvoMat||[]).slice(0,20), maxAvoMat,
+    d=>d.nome,
+    i=>i<3?'var(--red)':i<8?'var(--amber)':'var(--gray-d)'
+  );
+
+  document.getElementById('sangues-detalhe').innerHTML = Object.entries(resultados||{}).map(([sbb,d]) => {
+    const anim = animais.find(a=>a.sbb===sbb);
+    const nome = anim?.nome || sbb;
+    const qtd  = d.ancestrais?.length || 0;
+    const cacheTag = d.fromCache
+      ? '<span class="badge bgr" style="font-size:9px">banco</span>'
+      : '<span class="badge bg" style="font-size:9px">novo</span>';
+    const geoInfo = [
+      d.pai         ? '👨 <strong>'+d.pai+'</strong>' : '',
+      d.mae         ? '👩 <strong>'+d.mae+'</strong>' : '',
+      d.avo_paterno ? '🔵 <strong>'+d.avo_paterno+'</strong>' : '',
+      d.avo_materno ? '🔴 <strong>'+d.avo_materno+'</strong>' : '',
+    ].filter(Boolean).join(' · ');
+    const ancs = (d.ancestrais||[]).slice(0,6).map(n=>'<span class="sangue-tag">'+n+'</span>').join('');
+    const mais = qtd>6 ? '<span style="font-size:10px;color:var(--text3)">+'+(qtd-6)+' mais</span>' : '';
+    return '<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">'
+      +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">'
+      +'<span style="font-size:12px;font-weight:700">'+nome+'</span>'+cacheTag
+      +'<span style="font-size:10px;color:var(--text2)">SBB '+sbb+' · '+qtd+' ancestrais</span></div>'
+      +(geoInfo?'<div style="font-size:11px;color:var(--text2);margin-bottom:4px">'+geoInfo+'</div>':'')
+      +'<div>'+ancs+mais+'</div></div>';
+  }).join('');
+}
+
+function toggleSanguesDetalhe() {
+  const el = document.getElementById('sangues-detalhe');
+  const ic = document.getElementById('sangues-detalhe-icon');
+  if(el&&ic){ if(el.style.display==='none'){el.style.display='';ic.textContent='▲ recolher';}else{el.style.display='none';ic.textContent='▼ expandir';} }
+}
+
+
 
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
 function _mostrarStatusSync(msg, tipo) {
