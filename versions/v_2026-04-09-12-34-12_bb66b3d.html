@@ -506,7 +506,7 @@
   </div>
   <div class="filter-row">
     <input style="width:210px" type="text" id="busca" placeholder="Buscar por nome ou SBB..." oninput="filtrar()">
-    <select id="f-sit" onchange="filtrar()"><option value="">Todas situações</option><option>NA CABANHA</option><option>MORTO(A)</option><option>DOADO(A)</option><option>EMPRESTIMO</option></select>
+    <select id="f-sit" onchange="filtrar()"><option value="">Todas situações</option><option value="ativo" selected>Ativos (Cabanha + Empréstimo)</option><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option></select>
     <select id="f-sexo" onchange="filtrar()"><option value="">Todos sexos</option><option>Fêmea</option><option>Macho</option></select>
     <select id="f-ciclo" onchange="filtrar()"><option value="">Ciclos</option></select>
   </div>
@@ -1632,7 +1632,7 @@
       <div class="form-group" style="grid-column:1/-1">
         <label>SBB do padrillo (busca na ABCCC)</label>
         <div style="display:flex;gap:6px;align-items:center">
-          <input type="text" id="cg-sbb-padrillo" placeholder="Ex: B512814" style="width:140px;font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          <input type="text" id="cg-sbb-padrillo" placeholder="Ex: B512814" style="width:140px;font-family:var(--mono);text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onblur="if(this.value.trim().length>=4)buscarPadrilloSBB()">
           <button class="btn btn-sm" onclick="buscarPadrilloSBB()" id="btn-buscar-sbb">🔍 Buscar na ABCCC</button>
           <span id="cg-sbb-status" style="font-size:11px;color:var(--text2)"></span>
         </div>
@@ -1717,8 +1717,16 @@
 </div>
 
 <div class="modal-bg" id="modal-detalhe2">
-  <div class="modal" style="width:820px">
-    <div class="modal-header"><span class="modal-title" id="det-titulo">Animal</span><button class="modal-close" onclick="closeModal('modal-detalhe2')">×</button></div>
+  <div class="modal" style="width:860px;max-height:92vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title" id="det-titulo">Animal</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-sm" id="det-btn-editar" onclick="alternarEdicaoAnimal()" style="font-size:11px">✏️ Editar</button>
+        <button class="btn btn-sm btn-primary" id="det-btn-salvar" onclick="salvarEdicaoAnimal()" style="display:none;font-size:11px">💾 Salvar</button>
+        <button class="btn btn-sm" id="det-btn-cancelar" onclick="cancelarEdicaoAnimal()" style="display:none;font-size:11px">✕ Cancelar</button>
+        <button class="modal-close" onclick="closeModal('modal-detalhe2')">×</button>
+      </div>
+    </div>
     <div id="det-corpo"></div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('modal-detalhe2')">Fechar</button></div>
   </div>
@@ -1730,12 +1738,16 @@
     <div class="form-grid">
       <div class="form-group" style="grid-column:1/-1"><label>Nome</label><input type="text" id="nn" placeholder="Nome completo em maiúsculas"></div>
       <div class="form-group"><label>RP</label><input type="text" id="nrp"></div>
-      <div class="form-group"><label>SBB (ABCCC)</label><input type="text" id="nsbb" placeholder="Ex: B649459"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>SBB (ABCCC)
+        <span style="font-weight:400;font-size:10px;color:var(--text3)"> — informe o código para buscar os dados automaticamente</span></label>
+        <input type="text" id="nsbb" placeholder="Ex: B649459" style="width:100%" onblur="_buscarAbccc('novo')" oninput="this.value=this.value.toUpperCase()">
+        <div id="nabccc-status" style="display:none;margin-top:5px;font-size:11px;padding:5px 8px;background:var(--bg3);border-radius:var(--radius)"></div>
+      </div>
       <div class="form-group"><label>Sexo</label><select id="nsex"><option value="">—</option><option>Fêmea</option><option>Macho</option></select></div>
       <div class="form-group"><label>Pelagem</label><input type="text" id="npel" placeholder="Ex: Gateada"></div>
       <div class="form-group"><label>Ciclo</label><input type="text" id="nciclo" placeholder="Ex: 24/25"></div>
       <div class="form-group"><label>Nascimento</label><input type="date" id="nnasc"></div>
-      <div class="form-group"><label>Situação</label><select id="nsit"><option>NA CABANHA</option><option>MORTO(A)</option><option>DOADO(A)</option><option>EMPRESTIMO</option></select></div>
+      <div class="form-group"><label>Situação</label><select id="nsit"><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option></select></div>
       <div class="form-group"><label>Mãe</label><input type="text" id="nmae"></div>
       <div class="form-group"><label>Pai</label><input type="text" id="npai"></div>
       <div class="form-group"><label>Estágio / atividade</label><input type="text" id="nest" placeholder="Ex: CAMPO"></div>
@@ -1887,12 +1899,16 @@ function abrirAbccc(sbb) {
 function brl(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2});}
 
 // ─── FILTROS ──────────────────────────────────────────────────────────────────
-let fB='',fS='',fSx='',fC='';
+let fB='',fS='ativo',fSx='',fC='';
 function filtrar(){fB=document.getElementById('busca').value.toLowerCase();fS=document.getElementById('f-sit').value;fSx=document.getElementById('f-sexo').value;fC=document.getElementById('f-ciclo').value;renderAnimais();}
 
 // ─── RENDER ANIMAIS ───────────────────────────────────────────────────────────
 function renderAnimais(){
-  const lista=animais.filter(a=>(a.nome.toLowerCase().includes(fB)||a.sbb.toLowerCase().includes(fB))&&(!fS||a.situacao===fS)&&(!fSx||a.sexo===fSx)&&(!fC||a.ciclo===fC));
+  const lista=animais.filter(a=>{
+    const nOk=(a.nome||'').toLowerCase().includes(fB)||(a.sbb||'').toLowerCase().includes(fB);
+    const sOk=!fS||(fS==='ativo'?isNaCabanha(a):a.situacao===fS);
+    return nOk&&sOk&&(!fSx||a.sexo===fSx)&&(!fC||a.ciclo===fC);
+  });
   document.getElementById('tbody-animais').innerHTML=lista.map((a,_)=>{
     const i=animais.indexOf(a);
     return`<tr>
@@ -1906,7 +1922,7 @@ function renderAnimais(){
       <td>
         <select style="font-size:11px;padding:2px 4px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-family:var(--font);cursor:pointer"
           onchange="alterarSituacao(${i},this.value)">
-          ${['NA CABANHA','EMPRESTIMO','DOADO(A)','MORTO(A)'].map(s=>`<option value="${s}"${a.situacao===s?' selected':''}>${s}</option>`).join('')}
+          ${[{v:'NA CABANHA',l:'Na Cabanha'},{v:'EMPRESTIMO',l:'Empréstimo'},{v:'VENDIDO',l:'Vendido(a)'},{v:'TRANSFERIDO',l:'Transferido/Doado'},{v:'MORTO',l:'Morto(a)'}].map(o=>`<option value="${o.v}"${a.situacao===o.v?' selected':''}>${o.l}</option>`).join('')}
         </select>
       </td>
       <td>
@@ -3453,19 +3469,70 @@ function renderKanbanExam() {
 
 // ─── FICHA COMPLETA DO ANIMAL ─────────────────────────────────────────────────
 function verDetalhe(i){
-  const a=animais[i];
-  document.getElementById('det-titulo').textContent=a.nome+(a.sbb?` · SBB ${a.sbb}`:'');
+  window._detIdx = i;
+  window._detEditando = false;
+  _renderDetCorpo(i, false);
+  document.getElementById('det-btn-editar').style.display='';
+  document.getElementById('det-btn-salvar').style.display='none';
+  document.getElementById('det-btn-cancelar').style.display='none';
+  openModal('modal-detalhe2');
+}
 
-  // Identificação
-  const S1=`<div class="ficha-section"><div class="ficha-section-title">🐴 Identificação</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
-    ${[['RP',a.rp],['SBB ABCCC',a.sbb?`<a class="sbb-link" href="#" onclick="abrirAbccc(a.sbb);return false;" target="_blank">${a.sbb} ↗</a>`:'—'],
-       ['Sexo',a.sexo],['Pelagem',a.pelagem],['Nascimento',fd(a.nasc)],['Ciclo',a.ciclo],
-       ['Situação',a.situacao],['Estágio',a.estagio],['Mãe',a.mae],['Pai',a.pai]]
-      .map(([l,v])=>`<div class="ficha-row"><span class="ficha-label">${l}</span><span class="ficha-val">${v||'—'}</span></div>`).join('')}
-    </div>${a.obs?`<div style="margin-top:6px;font-size:11px;color:var(--text2)">Obs: ${a.obs}</div>`:''}</div>`;
+function _renderDetCorpo(i, editando) {
+  const a = animais[i];
+  document.getElementById('det-titulo').textContent = a.nome + (a.sbb ? ` · SBB ${a.sbb}` : '');
 
-  // Vacinas
+  // ── IDENTIFICAÇÃO ─────────────────────────────────────────────────
+  const SITS = [{v:'NA CABANHA',l:'Na Cabanha'},{v:'EMPRESTIMO',l:'Empréstimo'},{v:'VENDIDO',l:'Vendido(a)'},{v:'TRANSFERIDO',l:'Transferido/Doado'},{v:'MORTO',l:'Morto(a)'}];
+  const ETAGS = ['CAMPO','PISTA MORFOLOGIA','PISTA FUNCIONAL','ARREIO CABANHA','LAÇO','DOMA','CRIA'];
+  const sitLabel = v => (SITS.find(s=>s.v===v)||{l:v||'—'}).l;
+
+  let S1;
+  if(editando) {
+    S1=`<div class="ficha-section">
+      <div class="ficha-section-title">🐴 Identificação
+        <button class="btn btn-sm" style="margin-left:auto;font-size:10px;background:var(--blue-l);color:var(--blue-d);border:none" onclick="_buscarAbccc('edit')">🔍 Buscar no ABCCC pelo SBB</button>
+      </div>
+      <div id="abccc-status" style="font-size:11px;color:var(--text2);margin-bottom:6px;display:none"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Nome</label>
+          <input id="ed-nome" value="${a.nome||''}" style="width:100%;font-size:12px" placeholder="Nome em maiúsculas"></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">RP</label>
+          <input id="ed-rp" value="${a.rp||''}" style="width:100%;font-size:12px"></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">SBB ABCCC</label>
+          <input id="ed-sbb" value="${a.sbb||''}" style="width:100%;font-size:12px" placeholder="Ex: B649459" onblur="_buscarAbccc('edit')" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Sexo</label>
+          <select id="ed-sexo" style="width:100%;font-size:12px"><option value="">—</option><option${a.sexo==='Fêmea'?' selected':''}>Fêmea</option><option${a.sexo==='Macho'?' selected':''}>Macho</option></select></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Pelagem</label>
+          <input id="ed-pelagem" value="${a.pelagem||''}" style="width:100%;font-size:12px" placeholder="Ex: Gateada"></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Nascimento</label>
+          <input id="ed-nasc" type="date" value="${a.nasc||''}" style="width:100%;font-size:12px"></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Ciclo</label>
+          <input id="ed-ciclo" value="${a.ciclo||''}" style="width:100%;font-size:12px" placeholder="Ex: 24/25"></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Situação</label>
+          <select id="ed-sit" style="width:100%;font-size:12px">${SITS.map(s=>`<option value="${s.v}"${a.situacao===s.v?' selected':''}>${s.l}</option>`).join('')}</select></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Estágio</label>
+          <input id="ed-estagio" value="${a.estagio||''}" list="ed-estagio-list" style="width:100%;font-size:12px">
+          <datalist id="ed-estagio-list">${ETAGS.map(e=>`<option value="${e}">`).join('')}</datalist></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Mãe</label>
+          <input id="ed-mae" value="${a.mae||''}" style="width:100%;font-size:12px" placeholder="Nome da mãe"></div>
+        <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Pai</label>
+          <input id="ed-pai" value="${a.pai||''}" style="width:100%;font-size:12px" placeholder="Nome do pai"></div>
+        <div class="form-group" style="grid-column:1/-1"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Observações</label>
+          <input id="ed-obs" value="${a.obs||''}" style="width:100%;font-size:12px" placeholder="Observações"></div>
+      </div>
+    </div>`;
+  } else {
+    S1=`<div class="ficha-section"><div class="ficha-section-title">🐴 Identificação</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      ${[['RP',a.rp||'—'],['SBB ABCCC',a.sbb?`<a class="sbb-link" href="#" onclick="abrirAbccc('${a.sbb}');return false;">${a.sbb} ↗</a>`:'—'],
+         ['Sexo',a.sexo||'—'],['Pelagem',a.pelagem||'—'],['Nascimento',fd(a.nasc)||'—'],['Ciclo',a.ciclo||'—'],
+         ['Situação',sitLabel(a.situacao)],['Estágio',a.estagio||'—'],['Mãe',a.mae||'—'],['Pai',a.pai||'—']]
+        .map(([l,v])=>`<div class="ficha-row"><span class="ficha-label">${l}</span><span class="ficha-val">${v}</span></div>`).join('')}
+      </div>${a.obs?`<div style="margin-top:6px;font-size:11px;color:var(--text2)">Obs: ${a.obs}</div>`:''}</div>`;
+  }
+
+  // ── VACINAS ───────────────────────────────────────────────────────
   const hv=getHistVac(i);
   const S2=`<div class="ficha-section"><div class="ficha-section-title">💉 Vacinas
     <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="closeModal('modal-detalhe2');abrirModalVac(${i})">+ Vacinar</button></div>
@@ -3480,26 +3547,24 @@ function verDetalhe(i){
       <td style="font-size:11px">${r.dose||'—'}</td>
     </tr>`).join('')}</tbody></table></div>`}</div>`;
 
-  // Exames
+  // ── EXAMES ────────────────────────────────────────────────────────
   const he=getHistExam(i);
   const S3=`<div class="ficha-section"><div class="ficha-section-title">🔬 Exames Sanitários
     <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="closeModal('modal-detalhe2');abrirModalExame(${i})">+ Exame</button></div>
     ${!he.length?`<div style="font-size:12px;color:var(--text2)">Validade: ${fd(a.val_exame)||'—'} ${a.val_exame?`<span class="badge ${svac(a.val_exame).c}">${svac(a.val_exame).l}</span>`:''}</div>`
     :`<div class="card" style="padding:0;overflow:hidden;overflow-x:auto;margin:0"><table><thead><tr>
-      <th style="padding:6px 8px">Data</th><th>Tipo</th><th>Resultado</th><th>Válido até</th><th>Veterinário</th><th>Laudo</th>
-    </tr></thead><tbody>${he.slice().sort((a,b)=>b.data.localeCompare(a.data)).map((r,ri)=>{
+      <th style="padding:6px 8px">Data</th><th>Tipo</th><th>Resultado</th><th>Válido até</th><th>Veterinário</th>
+    </tr></thead><tbody>${he.slice().sort((a,b)=>b.data.localeCompare(a.data)).map(r=>{
       const rc=r.resultado==='Negativo'?'bg':r.resultado==='Positivo'?'br':'ba';
-      const lBtn=r.laudo?`<button class="laudo-badge" onclick="abrirLaudo(getHistExam(${i})[${ri}].laudo.b64,getHistExam(${i})[${ri}].laudo.nome,getHistExam(${i})[${ri}].laudo.tipo)">📎 ${r.laudo.tipo==='application/pdf'||r.laudo.nome?.endsWith('.pdf')?'PDF':'Img'}</button>`:'<span style="color:var(--text3);font-size:11px">—</span>';
       return`<tr>
         <td style="padding:5px 8px;font-size:12px">${fd(r.data)}</td>
         <td style="font-size:11px">${r.tipo||'—'}</td>
         <td><span class="badge ${rc}">${r.resultado}</span></td>
         <td style="font-size:12px">${r.validade?fd(r.validade):'—'}</td>
         <td style="font-size:11px;color:var(--text2)">${r.vet||'—'}</td>
-        <td>${lBtn}</td>
       </tr>`;}).join('')}</tbody></table></div>`}</div>`;
 
-  // Medidas
+  // ── MEDIDAS ───────────────────────────────────────────────────────
   const hm=getMedidas(i);
   const pad=a.sexo?.toLowerCase().includes('macho')?PADRÃO_ABCCC.macho:PADRÃO_ABCCC.femea;
   const S4=`<div class="ficha-section"><div class="ficha-section-title">📏 Medidas Biométricas
@@ -3510,15 +3575,15 @@ function verDetalhe(i){
       const stC=checaMedida(m.cernelha,pad.cernelha_min,pad.cernelha_max),stT=checaMedida(m.torax,pad.torax_min,null),stCan=checaMedida(m.canela,pad.canela_min,null);
       return`<div class="med-card"><div class="med-card-date">${fd(m.data)} · <span class="badge bgr">${m.contexto||'Rotina'}</span>${m.resp?' · '+m.resp:''}</div>
         <div class="med-grid">
-          ${m.cernelha?`<div class="med-item"><div class="med-val ${stC}">${m.cernelha}m</div><div class="med-label">Cernelha</div><div class="med-padrão">${pad.cernelha_min}–${pad.cernelha_max}m</div></div>`:''}
-          ${m.torax?`<div class="med-item"><div class="med-val ${stT}">${m.torax}m</div><div class="med-label">Tórax</div><div class="med-padrão">≥${pad.torax_min}m</div></div>`:''}
-          ${m.canela?`<div class="med-item"><div class="med-val ${stCan}">${m.canela}m</div><div class="med-label">Canela</div><div class="med-padrão">≥${pad.canela_min}m</div></div>`:''}
+          ${m.cernelha?`<div class="med-item"><div class="med-val ${stC}">${m.cernelha}m</div><div class="med-label">Cernelha</div></div>`:''}
+          ${m.torax?`<div class="med-item"><div class="med-val ${stT}">${m.torax}m</div><div class="med-label">Tórax</div></div>`:''}
+          ${m.canela?`<div class="med-item"><div class="med-val ${stCan}">${m.canela}m</div><div class="med-label">Canela</div></div>`:''}
           ${m.peso?`<div class="med-item"><div class="med-val">${m.peso}kg</div><div class="med-label">Peso</div></div>`:''}
-          ${m.escore?`<div class="med-item"><div class="med-val">${m.escore}/9</div><div class="med-label">Escore</div><div class="med-padrão">ideal: 4–6</div></div>`:''}
+          ${m.escore?`<div class="med-item"><div class="med-val">${m.escore}/9</div><div class="med-label">Escore</div></div>`:''}
         </div></div>`;
     }).join('')}</div>`;
 
-  // Nutrição
+  // ── NUTRIÇÃO ──────────────────────────────────────────────────────
   const n=getNut(i); const ps=projStatus(n);
   const S5=`<div class="ficha-section"><div class="ficha-section-title">🌾 Projeto Nutricional <span class="nut-proj-status ${ps.cls}" style="margin-left:6px">${ps.label}</span></div>
     ${(n.dt_inicio||n.racao.produto||n.aveia.qty)?`
@@ -3530,11 +3595,9 @@ function verDetalhe(i){
           <div style="font-weight:600;font-size:11px;margin-top:2px">${q||'—'}</div>
           <div style="font-size:10px;color:var(--text2)">${p||''}</div>
         </div>`).join('')}
-    </div>
-    ${n.suplementos.length?`<div style="margin-top:5px;font-size:11px;color:var(--text2)">💊 ${n.suplementos.map(s=>s.nome+(s.marca?' · '+s.marca:'')).join(', ')}</div>`:''}
-    `:'<div class="nut-empty">Sem projeto nutricional cadastrado.</div>'}</div>`;
+    </div>`:'<div class="nut-empty">Sem projeto nutricional cadastrado.</div>'}</div>`;
 
-  // Gestação (só fêmeas)
+  // ── REPRODUÇÃO ────────────────────────────────────────────────────
   const cobAtivas=coberturas2.filter(c=>(c.resultado==='Prenha'||c.resultado==='Aguardando')&&c.egua===a.nome);
   const cobHist=coberturas2.filter(c=>c.egua===a.nome&&c.resultado!=='Prenha'&&c.resultado!=='Aguardando');
   const S6=a.sexo==='Fêmea'?`<div class="ficha-section"><div class="ficha-section-title">🤰 Reprodução</div>
@@ -3542,22 +3605,22 @@ function verDetalhe(i){
       const dtP=dCob?new Date(dCob.getTime()+GESTACAO_DIAS*864e5):null;
       return`<div style="background:var(--green-l);border-radius:var(--radius);padding:8px 10px;margin-bottom:6px">
         <div style="font-size:12px;font-weight:700;color:var(--green-d)">🤰 Em gestação — ${pct}% (${dG}d)</div>
-        <div style="font-size:11px;color:var(--green-d)">Padrillo: ${c.garanhao||'—'}${c.sbb_padrillo?' · SBB '+c.sbb_padrillo:''} · ${fd(c.data)} · ${c.tipo}${c.vet?' · Dr. '+c.vet:''} · Parto: ${dtP?dtP.toLocaleDateString('pt-BR'):'—'}</div>
+        <div style="font-size:11px;color:var(--green-d)">Padrillo: ${c.garanhao||'—'} · ${fd(c.data)} · Parto: ${dtP?dtP.toLocaleDateString('pt-BR'):'—'}</div>
         <div style="height:5px;background:rgba(0,0,0,0.1);border-radius:99px;margin-top:5px"><div style="width:${pct}%;height:5px;background:var(--green);border-radius:99px"></div></div>
       </div>`}).join('')}
     ${cobHist.length?`<div style="font-size:11px;color:var(--text2)">${cobHist.length} cobertura(s) anterior(es): ${cobHist.map(c=>`${fd(c.data)} (${c.resultado})`).join(', ')}</div>`:''}
     ${!cobAtivas.length&&!cobHist.length?'<div class="nut-empty">Sem registro reprodutivo.</div>':''}
   </div>`:'';
 
-  // Filhos
+  // ── DESCENDENTES ─────────────────────────────────────────────────
   const filhos=animais.filter(f=>(f.mae===a.nome||f.pai===a.nome)&&f.nome!==a.nome);
-  const S7=filhos.length?`<div class="ficha-section"><div class="ficha-section-title">👶 Descendentes na Cabanha (${filhos.length})</div>
+  const S7=filhos.length?`<div class="ficha-section"><div class="ficha-section-title">👶 Descendentes (${filhos.length})</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">${filhos.map(f=>`<span style="background:var(--bg3);border-radius:var(--radius);padding:5px 9px;font-size:11px">
-      <strong>${f.nome}</strong> <span style="color:var(--text3)">${f.mae===a.nome?'filho(a)':'filho(a) pelo pai'} · ${f.sexo||'—'} · ${sitb(f.situacao)}</span>
+      <strong>${f.nome}</strong> <span style="color:var(--text3)">${f.mae===a.nome?'filho(a)':'pelo pai'} · ${f.sexo||'—'} · ${sitb(f.situacao)}</span>
     </span>`).join('')}</div></div>`:'';
 
-  // Eventos
-  const evts=eventosEsp.filter(e=>e.participantes?.some(p=>p.nome===a.nome));
+  // ── EVENTOS ───────────────────────────────────────────────────────
+  const evts=(eventosEsp||[]).filter(e=>e.participantes?.some(p=>p.nome===a.nome));
   const S8=evts.length?`<div class="ficha-section"><div class="ficha-section-title">🏆 Eventos (${evts.length})</div>
     ${evts.slice().sort((ea,eb)=>(eb.data||'').localeCompare(ea.data||'')).map(e=>{
       const p=e.participantes.find(x=>x.nome===a.nome)||{};
@@ -3569,8 +3632,134 @@ function verDetalhe(i){
     }).join('')}</div>`:'';
 
   document.getElementById('det-corpo').innerHTML = S1+S2+S3+S4+S5+S6+S7+S8;
-  openModal('modal-detalhe2');
 }
+
+function alternarEdicaoAnimal() {
+  window._detEditando = true;
+  _renderDetCorpo(window._detIdx, true);
+  document.getElementById('det-btn-editar').style.display='none';
+  document.getElementById('det-btn-salvar').style.display='';
+  document.getElementById('det-btn-cancelar').style.display='';
+}
+
+function cancelarEdicaoAnimal() {
+  window._detEditando = false;
+  _renderDetCorpo(window._detIdx, false);
+  document.getElementById('det-btn-editar').style.display='';
+  document.getElementById('det-btn-salvar').style.display='none';
+  document.getElementById('det-btn-cancelar').style.display='none';
+}
+
+function salvarEdicaoAnimal() {
+  const i = window._detIdx;
+  const a = animais[i];
+  const nome = (document.getElementById('ed-nome')?.value||'').trim().toUpperCase();
+  if(!nome) { alert('Nome é obrigatório.'); return; }
+  // Aplicar edições
+  a.nome     = nome;
+  a.rp       = document.getElementById('ed-rp')?.value||a.rp;
+  a.sbb      = (document.getElementById('ed-sbb')?.value||'').trim();
+  a.sexo     = document.getElementById('ed-sexo')?.value||a.sexo;
+  a.pelagem  = document.getElementById('ed-pelagem')?.value||a.pelagem;
+  a.nasc     = document.getElementById('ed-nasc')?.value||a.nasc;
+  a.ciclo    = document.getElementById('ed-ciclo')?.value||a.ciclo;
+  a.situacao = document.getElementById('ed-sit')?.value||a.situacao;
+  a.estagio  = (document.getElementById('ed-estagio')?.value||'').toUpperCase();
+  a.mae      = (document.getElementById('ed-mae')?.value||'').toUpperCase();
+  a.pai      = (document.getElementById('ed-pai')?.value||'').toUpperCase();
+  a.obs      = document.getElementById('ed-obs')?.value||'';
+  // Persistir no banco
+  _dbSalvarAnimal(a, i);
+  // Voltar para modo leitura
+  cancelarEdicaoAnimal();
+  renderAnimais();
+  renderDashboard();
+  _mostrarStatusSync('✅ Animal atualizado', 'green');
+}
+
+// Busca ABCCC via proxy CORS e preenche campos de edição
+
+// ── BUSCA ABCCC VIA EDGE FUNCTION SUPABASE ───────────────────────────────────
+// Chamada por: botão "Buscar no ABCCC" no modal de edição
+//              onblur do campo SBB no modal-novo
+//              onblur do campo SBB no modal de edição
+async function _buscarAbccc(ctx) {
+  // ctx = 'edit' (modal edição) | 'novo' (modal novo animal)
+  const isEdit = ctx !== 'novo';
+  const sbbEl  = document.getElementById(isEdit ? 'ed-sbb' : 'nsbb');
+  const statEl = document.getElementById(isEdit ? 'abccc-status' : 'nabccc-status');
+  const sbb    = (sbbEl?.value || '').trim().toUpperCase();
+
+  if (!sbb) return;
+  if (sbb.length < 4) return; // muito curto, aguardar mais dígitos
+
+  // Mostrar loading
+  if (statEl) {
+    statEl.innerHTML = '<span style="color:var(--text2)">🔄 Buscando no ABCCC...</span>';
+    statEl.style.display = '';
+  }
+
+  // Desabilitar campo enquanto busca
+  if (sbbEl) sbbEl.disabled = true;
+
+  let dados = null;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/buscar-abccc?sbb=${encodeURIComponent(sbb)}`,
+      { headers: { 'apikey': SUPABASE_KEY }, signal: AbortSignal.timeout(15000) }
+    );
+    if (res.ok) dados = await res.json();
+  } catch(e) {
+    console.warn('Edge Function ABCCC error:', e);
+  }
+
+  if (sbbEl) sbbEl.disabled = false;
+
+  // Preencher campos conforme contexto
+  const set = (id, val) => {
+    if (!val) return;
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+
+  if (dados?.encontrado === 'sim') {
+    if (isEdit) {
+      set('ed-nome',    dados.nome);
+      set('ed-rp',      dados.rp);
+      set('ed-pelagem', dados.pelagem);
+      set('ed-nasc',    dados.nasc);
+      set('ed-mae',     dados.mae);
+      set('ed-pai',     dados.pai);
+      if (dados.sexo) {
+        const selSexo = document.getElementById('ed-sexo');
+        if (selSexo) selSexo.value = dados.sexo;
+      }
+    } else {
+      set('nn',      dados.nome);
+      set('nrp',     dados.rp);
+      set('npel',    dados.pelagem);
+      set('nnasc',   dados.nasc);
+      set('nmae',    dados.mae);
+      set('npai',    dados.pai);
+      if (dados.sexo) {
+        const selSexo = document.getElementById('nsex');
+        if (selSexo) selSexo.value = dados.sexo;
+      }
+    }
+    const campos = [dados.nome, dados.nasc, dados.pelagem, dados.mae].filter(Boolean).length;
+    if (statEl) {
+      statEl.innerHTML = `<span style="color:var(--green-d)">✅ ${campos} campo(s) preenchido(s) automaticamente a partir do ABCCC. Revise e salve.</span>`;
+    }
+  } else if (dados?.encontrado === 'nao') {
+    if (statEl) {
+      statEl.innerHTML = `<span style="color:var(--amber-d)">⚠️ SBB <strong>${sbb}</strong> não encontrado no registro ABCCC. Preencha os dados manualmente.</span>`;
+    }
+  } else {
+    // Falha na comunicação — silencioso (não travar o usuário)
+    if (statEl) statEl.style.display = 'none';
+  }
+}
+
 
 
 // ─── REPRODUTIVO ──────────────────────────────────────────────────────────────
@@ -3717,8 +3906,8 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelect
 
 // ─── NUTRIÇÃO ──────────────────────────────────────────────────────────────────
 
-const MORTOS = ['MORTO(A)','MORTO','TRANSFERIDO','DOADO(A)','VENDIDO','VENDIDO(A)'];
-const INATIVOS = ['MORTO(A)','MORTO','TRANSFERIDO','DOADO(A)','VENDIDO','VENDIDO(A)'];
+const MORTOS = ['MORTO','TRANSFERIDO','VENDIDO','MORTO(A)','DOADO(A)','VENDIDO(A)'];
+const INATIVOS = ['MORTO','TRANSFERIDO','VENDIDO','MORTO(A)','DOADO(A)','VENDIDO(A)'];
 function isAtivo(a) { return !INATIVOS.includes(a.situacao); }
 function isNaCabanha(a) { return a.situacao==='NA CABANHA'||a.situacao==='EMPRESTIMO'; }
 
@@ -4349,7 +4538,15 @@ function abrirModalEvento(editIdx) {
     document.getElementById('evt-nucleo').value = e.nucleo;
     document.getElementById('evt-status-esp').value = e.status;
     document.getElementById('evt-obs-geral').value = e.obs;
-    evtAnimaisTemp = JSON.parse(JSON.stringify(e.participantes||[]));
+    const rawPartic = e.participantes || e.animais || [];
+    evtAnimaisTemp = rawPartic.map(p => ({
+      nome:       p.nome || p.animal || '',
+      modalidade: p.modalidade || 'Individual',
+      resultado:  p.resultado  || '',
+      classe:     p.classe     || '',
+      pontos:     p.pontos     || '',
+      obs:        p.obs        || '',
+    }));
   } else {
     document.getElementById('evt-esp-titulo').textContent = 'Registrar evento';
     ['evt-nome','evt-local','evt-nucleo','evt-obs-geral'].forEach(id=>document.getElementById(id).value='');
@@ -4379,7 +4576,10 @@ function renderEvtAnimaisTemp() {
         <option ${p.modalidade==='Conjunto'?'selected':''}>Conjunto</option>
         <option ${p.modalidade==='Coletivo'?'selected':''}>Coletivo</option>
       </select>
-      <select style="min-width:180px;font-size:11px;padding:4px" onchange="evtAnimaisTemp[${pi}].resultado=this.value">
+      <input type="text" placeholder="Classe" value="${p.classe||''}"
+        style="width:80px;font-size:11px;padding:4px"
+        onchange="evtAnimaisTemp[${pi}].classe=this.value" title="Classe do animal">
+      <select style="min-width:150px;font-size:11px;padding:4px" onchange="evtAnimaisTemp[${pi}].resultado=this.value">
         ${gerarOpcoesClassificacao(document.getElementById('evt-tipo-esp')?.value||'', p.resultado)}
       </select>
       <button class="nut-item-edit" style="color:var(--red-d)" onclick="evtAnimaisTemp.splice(${pi},1);renderEvtAnimaisTemp();verificarTodosNaData()">×</button>
@@ -4910,7 +5110,12 @@ function confirmarResolucaoPend(i) {
   renderDashboard();
 }
 
-function salvarEventoEsp() {
+let _salvandoEvento = false;
+async function salvarEventoEsp() {
+  if(_salvandoEvento) return;
+  _salvandoEvento = true;
+  const _btnEvt = document.querySelector('#modal-evt-esp .btn-primary');
+  if(_btnEvt) { _btnEvt.disabled=true; _btnEvt.textContent='Salvando...'; }
   const nome = document.getElementById('evt-nome').value.trim();
   if(!nome) return alert('Nome do evento obrigatório.');
   const dataEvt = document.getElementById('evt-data-esp').value;
@@ -4935,8 +5140,20 @@ function salvarEventoEsp() {
     verificacaoSanitaria: pendsPrev.length > 0 ? pendsPrev : null,
   };
   const editIdx = parseInt(document.getElementById('evt-edit-idx').value);
-  if(editIdx>=0) eventosEsp[editIdx]=evt;
-  else eventosEsp.push(evt);
+  try {
+    if(editIdx>=0) {
+      // Preservar o db_id do objeto existente antes de substituir
+      if(eventosEsp[editIdx]?.db_id) evt.db_id = eventosEsp[editIdx].db_id;
+      eventosEsp[editIdx] = evt;
+      await _dbSalvarEvento(evt, editIdx);
+    } else {
+      eventosEsp.push(evt);
+      await _dbSalvarEvento(evt, eventosEsp.length-1);
+    }
+  } finally {
+    _salvandoEvento = false;
+    if(_btnEvt) { _btnEvt.disabled=false; _btnEvt.textContent='Salvar evento'; }
+  }
 
   // Gerar pendências
   gerarPendenciasEvento(nome, dataEvt);
@@ -5152,18 +5369,16 @@ function toggleCampoPadrillo() {
 }
 
 // Busca SBB na ABCCC — abre página em nova aba e preenche dados manualmente via formulário
-function buscarPadrilloSBB() {
-  const sbb = document.getElementById('cg-sbb-padrillo').value.trim().toUpperCase();
+async function buscarPadrilloSBB() {
+  const sbb = (document.getElementById('cg-sbb-padrillo')?.value||'').trim().toUpperCase();
   if(!sbb) { alert('Digite o código SBB do padrillo.'); return; }
 
   const statusEl = document.getElementById('cg-sbb-status');
   const resultEl = document.getElementById('cg-sbb-resultado');
-  const infoEl   = document.getElementById('cg-padrillo-info');
-  const dadosEl  = document.getElementById('cg-padrillo-dados');
   const btnEl    = document.getElementById('btn-buscar-sbb');
 
-  // 1. Verificar se já temos esse SBB em animais cadastrados
-  const animalLocal = animais.find(a=>a.sbb && a.sbb.toUpperCase()===sbb);
+  // 1. Verificar se já existe na cabanha
+  const animalLocal = animais.find(a => a.sbb && a.sbb.toUpperCase() === sbb);
   if(animalLocal) {
     _preencherDadosPadrillo({
       nome: animalLocal.nome, sbb: animalLocal.sbb,
@@ -5171,44 +5386,81 @@ function buscarPadrilloSBB() {
       rp: animalLocal.rp, pai: animalLocal.pai, mae: animalLocal.mae,
       fonte: 'Cabanha Mãe de Deus (cadastrado)',
     });
+    if(statusEl){ statusEl.textContent='✅ Padrillo encontrado na cabanha.'; statusEl.style.color='var(--green-d)'; }
     return;
   }
 
-  // 2. Abrir ABCCC com SBB no GET — a página aceita ?sbb= e pré-preenche
-  const urlAbccc = `https://www.cavalocrioulo.org.br/pesquisa/pesquisas.php?sbb=${encodeURIComponent(sbb)}`;
-  statusEl.textContent = '';
-  btnEl.disabled = false;
+  // 2. Buscar na ABCCC via Edge Function
+  if(btnEl){ btnEl.disabled=true; btnEl.textContent='🔄 Buscando...'; }
+  if(statusEl){ statusEl.textContent='Consultando ABCCC...'; statusEl.style.color='var(--text2)'; }
+  if(resultEl) resultEl.style.display='none';
 
-  // Mostrar painel com link direto (com SBB na URL) + formulário de retorno
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-      <strong style="font-size:12px">SBB ${sbb}</strong>
-      <a href="${urlAbccc}" target="_blank" class="btn btn-sm" style="background:var(--blue);color:white;border-color:var(--blue)">
-        🔍 Abrir na ABCCC (SBB já preenchido)
+  let dados = null;
+  try {
+    const res = await fetch(
+      SUPABASE_URL+'/functions/v1/buscar-abccc?sbb='+encodeURIComponent(sbb),
+      { headers:{'apikey':SUPABASE_KEY}, signal:AbortSignal.timeout(15000) }
+    );
+    if(res.ok) dados = await res.json();
+  } catch(e){ console.warn('ABCCC err:',e); }
+
+  if(btnEl){ btnEl.disabled=false; btnEl.textContent='🔍 Buscar na ABCCC'; }
+
+  if(dados?.encontrado==='sim') {
+    _preencherDadosPadrillo({
+      nome:dados.nome, sbb, pelagem:dados.pelagem,
+      sexo:dados.sexo, rp:dados.rp, pai:dados.pai, mae:dados.mae,
+      fonte:'ABCCC (automático)',
+    });
+    if(statusEl){
+      const n=[dados.nome,dados.pelagem,dados.nasc].filter(Boolean).length;
+      statusEl.textContent='✅ '+n+' dado(s) importado(s) da ABCCC.';
+      statusEl.style.color='var(--green-d)';
+    }
+  } else {
+    if(statusEl){
+      statusEl.textContent = dados?.encontrado==='nao'
+        ? '⚠️ SBB '+sbb+' não encontrado. Preencha manualmente.'
+        : 'ℹ️ Serviço indisponível. Preencha manualmente.';
+      statusEl.style.color='var(--amber-d)';
+    }
+    _mostrarCamposManuaisPadrillo(sbb);
+  }
+}
+
+function _mostrarCamposManuaisPadrillo(sbb) {
+  const resultEl = document.getElementById('cg-sbb-resultado');
+  if(!resultEl) return;
+  resultEl.style.display='block';
+  resultEl.innerHTML=`
+    <div style="margin-bottom:8px;font-size:11px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <strong>SBB ${sbb}</strong>
+      <a href="https://www.cavalocrioulo.org.br/pesquisa/pesquisas.php" target="_blank"
+         class="btn btn-sm" style="background:var(--blue);color:white;border-color:var(--blue);font-size:10px">
+        🔍 Consultar na ABCCC
       </a>
-      <span style="font-size:10px;color:var(--text3)">Copie os dados e preencha abaixo</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Nome do animal</label>
-        <input type="text" id="sbb-nome-manual" placeholder="Nome completo" style="width:100%;font-size:11px;margin-top:3px"
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Nome</label>
+        <input id="sbb-nome-manual" type="text" placeholder="Nome completo" style="width:100%;font-size:11px;margin-top:3px"
           oninput="document.getElementById('cg-garanhao').value=this.value"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">RP</label>
-        <input type="text" id="sbb-rp-manual" placeholder="RP" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Pelagem</label>
-        <input type="text" id="sbb-pel-manual" placeholder="Pelagem" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Pai (nome)</label>
-        <input type="text" id="sbb-pai-manual" placeholder="Nome do pai" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Mãe (nome)</label>
-        <input type="text" id="sbb-mae-manual" placeholder="Nome da mãe" style="width:100%;font-size:11px;margin-top:3px"></div>
-      <div><label style="font-size:10px;color:var(--green-d);font-weight:700">Criador / Cabanha</label>
-        <input type="text" id="sbb-criador-manual" placeholder="Criador" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">RP</label>
+        <input id="sbb-rp-manual" type="text" placeholder="RP" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Pelagem</label>
+        <input id="sbb-pel-manual" type="text" placeholder="Pelagem" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Pai</label>
+        <input id="sbb-pai-manual" type="text" placeholder="Nome do pai" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Mãe</label>
+        <input id="sbb-mae-manual" type="text" placeholder="Nome da mãe" style="width:100%;font-size:11px;margin-top:3px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2)">Criador</label>
+        <input id="sbb-criador-manual" type="text" placeholder="Criador/Cabanha" style="width:100%;font-size:11px;margin-top:3px"></div>
     </div>
     <div style="margin-top:8px;display:flex;gap:6px">
-      <button class="btn btn-sm" style="background:var(--green-l);color:var(--green-d);border-color:var(--green)" onclick="confirmarDadosManuaisPadrillo('${sbb}')">✓ Confirmar dados</button>
-      <button class="btn btn-sm" onclick="document.getElementById('cg-sbb-resultado').style.display='none'">Cancelar</button>
+      <button class="btn btn-sm" style="background:var(--green-l);color:var(--green-d);border-color:var(--green)"
+        onclick="confirmarDadosManuaisPadrillo('${sbb}')">✓ Confirmar dados</button>
+      <button class="btn btn-sm"
+        onclick="document.getElementById('cg-sbb-resultado').style.display='none'">Cancelar</button>
     </div>`;
-  infoEl.style.display = 'none';
 }
 
 function confirmarDadosManuaisPadrillo(sbb) {
@@ -5288,8 +5540,8 @@ function salvarCoberturaGest() {
     parto_prev:document.getElementById('cg-parto-prev').value,
     obs:      document.getElementById('cg-obs').value,
   };
-  if(idx>=0) coberturas2[idx]=obj; else coberturas2.push(obj);
-  _dbSalvarCobertura(obj, coberturas2.length-1);
+  if(idx>=0) { coberturas2[idx]=obj; _dbSalvarCobertura(obj, idx); }
+  else { coberturas2.push(obj); _dbSalvarCobertura(obj, coberturas2.length-1); }
   window._padrilloExtra = null;
   closeModal('modal-cobertura-gest');
   renderGestacao(); renderGestAgenda();
@@ -5351,6 +5603,7 @@ function renderGestacao(){
           <span class="badge ${triC}">${tri}</span>
           <span class="badge ${c.resultado==='Prenha'?'bg':'ba'}">${c.resultado}</span>
           <button class="btn btn-sm" onclick="editCobGest(${i})">editar</button>
+          <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="excluirCobertura(${i})" title="Excluir esta gestação">🗑</button>
         </div>
       </div>
       <div class="gest-prog"><div class="gest-prog-fill" style="width:${pct}%;background:${corB}"></div></div>
@@ -5378,7 +5631,7 @@ function renderGestacao(){
       <td style="font-size:11px;color:var(--text3)">${c.obs||'—'}</td>
       <td>
         <button class="btn btn-sm" onclick="editCobGest(${i})">editar</button>
-        <button class="btn btn-sm" style="color:var(--red-d)" onclick="if(confirm('Excluir?')){coberturas2.splice(${i},1);renderGestacao()}">×</button>
+        <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="excluirCobertura(${i})" title="Excluir">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -5821,6 +6074,7 @@ function dashClick(tipo){ dashDrill(tipo); }
 
 
 // ─── GESTÃO DE USUÁRIOS ────────────────────────────────────────────────────────
+let USUARIOS = []; // Array global de usuários — populado pelo sync do banco
 const PERFIS_INFO = {
   adm: { label:'Administrador', cor:'var(--green-d)', bg:'var(--green-l)',
          desc:'Acesso total ao sistema: animais, saúde, financeiro, estoque, gestação, eventos, nutrição, medidas e gestão de usuários.' },
@@ -6057,6 +6311,77 @@ async function _auditLog(tabela, acao, registroId, dadosDepois=null) {
   } catch(e) { /* audit_log usa triggers automáticos — silenciar erro de RLS */ }
 }
 
+
+// ─── PERSISTÊNCIA EVENTOS ────────────────────────────────────────────────────
+async function _dbSalvarEvento(evt, idx) {
+  const _vStr = x => (x && String(x).trim() !== '') ? String(x).trim() : null;
+  const payload = {
+    nome:   evt.nome,
+    tipo:   evt.tipo,
+    data:   _vStr(evt.data),
+    local:  _vStr(evt.local),
+    nucleo: _vStr(evt.nucleo),
+    status: _vStr(evt.status) || 'Programado',
+    obs:    _vStr(evt.obs),
+    criado_por: usuarioAtual?.db_id || null,
+  };
+
+  let eventoId = evt.db_id || null;
+
+  if(eventoId) {
+    // PATCH — atualizar evento existente
+    await _supa('PATCH', 'eventos', payload, `?id=eq.${eventoId}`);
+    // Deletar participantes antigos e reinserir (mais simples que diff)
+    await _supa('DELETE', 'eventos_animais', null, `?evento_id=eq.${eventoId}`);
+  } else {
+    // POST — criar novo evento
+    const res = await _supa('POST', 'eventos', payload);
+    if(res?.[0]?.id) {
+      eventoId = res[0].id;
+      eventosEsp[idx].db_id = eventoId;
+    }
+  }
+
+  // Inserir participantes
+  const _parts = evt.participantes || evt.animais || [];
+  if(eventoId && _parts.length) {
+    const partsArr = _parts.map(p => {
+      const nomeAnimal = p.nome || p.animal || '';
+      const animal = animais.find(a => a.nome === nomeAnimal);
+      return {
+        evento_id:   eventoId,
+        animal_id:   animal?.db_id || null,
+        animal_nome: nomeAnimal,
+        classe:      (p.classe    && p.classe    !== '') ? p.classe    : null,
+        resultado:   (p.resultado && p.resultado !== '') ? p.resultado : null,
+        colocacao:   p.colocacao  ? parseInt(p.colocacao)  : null,
+        pontos:      p.pontos     ? parseFloat(p.pontos)   : null,
+        obs:         (p.obs       && p.obs       !== '') ? p.obs       : null,
+      };
+    }).filter(p => p.animal_nome);
+    if(partsArr.length) await _supa('POST', 'eventos_animais', partsArr);
+  }
+}
+
+
+// ─── EXCLUSÃO DE COBERTURA/GESTAÇÃO ──────────────────────────────────────────
+async function _dbExcluirCobertura(db_id) {
+  if(!db_id) return;
+  await _supa('DELETE', 'coberturas', null, '?id=eq.' + db_id);
+}
+
+function excluirCobertura(i) {
+  const cob = coberturas2[i];
+  if(!cob) return;
+  const desc = cob.egua + (cob.data ? ' — ' + fd(cob.data) : '') + (cob.garanhao ? ' × ' + cob.garanhao : '');
+  if(!confirm('Excluir esta gestação/cobertura?\n\n' + desc + '\n\nEsta ação não pode ser desfeita.')) return;
+  coberturas2.splice(i, 1);
+  _dbExcluirCobertura(cob.db_id);
+  renderGestacao();
+  renderGestAgenda();
+  _mostrarStatusSync('🗑️ Cobertura excluída', 'green');
+}
+
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
 function _mostrarStatusSync(msg, tipo) {
   const el = document.getElementById('sync-status');
@@ -6094,7 +6419,7 @@ async function _sincronizarAoLogin() {
       dbAnimais.forEach(a => animais.push({
         db_id: a.id, rp: a.rp||'', sbb: a.sbb||'', nome: a.nome,
         ciclo: a.ciclo||'', nasc: a.nasc||'', mae: a.mae||'', pai: a.pai||'',
-        situacao: a.situacao||'NA CABANHA', estagio: a.estagio||'',
+        situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||'',
         obs: a.obs||'', sexo: a.sexo||'', pelagem: a.pelagem||'',
         ult_vac: '', prox_vac: a.prox_vac||'', ult_verm:'', val_exame: a.val_exame||'',
         ativo: a.ativo
@@ -6291,7 +6616,7 @@ async function _dbSalvarAnimal(a, idx) {
     ciclo: a.ciclo||null, nasc: a.nasc||null,
     sexo: a.sexo||null, pelagem: a.pelagem||null,
     mae: a.mae||null, pai: a.pai||null,
-    situacao: a.situacao||'NA CABANHA', estagio: a.estagio||null,
+    situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||null,
     obs: a.obs||null, prox_vac: a.prox_vac||null,
     val_exame: a.val_exame||null,
     criado_por: usuarioAtual?.db_id || null
@@ -6371,21 +6696,46 @@ async function _dbSalvarVermifugacao(reg, animalIdx) {
 // ── Coberturas ─────────────────────────────────────────────────────────────
 async function _dbSalvarCobertura(cob, idx) {
   const eguaAnimal = animais.find(a => a.nome === cob.egua);
-  const payload = {
-    egua_id: eguaAnimal?.db_id || null,
-    egua_nome: cob.egua, garanhao: cob.garanhao||null,
-    sbb_padrillo: cob.sbb_padrillo||null, data: cob.data,
-    tipo: cob.tipo||'Natural', resultado: cob.resultado||'Aguardando',
-    diag: cob.diag||null, parto_prev: cob.parto_prev||null,
-    parto_real: cob.parto_real||null,
-    cria_nome: cob.cria_nome||null, cria_sexo: cob.cria_sexo||null,
-    vet: cob.vet||null, obs: cob.obs||null,
-    criado_por: usuarioAtual?.db_id || null
+  // Normalizar tipo e resultado para os valores do enum do banco
+  const tipoMap = {
+    'IA (Inseminação Artificial)':'IA', 'IATF (IA Tempo Fixo)':'IATF',
+    'TE (Transferência de Embrião)':'TE', 'PIV (Produção in vitro)':'PIV',
   };
+  const resMap = {
+    'Abortou':'Aborto', 'Aguardando diagnóstico':'Aguardando',
+    'Prenha ✓':'Prenha', 'Vazia ✗':'Vazia',
+  };
+  // Helper: converter string vazia ou undefined para null
+  const v = x => (x && x !== '') ? x : null;
+
+  const payload = {
+    egua_id:      eguaAnimal?.db_id || null,
+    egua_nome:    cob.egua,
+    garanhao:     v(cob.garanhao),
+    sbb_padrillo: v(cob.sbb_padrillo),
+    data:         v(cob.data),
+    tipo:         tipoMap[cob.tipo] || v(cob.tipo) || 'Natural',
+    resultado:    resMap[cob.resultado] || v(cob.resultado) || 'Aguardando',
+    diag:         v(cob.diag),
+    parto_prev:   v(cob.parto_prev),
+    parto_real:   v(cob.parto_real),
+    cria_nome:    v(cob.cria_nome),
+    cria_sexo:    v(cob.cria_sexo),
+    vet:          v(cob.vet),
+    obs:          v(cob.obs),
+    criado_por:   usuarioAtual?.db_id || null,
+  };
+  // Remover campos null do payload para evitar erros de tipo no PostgreSQL
+  const clean = Object.fromEntries(Object.entries(payload).filter(([k,v]) => v !== null));
+  // Mas manter campos obrigatórios mesmo null
+  clean.egua_nome = payload.egua_nome;
+  clean.tipo      = payload.tipo;
+  clean.resultado = payload.resultado;
+
   if(cob.db_id) {
-    await _supa('PATCH','coberturas',payload,`?id=eq.${cob.db_id}`);
+    await _supa('PATCH','coberturas', clean, '?id=eq.'+cob.db_id);
   } else {
-    const res = await _supa('POST','coberturas',payload);
+    const res = await _supa('POST','coberturas', clean);
     if(res?.[0]?.id) coberturas2[idx].db_id = res[0].id;
   }
 }
@@ -6525,37 +6875,64 @@ let usuarioAtual = null;
 async function fazerLogin() {
   const login = document.getElementById('login-user').value.trim();
   const senha = document.getElementById('login-senha').value;
-  const errEl = document.getElementById('login-error');
-  const showErr = (msg) => { errEl.textContent=msg; errEl.style.display='block'; setTimeout(()=>errEl.style.display='none',4000); };
-  if(!login || !senha) { showErr('Informe login e senha.'); return; }
+  if(!login || !senha) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Informe login e senha.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 3000);
+    return;
+  }
+  // Desabilitar botão e mostrar loading
   const btn = document.querySelector('.login-btn');
-  if(btn){btn.disabled=true; btn.textContent='Verificando...';}
+  if(btn) { btn.disabled=true; btn.textContent='Entrando...'; }
   let user = null;
+  let onlineOk = false;
   try {
     const dbUser = await _verificarLoginBanco(login, senha);
+    onlineOk = true;
     if(dbUser) {
-      user = { id:dbUser.id, db_id:dbUser.id, login:dbUser.login, senha:senha,
-               nome:dbUser.nome, perfil:dbUser.perfil, ativo:dbUser.ativo,
-               label: PERFIS_INFO[dbUser.perfil]?.label||dbUser.perfil };
+      user = { id: dbUser.id, db_id: dbUser.id, login: dbUser.login,
+               senha: senha, nome: dbUser.nome, perfil: dbUser.perfil,
+               label: PERFIS_INFO[dbUser.perfil]?.label || dbUser.perfil,
+               ativo: dbUser.ativo };
     }
   } catch(e) {
-    // Offline: tentar cache local com senha real
-    user = USUARIOS.find(u=>u.login===login && u.senha===senha && u.senha!=='***');
+    // Sem internet — fallback para usuários locais com senha real
+    user = USUARIOS.find(u => u.login===login && u.senha===senha && u.senha!=='***');
   }
-  if(btn){btn.disabled=false; btn.textContent='Entrar';}
-  if(!user){ showErr('Usuário ou senha incorretos. Tente novamente.'); return; }
-  if(user.ativo===false){ showErr('Usuário suspenso. Contate o administrador.'); return; }
+  // Se banco está online mas não encontrou → senha errada (não tentar local)
+  // Se banco offline → já tentou local acima
+  if(btn) { btn.disabled=false; btn.textContent='Entrar'; }
+  if(user && user.ativo===false) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Usuário suspenso. Contate o administrador.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 4000);
+    return;
+  }
+  if(!user) {
+    const err = document.getElementById('login-error');
+    err.textContent = 'Usuário ou senha incorretos. Tente novamente.';
+    err.style.display = 'block';
+    setTimeout(()=>err.style.display='none', 4000);
+    return;
+  }
   usuarioAtual = user;
   document.getElementById('login-screen').style.display='none';
-  const badge=document.getElementById('sidebar-perfil-badge');
-  const uname=document.getElementById('sidebar-username');
+  // Atualizar sidebar
+  const badge = document.getElementById('sidebar-perfil-badge');
+  const uname = document.getElementById('sidebar-username');
   if(badge) badge.innerHTML=`<span class="perfil-badge perfil-${user.perfil}">${user.label}</span>`;
   if(uname) uname.textContent=user.nome;
+  // Aplicar restrições de menu
   _aplicarPermissoes();
   populaCiclos();
   renderDashboard();
   atualizarBadgePendencias();
-  _sincronizarAoLogin().then(()=>{ populaCiclos(); renderDashboard(); atualizarBadgePendencias(); });
+  // Sincronizar com Supabase ao fazer login
+  _sincronizarAoLogin().then(()=>{
+    populaCiclos(); renderDashboard(); atualizarBadgePendencias();
+  });
 }
 
 function fazerLogout() {
