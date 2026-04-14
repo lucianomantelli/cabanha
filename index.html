@@ -349,6 +349,29 @@
   .vac-protocolo:hover { border-color:var(--green);background:var(--green-l); }
   .vac-protocolo-nome { font-size:12px;font-weight:700;color:var(--text); }
   .vac-protocolo-desc { font-size:11px;color:var(--text2);margin-top:2px; }
+
+  /* ── LINHA DO TEMPO ──────────────────────────────────────────────── */
+  .tl-wrap { padding:0.5rem 0; }
+  .tl-year { font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;padding:8px 0 4px;margin-top:4px; }
+  .tl-item { display:flex;gap:12px;padding:8px 0;position:relative; }
+  .tl-item::before { content:'';position:absolute;left:17px;top:36px;bottom:-8px;width:1.5px;background:var(--border); }
+  .tl-item:last-child::before { display:none; }
+  .tl-dot { width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:2px solid var(--border); }
+  .tl-dot.aniv  { background:var(--amber-d,#92400e);color:white; }
+  .tl-dot.foto  { background:var(--blue,#378ADD);color:white; }
+  .tl-dot.saude { background:var(--red-d,#b91c1c);color:white; }
+  .tl-dot.evento{ background:var(--green,#2D6A4F);color:white; }
+  .tl-dot.repro { background:#7c3aed;color:white; }
+  .tl-dot.medida{ background:#0d9488;color:white; }
+  .tl-dot.nasc  { background:var(--green-l,#40916C);color:white; }
+  .tl-content { flex:1;min-width:0; }
+  .tl-date { font-size:10px;color:var(--text3);margin-bottom:2px; }
+  .tl-title { font-size:13px;font-weight:600;color:var(--text); }
+  .tl-sub { font-size:12px;color:var(--text2);margin-top:2px; }
+  .tl-foto-grid { display:flex;flex-wrap:wrap;gap:6px;margin-top:6px; }
+  .tl-foto-thumb { width:80px;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:1.5px solid var(--border);transition:border-color 0.2s; }
+  .tl-foto-thumb:hover { border-color:var(--blue,#378ADD); }
+  .tl-empty { text-align:center;padding:2rem;color:var(--text3);font-size:13px; }
 </style>
 </head>
 <body>
@@ -1330,6 +1353,89 @@
       <button class="btn" onclick="closeModal('modal-evt-esp')">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarEventoEsp()">Salvar evento</button>
     </div>
+  </div>
+</div>
+
+
+<!-- MODAL LINHA DO TEMPO — FOTO/VÍDEO -->
+<div class="modal-bg" id="modal-midia">
+  <div class="modal" style="width:580px;max-height:92vh;overflow-y:auto">
+    <div class="modal-header">
+      <span class="modal-title">Adicionar foto / vídeo</span>
+      <button class="modal-close" onclick="closeModal('modal-midia')">×</button>
+    </div>
+    <input type="hidden" id="midia-animal-id">
+    <input type="hidden" id="midia-animal-nome">
+    <input type="hidden" id="midia-animal-nasc">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Data do registro</label>
+        <input type="date" id="midia-data">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="midia-categoria" onchange="_onMidiaCategoria()">
+          <option value="registro">📷 Registro da cabanha</option>
+          <option value="evento">🏆 Evento / Prova</option>
+          <option value="nutricao_inicio">🌱 Nutrição — Início</option>
+          <option value="nutricao_acomp">📊 Nutrição — Acompanhamento</option>
+          <option value="nutricao_fim">✅ Nutrição — Resultado final</option>
+          <option value="saude">💊 Saúde / Procedimento</option>
+          <option value="nascimento">🐴 Nascimento</option>
+          <option value="outro">📁 Outro</option>
+        </select>
+      </div>
+      <div class="form-group" id="midia-campo-evento" style="display:none;grid-column:1/-1">
+        <label>Vincular ao evento registrado <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+        <select id="midia-evento-id" onchange="_onMidiaEventoChange()">
+          <option value="">— selecionar evento —</option>
+        </select>
+        <input type="text" id="midia-resultado-evento" placeholder="Resultado / premiação (ex: 1º lugar Classe B)" style="margin-top:6px">
+      </div>
+      <div class="form-group" id="midia-campo-nutricao" style="display:none;grid-column:1/-1">
+        <label>Projeto nutricional <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+        <input type="text" id="midia-nutricao-projeto" placeholder="Ex: Ganho de peso pré-morfologia 2025">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Título <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+        <input type="text" id="midia-titulo-campo" placeholder="Ex: Morfologia Santa Maria — Classe B">
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Observação <span style="color:var(--text3);font-weight:400">(opcional)</span></label>
+        <textarea id="midia-descricao" rows="2" style="resize:vertical" placeholder="Detalhes adicionais..."></textarea>
+      </div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label>Arquivo (foto ou vídeo) <span style="color:var(--text3);font-weight:400">— máx 5MB</span></label>
+        <div id="midia-drop-zone" style="border:1.5px dashed var(--border);border-radius:var(--radius);padding:1.5rem;text-align:center;cursor:pointer;transition:border-color 0.2s"
+          onclick="document.getElementById('midia-file-input').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--green-l)'"
+          ondragleave="this.style.borderColor='var(--border)'"
+          ondrop="_onMidiaFileDrop(event)">
+          <div style="font-size:2rem;margin-bottom:8px" id="midia-drop-icon">📁</div>
+          <div style="font-size:13px;color:var(--text2)" id="midia-drop-label">Clique ou arraste foto/vídeo aqui</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">JPG, PNG, WebP · máx 5MB</div>
+        </div>
+        <input type="file" id="midia-file-input" accept="image/*,video/*" style="display:none" onchange="_onMidiaFileSelect(event)">
+        <div id="midia-preview" style="display:none;margin-top:10px;text-align:center">
+          <img id="midia-preview-img" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border)" src="">
+          <div id="midia-preview-video-label" style="display:none;font-size:12px;color:var(--text2);margin-top:4px"></div>
+          <button class="btn btn-sm" style="margin-top:6px;color:var(--red-d)" onclick="_limparMidiaFile()">✕ Remover</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-midia')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-midia" onclick="salvarMidia()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VISUALIZAR FOTO AMPLIADA -->
+<div class="modal-bg" id="modal-foto-full" style="align-items:center;justify-content:center" onclick="if(event.target===this)closeModal('modal-foto-full')">
+  <div style="max-width:90vw;position:relative;display:flex;flex-direction:column;align-items:center">
+    <img id="foto-full-img" style="max-width:90vw;max-height:80vh;border-radius:10px;object-fit:contain" src="">
+    <div id="foto-full-caption" style="color:white;font-size:13px;margin-top:10px;text-align:center;max-width:600px"></div>
+    <button onclick="closeModal('modal-foto-full')" style="position:absolute;top:-12px;right:-12px;background:rgba(0,0,0,0.8);color:white;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer">×</button>
   </div>
 </div>
 
@@ -3736,7 +3842,24 @@ function _renderDetCorpo(i, editando) {
       </div>`;
     }).join('')}</div>`:'';
 
-  document.getElementById('det-corpo').innerHTML = S1+S2+S3+S4+S5+S6+S7+S8;
+  // ── S9: LINHA DO TEMPO ─────────────────────────────────────────────
+  const S9 = `<div class="ficha-section">
+    <div class="ficha-section-title" style="display:flex;align-items:center">
+      📸 Linha do Tempo
+      <button class="btn btn-sm" style="margin-left:auto;font-size:10px"
+        onclick="abrirModalFoto('${a.db_id}','${a.nome.replace(/'/g,"\\'")}','${a.nasc||''}')">
+        + Adicionar foto / vídeo
+      </button>
+    </div>
+    <div id="tl-corpo-${a.db_id}" class="tl-wrap">
+      <div class="tl-empty">⏳ Carregando...</div>
+    </div>
+  </div>`;
+
+  document.getElementById('det-corpo').innerHTML = S1+S2+S3+S4+S5+S6+S7+S8+S9;
+
+  // Carregar linha do tempo após render
+  if(a.db_id) _carregarLinhaTempo(a.db_id, a.nome, a.nasc||'');
 }
 
 function alternarEdicaoAnimal() {
@@ -6673,6 +6796,228 @@ function toggleSanguesDetalhe() {
 }
 
 
+
+
+// ─── LINHA DO TEMPO ──────────────────────────────────────────────────────────
+
+async function _carregarLinhaTempo(animalId, animalNome, animalNasc) {
+  const el = document.getElementById('tl-corpo-'+animalId);
+  if(!el) return;
+
+  const eventos_tl = [];
+
+  // Nascimento
+  if(animalNasc) {
+    eventos_tl.push({ data:animalNasc, tipo:'nasc', icone:'🐴', titulo:'Nascimento', sub:fd(animalNasc) });
+    // Aniversários
+    const nascDt = new Date(animalNasc+'T00:00:00');
+    const hoje = new Date();
+    const anos = Math.floor((hoje-nascDt)/(365.25*86400000));
+    for(let a=1;a<=anos;a++){
+      const dt = new Date(nascDt); dt.setFullYear(nascDt.getFullYear()+a);
+      eventos_tl.push({ data:dt.toISOString().slice(0,10), tipo:'aniv', icone:'🎂', titulo:a+'º aniversário', sub:'' });
+    }
+  }
+
+  // Buscar dados do banco em paralelo
+  const [vacsDB, examsDB, vermDB, cobDB, medidasDB, midiasDB] = await Promise.all([
+    _supa('GET','vacinacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,vacina,dose,vet'),
+    _supa('GET','exames','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,tipo,resultado,vet'),
+    _supa('GET','vermifugacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,produto'),
+    _supa('GET','coberturas','','?egua_id=eq.'+animalId+'&order=data.desc&select=data,garanhao,tipo,resultado,parto_real'),
+    _supa('GET','medidas','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,peso,escore,contexto'),
+    _supa('GET','animal_midia','','?animal_id=eq.'+animalId+'&order=data_midia.desc&select=*'),
+  ]);
+
+  (vacsDB||[]).forEach(v => eventos_tl.push({ data:v.data, tipo:'saude', icone:'💉',
+    titulo:'Vacinação: '+v.vacina, sub:(v.dose?v.dose+' · ':'')+(v.vet||'') }));
+  (examsDB||[]).forEach(v => eventos_tl.push({ data:v.data, tipo:'saude', icone:'🔬',
+    titulo:'Exame: '+v.tipo, sub:v.resultado+(v.vet?' · '+v.vet:'') }));
+  (vermDB||[]).forEach(v => eventos_tl.push({ data:v.data, tipo:'saude', icone:'💊',
+    titulo:'Vermifugação: '+v.produto, sub:'' }));
+  (cobDB||[]).forEach(v => {
+    if(v.data) eventos_tl.push({ data:v.data, tipo:'repro', icone:'🍀', titulo:'Cobertura ('+v.tipo+')', sub:v.garanhao||'' });
+    if(v.parto_real) eventos_tl.push({ data:v.parto_real, tipo:'repro', icone:'🐣', titulo:'Parto', sub:'Resultado: '+v.resultado });
+  });
+  (medidasDB||[]).forEach(v => eventos_tl.push({ data:v.data, tipo:'medida', icone:'📐',
+    titulo:'Medida biométrica', sub:(v.peso?'Peso: '+v.peso+'kg · ':'')+(v.escore?'Escore: '+v.escore:'')+(v.contexto?' · '+v.contexto:'') }));
+
+  // Eventos/provas do sistema
+  (eventosEsp||[]).filter(e=>(e.participantes||e.animais||[]).some(p=>(p.nome||p.animal)===animalNome))
+    .forEach(e => {
+      const part=(e.participantes||e.animais||[]).find(p=>(p.nome||p.animal)===animalNome)||{};
+      const res=part.resultado&&part.resultado!=='Sem resultado'?' · '+part.resultado:'';
+      eventos_tl.push({ data:e.data||'', tipo:'evento', icone:'🏆', titulo:e.nome, sub:e.tipo+res });
+    });
+
+  // Mídias
+  (midiasDB||[]).forEach(m => eventos_tl.push({
+    data:m.data_midia, tipo:'foto', icone:m.tipo==='video'?'🎬':'📷',
+    titulo:m.titulo||_midiaCategLabel(m.categoria), sub:m.descricao||'', midia:m
+  }));
+
+  if(!eventos_tl.length) {
+    el.innerHTML='<div class="tl-empty">Nenhum registro ainda.<br>Clique em "+ Adicionar foto / vídeo" para começar!</div>';
+    return;
+  }
+
+  eventos_tl.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+
+  // Agrupar por ano
+  const porAno={};
+  eventos_tl.forEach(ev=>{ const ano=(ev.data||'').slice(0,4)||'—'; if(!porAno[ano])porAno[ano]=[]; porAno[ano].push(ev); });
+
+  let html='';
+  Object.keys(porAno).sort((a,b)=>b.localeCompare(a)).forEach(ano=>{
+    html+='<div class="tl-year">'+ano+'</div>';
+    porAno[ano].forEach(ev=>{
+      html+='<div class="tl-item">'
+        +'<div class="tl-dot '+ev.tipo+'">'+ev.icone+'</div>'
+        +'<div class="tl-content">'
+        +'<div class="tl-date">'+fd(ev.data)+'</div>'
+        +'<div class="tl-title">'+ev.titulo+'</div>'
+        +(ev.sub?'<div class="tl-sub">'+ev.sub+'</div>':'');
+      if(ev.midia?.arquivo_data&&ev.midia.tipo==='foto') {
+        const src=ev.midia.arquivo_data.replace(/'/g,"%27");
+        const tit=(ev.titulo||'').replace(/'/g,"\\'");
+        const dsc=(ev.midia.descricao||'').replace(/'/g,"\\'");
+        html+='<div class="tl-foto-grid"><img class="tl-foto-thumb" src="'+src+'" onclick="verFotoAmpliada(this.src,\''+tit+'\',\''+dsc+'\')"></div>';
+      }
+      if(ev.midia) {
+        html+='<div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+          +_midiaBadgeHTML(ev.midia.categoria)
+          +(ev.midia.evento_nome?'<span style="font-size:11px;color:var(--text3)">'+ev.midia.evento_nome+'</span>':'')
+          +(ev.midia.resultado_evento?'<span class="badge bg" style="font-size:9px">'+ev.midia.resultado_evento+'</span>':'')
+          +'<button class="btn btn-sm" style="font-size:10px;color:var(--red-d);padding:1px 6px;margin-left:auto" '
+          +'onclick="excluirMidia(\''+ev.midia.id+'\',\''+animalId+'\',\''+animalNome.replace(/'/g,"\\'")+'\',\''+animalNasc+'\')">🗑</button>'
+          +'</div>';
+      }
+      html+='</div></div>';
+    });
+  });
+  el.innerHTML=html;
+}
+
+function _midiaCategLabel(cat){
+  return{registro:'Registro',evento:'Evento/Prova',nutricao_inicio:'Nutrição — Início',
+    nutricao_acomp:'Nutrição — Acompanhamento',nutricao_fim:'Nutrição — Final',
+    saude:'Saúde',nascimento:'Nascimento',outro:'Registro'}[cat]||cat;
+}
+function _midiaBadgeHTML(cat){
+  const s={registro:'background:var(--bg3);color:var(--text3)',evento:'background:rgba(52,211,153,0.12);color:var(--green-d)',
+    nutricao_inicio:'background:rgba(251,191,36,0.12);color:var(--amber-d)',nutricao_acomp:'background:rgba(251,191,36,0.12);color:var(--amber-d)',
+    nutricao_fim:'background:rgba(251,191,36,0.12);color:var(--amber-d)',saude:'background:rgba(252,165,165,0.12);color:var(--red-d)'}[cat]||'background:var(--bg3);color:var(--text3)';
+  return '<span style="font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;'+s+'">'+_midiaCategLabel(cat)+'</span>';
+}
+
+function abrirModalFoto(animalId, animalNome, animalNasc) {
+  document.getElementById('midia-animal-id').value=animalId;
+  document.getElementById('midia-animal-nome').value=animalNome;
+  document.getElementById('midia-animal-nasc').value=animalNasc||'';
+  document.getElementById('midia-data').value=new Date().toISOString().slice(0,10);
+  document.getElementById('midia-categoria').value='registro';
+  document.getElementById('midia-titulo-campo').value='';
+  document.getElementById('midia-descricao').value='';
+  document.getElementById('midia-evento-id').value='';
+  document.getElementById('midia-resultado-evento').value='';
+  document.getElementById('midia-nutricao-projeto').value='';
+  document.getElementById('midia-preview').style.display='none';
+  document.getElementById('midia-drop-icon').textContent='📁';
+  document.getElementById('midia-drop-label').textContent='Clique ou arraste foto/vídeo aqui';
+  window._midiaFileData=null; window._midiaFileTipo=null; window._midiaFileNome=null;
+  // Popular eventos do animal
+  const sel=document.getElementById('midia-evento-id');
+  sel.innerHTML='<option value="">— selecionar evento —</option>';
+  (eventosEsp||[]).filter(e=>(e.participantes||e.animais||[]).some(p=>(p.nome||p.animal)===animalNome))
+    .sort((a,b)=>(b.data||'').localeCompare(a.data||''))
+    .forEach(e=>sel.innerHTML+='<option value="'+(e.db_id||'')+'" data-nome="'+e.nome+'">'+e.nome+' — '+fd(e.data)+'</option>');
+  _onMidiaCategoria();
+  openModal('modal-midia');
+}
+function _onMidiaCategoria(){
+  const cat=document.getElementById('midia-categoria').value;
+  document.getElementById('midia-campo-evento').style.display=cat==='evento'?'':'none';
+  document.getElementById('midia-campo-nutricao').style.display=cat.startsWith('nutricao')?'':'none';
+}
+function _onMidiaEventoChange(){
+  const sel=document.getElementById('midia-evento-id');
+  const opt=sel.options[sel.selectedIndex];
+  if(opt?.value) document.getElementById('midia-titulo-campo').value=opt.dataset.nome||'';
+}
+function _onMidiaFileDrop(e){
+  e.preventDefault();
+  document.getElementById('midia-drop-zone').style.borderColor='var(--border)';
+  if(e.dataTransfer.files[0]) _processarArquivoMidia(e.dataTransfer.files[0]);
+}
+function _onMidiaFileSelect(e){ if(e.target.files[0]) _processarArquivoMidia(e.target.files[0]); }
+function _processarArquivoMidia(file){
+  if(file.size>5*1024*1024&&file.type.startsWith('image/')){alert('Foto muito grande. Máximo 5MB.');return;}
+  window._midiaFileNome=file.name; window._midiaFileTipo=file.type;
+  const reader=new FileReader();
+  reader.onload=e2=>{
+    window._midiaFileData=e2.target.result;
+    const img=document.getElementById('midia-preview-img');
+    const vid=document.getElementById('midia-preview-video-label');
+    if(file.type.startsWith('image/')){img.src=e2.target.result;img.style.display='';vid.style.display='none';}
+    else{img.style.display='none';vid.textContent='🎬 '+file.name+' ('+(file.size/1024/1024).toFixed(1)+'MB)';vid.style.display='';}
+    document.getElementById('midia-drop-icon').textContent='✅';
+    document.getElementById('midia-drop-label').textContent=file.name;
+    document.getElementById('midia-preview').style.display='';
+  };
+  reader.readAsDataURL(file);
+}
+function _limparMidiaFile(){
+  window._midiaFileData=null;
+  document.getElementById('midia-preview').style.display='none';
+  document.getElementById('midia-drop-icon').textContent='📁';
+  document.getElementById('midia-drop-label').textContent='Clique ou arraste foto/vídeo aqui';
+  document.getElementById('midia-file-input').value='';
+}
+async function salvarMidia(){
+  const animalId=document.getElementById('midia-animal-id').value;
+  const animalNome=document.getElementById('midia-animal-nome').value;
+  const animalNasc=document.getElementById('midia-animal-nasc').value;
+  const data=document.getElementById('midia-data').value;
+  const categoria=document.getElementById('midia-categoria').value;
+  if(!data)return alert('Informe a data.');
+  if(!window._midiaFileData)return alert('Selecione uma foto ou vídeo.');
+  const btn=document.getElementById('btn-salvar-midia');
+  btn.disabled=true; btn.textContent='💾 Salvando...';
+  const evtSel=document.getElementById('midia-evento-id');
+  const evtId=evtSel.value||null;
+  const evtNome=evtId?evtSel.options[evtSel.selectedIndex]?.dataset?.nome||'':null;
+  const payload={
+    animal_id:animalId, animal_nome:animalNome,
+    tipo:window._midiaFileTipo?.startsWith('video/')?'video':'foto',
+    categoria, titulo:document.getElementById('midia-titulo-campo').value||null,
+    descricao:document.getElementById('midia-descricao').value||null,
+    data_midia:data, evento_id:evtId, evento_nome:evtNome,
+    resultado_evento:document.getElementById('midia-resultado-evento').value||null,
+    nutricao_projeto:document.getElementById('midia-nutricao-projeto').value||null,
+    arquivo_data:window._midiaFileData, arquivo_tipo:window._midiaFileTipo||null,
+    arquivo_nome:window._midiaFileNome||null, criado_por:usuarioAtual?.db_id||null,
+  };
+  try{
+    const res=await _supa('POST','animal_midia',payload);
+    if(res?.[0]?.id){
+      closeModal('modal-midia');
+      _mostrarStatusSync('📷 Foto salva!','green');
+      _carregarLinhaTempo(animalId,animalNome,animalNasc);
+    }else alert('Erro ao salvar. Tente novamente.');
+  }catch(e){alert('Erro: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='💾 Salvar';}
+}
+async function excluirMidia(midiaId,animalId,animalNome,animalNasc){
+  if(!confirm('Excluir esta foto/vídeo?\nEsta ação não pode ser desfeita.'))return;
+  await _supa('DELETE','animal_midia',null,'?id=eq.'+midiaId);
+  _mostrarStatusSync('🗑️ Mídia excluída','green');
+  _carregarLinhaTempo(animalId,animalNome,animalNasc);
+}
+function verFotoAmpliada(src,titulo,desc){
+  document.getElementById('foto-full-img').src=src;
+  document.getElementById('foto-full-caption').textContent=[titulo,desc].filter(Boolean).join(' — ');
+  openModal('modal-foto-full');
+}
 
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
 function _mostrarStatusSync(msg, tipo) {
