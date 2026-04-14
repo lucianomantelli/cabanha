@@ -109,6 +109,8 @@
   .bar-fill { border-radius:99px; height:5px; }
   .bar-val { font-size:11px; color:var(--text2); width:28px; text-align:right; flex-shrink:0; }
   .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:100; display:none; align-items:center; justify-content:center; }
+  #modal-midia    { z-index:300; }
+  #modal-foto-full{ z-index:400; }
   .modal-bg.open { display:flex; }
   .modal { background:var(--bg2); border-radius:var(--radius-lg); border:0.5px solid var(--border); padding:1.4rem; width:620px; max-width:95vw; max-height:90vh; overflow-y:auto; }
   .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.1rem; }
@@ -353,25 +355,32 @@
   /* ── LINHA DO TEMPO ──────────────────────────────────────────────── */
   .tl-wrap { padding:0.5rem 0; }
   .tl-year { font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;padding:8px 0 4px;margin-top:4px; }
-  .tl-item { display:flex;gap:12px;padding:8px 0;position:relative; }
-  .tl-item::before { content:'';position:absolute;left:17px;top:36px;bottom:-8px;width:1.5px;background:var(--border); }
+  .tl-item { display:flex;gap:12px;padding:10px 0;position:relative; }
+  .tl-item::before { content:'';position:absolute;left:17px;top:38px;bottom:-10px;width:1.5px;background:var(--border); }
   .tl-item:last-child::before { display:none; }
-  .tl-dot { width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:2px solid var(--border); }
-  .tl-dot.aniv  { background:var(--amber-d,#92400e);color:white; }
-  .tl-dot.foto  { background:var(--blue,#378ADD);color:white; }
-  .tl-dot.saude { background:var(--red-d,#b91c1c);color:white; }
-  .tl-dot.evento{ background:var(--green,#2D6A4F);color:white; }
-  .tl-dot.repro { background:#7c3aed;color:white; }
-  .tl-dot.medida{ background:#0d9488;color:white; }
-  .tl-dot.nasc  { background:var(--green-l,#40916C);color:white; }
+  .tl-dot { width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:2px solid var(--border); }
+  .tl-dot.aniv  { background:var(--amber-d,#92400e);color:white;border-color:var(--amber,#d97706); }
+  .tl-dot.foto  { background:var(--blue,#378ADD);color:white;border-color:#1e6db5; }
+  .tl-dot.saude { background:#b91c1c;color:white;border-color:#991b1b; }
+  .tl-dot.evento{ background:var(--green,#2D6A4F);color:white;border-color:var(--green-l); }
+  .tl-dot.repro { background:#7c3aed;color:white;border-color:#6d28d9; }
+  .tl-dot.medida{ background:#0d9488;color:white;border-color:#0f766e; }
+  .tl-dot.nasc  { background:var(--green-l,#40916C);color:white;border-color:var(--green-xl,#52B788); }
   .tl-content { flex:1;min-width:0; }
   .tl-date { font-size:10px;color:var(--text3);margin-bottom:2px; }
-  .tl-title { font-size:13px;font-weight:600;color:var(--text); }
-  .tl-sub { font-size:12px;color:var(--text2);margin-top:2px; }
-  .tl-foto-grid { display:flex;flex-wrap:wrap;gap:6px;margin-top:6px; }
-  .tl-foto-thumb { width:80px;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:1.5px solid var(--border);transition:border-color 0.2s; }
-  .tl-foto-thumb:hover { border-color:var(--blue,#378ADD); }
-  .tl-empty { text-align:center;padding:2rem;color:var(--text3);font-size:13px; }
+  .tl-title { font-size:13px;font-weight:600;color:var(--text);line-height:1.3; }
+  .tl-sub { font-size:12px;color:var(--text2);margin-top:2px;line-height:1.4; }
+  .tl-foto-grid { display:flex;flex-wrap:wrap;gap:8px;margin-top:8px; }
+  .tl-foto-thumb { width:88px;height:88px;object-fit:cover;border-radius:8px;cursor:pointer;
+    border:2px solid var(--border);transition:all 0.2s; }
+  .tl-foto-thumb:hover { border-color:var(--blue,#378ADD);transform:scale(1.04); }
+  .tl-empty { text-align:center;padding:2rem 1rem;color:var(--text3);font-size:13px;line-height:1.6; }
+  @media(max-width:600px){
+    .tl-foto-thumb{width:72px;height:72px;}
+    .tl-title{font-size:12px;}
+    #modal-midia .modal,#modal-detalhe2 .modal{width:100%!important;max-width:100vw;border-radius:12px 12px 0 0;max-height:88vh;}
+    #modal-foto-full img{max-width:95vw;max-height:70vh;}
+  }
 </style>
 </head>
 <body>
@@ -1359,11 +1368,12 @@
 
 <!-- MODAL LINHA DO TEMPO — FOTO/VÍDEO -->
 <div class="modal-bg" id="modal-midia">
-  <div class="modal" style="width:580px;max-height:92vh;overflow-y:auto">
-    <div class="modal-header">
+  <div class="modal" style="width:min(580px,96vw);max-height:92vh;overflow-y:auto;padding:0">
+    <div class="modal-header" style="position:sticky;top:0;z-index:5;background:var(--bg2);border-bottom:1px solid var(--border);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:1rem 1.4rem">
       <span class="modal-title">Adicionar foto / vídeo</span>
       <button class="modal-close" onclick="closeModal('modal-midia')">×</button>
     </div>
+    <div style="padding:1.2rem 1.4rem">
     <input type="hidden" id="midia-animal-id">
     <input type="hidden" id="midia-animal-nome">
     <input type="hidden" id="midia-animal-nasc">
@@ -1412,18 +1422,19 @@
           ondragleave="this.style.borderColor='var(--border)'"
           ondrop="_onMidiaFileDrop(event)">
           <div style="font-size:2rem;margin-bottom:8px" id="midia-drop-icon">📁</div>
-          <div style="font-size:13px;color:var(--text2)" id="midia-drop-label">Clique ou arraste foto/vídeo aqui</div>
+          <div style="font-size:13px;color:var(--text2)" id="midia-drop-label">Toque ou arraste foto aqui</div>
           <div style="font-size:11px;color:var(--text3);margin-top:4px">JPG, PNG, WebP · máx 5MB</div>
         </div>
         <input type="file" id="midia-file-input" accept="image/*,video/*" style="display:none" onchange="_onMidiaFileSelect(event)">
         <div id="midia-preview" style="display:none;margin-top:10px;text-align:center">
-          <img id="midia-preview-img" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border)" src="">
+          <img id="midia-preview-img" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--border)" src="">
           <div id="midia-preview-video-label" style="display:none;font-size:12px;color:var(--text2);margin-top:4px"></div>
-          <button class="btn btn-sm" style="margin-top:6px;color:var(--red-d)" onclick="_limparMidiaFile()">✕ Remover</button>
+          <button class="btn btn-sm" style="margin-top:8px;color:var(--red-d)" onclick="_limparMidiaFile()">✕ Remover</button>
         </div>
       </div>
     </div>
-    <div class="modal-footer">
+    </div>
+    <div class="modal-footer" style="position:sticky;bottom:0;background:var(--bg2);border-top:1px solid var(--border);padding:0.8rem 1.4rem">
       <button class="btn" onclick="closeModal('modal-midia')">Cancelar</button>
       <button class="btn btn-primary" id="btn-salvar-midia" onclick="salvarMidia()">💾 Salvar</button>
     </div>
@@ -1431,11 +1442,11 @@
 </div>
 
 <!-- MODAL VISUALIZAR FOTO AMPLIADA -->
-<div class="modal-bg" id="modal-foto-full" style="align-items:center;justify-content:center" onclick="if(event.target===this)closeModal('modal-foto-full')">
-  <div style="max-width:90vw;position:relative;display:flex;flex-direction:column;align-items:center">
-    <img id="foto-full-img" style="max-width:90vw;max-height:80vh;border-radius:10px;object-fit:contain" src="">
-    <div id="foto-full-caption" style="color:white;font-size:13px;margin-top:10px;text-align:center;max-width:600px"></div>
-    <button onclick="closeModal('modal-foto-full')" style="position:absolute;top:-12px;right:-12px;background:rgba(0,0,0,0.8);color:white;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer">×</button>
+<div class="modal-bg" id="modal-foto-full" style="align-items:center;justify-content:center;background:rgba(0,0,0,0.92)" onclick="if(event.target===this||event.target.id==='modal-foto-full')closeModal('modal-foto-full')">
+  <div style="max-width:95vw;max-height:95vh;position:relative;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <img id="foto-full-img" style="max-width:95vw;max-height:80vh;border-radius:8px;object-fit:contain;display:block" src="">
+    <div id="foto-full-caption" style="color:rgba(255,255,255,0.85);font-size:13px;text-align:center;max-width:min(600px,90vw);padding:0 1rem"></div>
+    <button onclick="closeModal('modal-foto-full')" style="position:absolute;top:-14px;right:-14px;background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);color:white;border:1.5px solid rgba(255,255,255,0.3);border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
   </div>
 </div>
 
@@ -1928,18 +1939,18 @@
 </div>
 
 <div class="modal-bg" id="modal-detalhe2">
-  <div class="modal" style="width:860px;max-height:92vh;overflow-y:auto">
-    <div class="modal-header">
+  <div class="modal" style="width:min(900px,96vw);max-height:94vh;overflow-y:auto;padding:0">
+    <div class="modal-header" style="position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:1px solid var(--border);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:1rem 1.4rem">
       <span class="modal-title" id="det-titulo">Animal</span>
       <div style="display:flex;gap:6px;align-items:center">
         <button class="btn btn-sm" id="det-btn-editar" onclick="alternarEdicaoAnimal()" style="font-size:11px">✏️ Editar</button>
         <button class="btn btn-sm btn-primary" id="det-btn-salvar" onclick="salvarEdicaoAnimal()" style="display:none;font-size:11px">💾 Salvar</button>
-        <button class="btn btn-sm" id="det-btn-cancelar" onclick="cancelarEdicaoAnimal()" style="display:none;font-size:11px">✕ Cancelar</button>
+        <button class="btn btn-sm" id="det-btn-cancelar" onclick="cancelarEdicaoAnimal()" style="display:none;font-size:11px">✕</button>
         <button class="modal-close" onclick="closeModal('modal-detalhe2')">×</button>
       </div>
     </div>
-    <div id="det-corpo"></div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-detalhe2')">Fechar</button></div>
+    <div id="det-corpo" style="padding:1.2rem 1.4rem"></div>
+    <div class="modal-footer" style="padding:0.8rem 1.4rem;border-top:1px solid var(--border)"><button class="btn" onclick="closeModal('modal-detalhe2')">Fechar</button></div>
   </div>
 </div>
 
@@ -6806,27 +6817,42 @@ async function _carregarLinhaTempo(animalId, animalNome, animalNasc) {
 
   const eventos_tl = [];
 
-  // Nascimento
+  // Nascimento do próprio animal
   if(animalNasc) {
-    eventos_tl.push({ data:animalNasc, tipo:'nasc', icone:'🐴', titulo:'Nascimento', sub:fd(animalNasc) });
-    // Aniversários
+    eventos_tl.push({ data:animalNasc, tipo:'nasc', icone:'🐴',
+      titulo:'Nascimento', sub:fd(animalNasc) });
+    // Aniversários até hoje
     const nascDt = new Date(animalNasc+'T00:00:00');
     const hoje = new Date();
     const anos = Math.floor((hoje-nascDt)/(365.25*86400000));
     for(let a=1;a<=anos;a++){
-      const dt = new Date(nascDt); dt.setFullYear(nascDt.getFullYear()+a);
-      eventos_tl.push({ data:dt.toISOString().slice(0,10), tipo:'aniv', icone:'🎂', titulo:a+'º aniversário', sub:'' });
+      const dt = new Date(nascDt.getFullYear()+a, nascDt.getMonth(), nascDt.getDate());
+      eventos_tl.push({ data:dt.toISOString().slice(0,10),
+        tipo:'aniv', icone:'🎂', titulo:a+'º aniversário', sub:'' });
     }
   }
 
+  // ── Crias nascidas (animais cadastrados que têm este animal como mãe ou pai) ──
+  animais.filter(a => a.db_id !== animalId &&
+    (a.mae && a.mae.toUpperCase() === animalNome.toUpperCase() ||
+     a.pai && a.pai.toUpperCase() === animalNome.toUpperCase())
+  ).forEach(cria => {
+    if(!cria.nasc) return;
+    const eMae = cria.mae && cria.mae.toUpperCase()===animalNome.toUpperCase();
+    eventos_tl.push({ data:cria.nasc, tipo:'nasc', icone: eMae?'🐣':'👶',
+      titulo:'Nasceu '+cria.nome,
+      sub:(eMae?'Cria (mãe)':'Cria (pai)')+(cria.sexo?' · '+sexm(cria.sexo):'')+
+          (cria.pelagem?' · '+cria.pelagem:'') });
+  });
+
   // Buscar dados do banco em paralelo
   const [vacsDB, examsDB, vermDB, cobDB, medidasDB, midiasDB] = await Promise.all([
-    _supa('GET','vacinacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,vacina,dose,vet'),
-    _supa('GET','exames','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,tipo,resultado,vet'),
-    _supa('GET','vermifugacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,produto'),
-    _supa('GET','coberturas','','?egua_id=eq.'+animalId+'&order=data.desc&select=data,garanhao,tipo,resultado,parto_real'),
-    _supa('GET','medidas','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,peso,escore,contexto'),
-    _supa('GET','animal_midia','','?animal_id=eq.'+animalId+'&order=data_midia.desc&select=*'),
+    _supa('GET','vacinacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,vacina,dose,vet') || [],
+    _supa('GET','exames','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,tipo,resultado,vet') || [],
+    _supa('GET','vermifugacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,produto') || [],
+    _supa('GET','coberturas','','?egua_id=eq.'+animalId+'&order=data.desc&select=data,garanhao,tipo,resultado,parto_real') || [],
+    _supa('GET','medidas','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,peso,escore,contexto') || [],
+    _supa('GET','animal_midia','','?animal_id=eq.'+animalId+'&order=data_midia.desc&select=*') || [],
   ]);
 
   (vacsDB||[]).forEach(v => eventos_tl.push({ data:v.data, tipo:'saude', icone:'💉',
@@ -6836,21 +6862,24 @@ async function _carregarLinhaTempo(animalId, animalNome, animalNasc) {
   (vermDB||[]).forEach(v => eventos_tl.push({ data:v.data, tipo:'saude', icone:'💊',
     titulo:'Vermifugação: '+v.produto, sub:'' }));
   (cobDB||[]).forEach(v => {
-    if(v.data) eventos_tl.push({ data:v.data, tipo:'repro', icone:'🍀', titulo:'Cobertura ('+v.tipo+')', sub:v.garanhao||'' });
-    if(v.parto_real) eventos_tl.push({ data:v.parto_real, tipo:'repro', icone:'🐣', titulo:'Parto', sub:'Resultado: '+v.resultado });
+    if(v.data) eventos_tl.push({ data:v.data, tipo:'repro', icone:'🍀',
+      titulo:'Cobertura ('+v.tipo+')', sub:v.garanhao||'' });
+    if(v.parto_real) eventos_tl.push({ data:v.parto_real, tipo:'repro', icone:'🐣',
+      titulo:'Parto', sub:'Resultado: '+v.resultado });
   });
   (medidasDB||[]).forEach(v => eventos_tl.push({ data:v.data, tipo:'medida', icone:'📐',
-    titulo:'Medida biométrica', sub:(v.peso?'Peso: '+v.peso+'kg · ':'')+(v.escore?'Escore: '+v.escore:'')+(v.contexto?' · '+v.contexto:'') }));
+    titulo:'Biometria', sub:[v.peso?'Peso: '+v.peso+'kg':null, v.escore?'Escore: '+v.escore:null, v.contexto||null].filter(Boolean).join(' · ') }));
 
-  // Eventos/provas do sistema
+  // Eventos/provas
   (eventosEsp||[]).filter(e=>(e.participantes||e.animais||[]).some(p=>(p.nome||p.animal)===animalNome))
     .forEach(e => {
       const part=(e.participantes||e.animais||[]).find(p=>(p.nome||p.animal)===animalNome)||{};
       const res=part.resultado&&part.resultado!=='Sem resultado'?' · '+part.resultado:'';
-      eventos_tl.push({ data:e.data||'', tipo:'evento', icone:'🏆', titulo:e.nome, sub:e.tipo+res });
+      eventos_tl.push({ data:e.data||'', tipo:'evento', icone:'🏆',
+        titulo:e.nome, sub:e.tipo+res });
     });
 
-  // Mídias
+  // Mídias cadastradas
   (midiasDB||[]).forEach(m => eventos_tl.push({
     data:m.data_midia, tipo:'foto', icone:m.tipo==='video'?'🎬':'📷',
     titulo:m.titulo||_midiaCategLabel(m.categoria), sub:m.descricao||'', midia:m
@@ -6861,6 +6890,7 @@ async function _carregarLinhaTempo(animalId, animalNome, animalNasc) {
     return;
   }
 
+  // Ordenar por data desc
   eventos_tl.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
 
   // Agrupar por ano
@@ -6877,19 +6907,21 @@ async function _carregarLinhaTempo(animalId, animalNome, animalNasc) {
         +'<div class="tl-date">'+fd(ev.data)+'</div>'
         +'<div class="tl-title">'+ev.titulo+'</div>'
         +(ev.sub?'<div class="tl-sub">'+ev.sub+'</div>':'');
+      // Foto
       if(ev.midia?.arquivo_data&&ev.midia.tipo==='foto') {
-        const src=ev.midia.arquivo_data.replace(/'/g,"%27");
-        const tit=(ev.titulo||'').replace(/'/g,"\\'");
-        const dsc=(ev.midia.descricao||'').replace(/'/g,"\\'");
-        html+='<div class="tl-foto-grid"><img class="tl-foto-thumb" src="'+src+'" onclick="verFotoAmpliada(this.src,\''+tit+'\',\''+dsc+'\')"></div>';
+        html+='<div class="tl-foto-grid">'
+          +'<img class="tl-foto-thumb" src="'+ev.midia.arquivo_data+'"'
+          +' onclick="verFotoAmpliada(this.src,\''+( ev.titulo||'').replace(/'/g,"\\'")
+          +'\',\''+(ev.midia.descricao||'').replace(/'/g,"\\'")+'\')"></div>';
       }
       if(ev.midia) {
         html+='<div style="margin-top:5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
           +_midiaBadgeHTML(ev.midia.categoria)
           +(ev.midia.evento_nome?'<span style="font-size:11px;color:var(--text3)">'+ev.midia.evento_nome+'</span>':'')
           +(ev.midia.resultado_evento?'<span class="badge bg" style="font-size:9px">'+ev.midia.resultado_evento+'</span>':'')
-          +'<button class="btn btn-sm" style="font-size:10px;color:var(--red-d);padding:1px 6px;margin-left:auto" '
-          +'onclick="excluirMidia(\''+ev.midia.id+'\',\''+animalId+'\',\''+animalNome.replace(/'/g,"\\'")+'\',\''+animalNasc+'\')">🗑</button>'
+          +'<button class="btn btn-sm" style="font-size:10px;color:var(--red-d);padding:1px 6px;margin-left:auto"'
+          +' onclick="excluirMidia(\''+ev.midia.id+'\',\''+animalId+'\''+
+          ',\''+animalNome.replace(/'/g,"\\'")+'\',\''+animalNasc+'\')">🗑</button>'
           +'</div>';
       }
       html+='</div></div>';
