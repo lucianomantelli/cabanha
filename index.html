@@ -2246,6 +2246,11 @@ function _populaAnimalSel(wrapId, hiddenId, onlyAtivos) {
 let _rvAnexos = []; // [{nome,tipo,tamanho,b64}] múltiplos anexos
 
 function abrirModalVac(preIdx) {
+  // CAMPO não controla vacinas
+  if(preIdx !== undefined && preIdx >= 0 && animais[preIdx]?.estagio === 'CAMPO') {
+    alert('Animais em estágio CAMPO não têm controle de vacinação.\nApenas vermifugação é controlada para animais em campo.');
+    return;
+  }
   document.getElementById('rv-animal-idx').value = preIdx ?? -1;
   if(preIdx !== undefined && preIdx >= 0) {
     document.getElementById('rv-animal-nome').textContent = animais[preIdx]?.nome || '—';
@@ -2269,6 +2274,10 @@ function abrirModalVac(preIdx) {
 }
 
 function abrirModalExame(preIdx) {
+  if(preIdx !== undefined && preIdx >= 0 && animais[preIdx]?.estagio === 'CAMPO') {
+    alert('Animais em estágio CAMPO não têm controle de exames.\nApenas vermifugação é controlada para animais em campo.');
+    return;
+  }
   document.getElementById('re-animal-idx').value = preIdx ?? -1;
   if(preIdx !== undefined && preIdx >= 0) {
     document.getElementById('re-animal-nome').textContent = animais[preIdx]?.nome || '—';
@@ -3657,6 +3666,7 @@ function renderKanbanVac() {
   const fBusca = document.getElementById('kvac-busca')?.value?.toLowerCase()||'';
   const lista  = animais.filter(a=>
     isAtivo(a) &&
+    a.estagio !== 'CAMPO' &&          // CAMPO não controla vacinas
     (!fEst   || a.estagio===fEst) &&
     (!fBusca || a.nome.toLowerCase().includes(fBusca))
   );
@@ -3670,8 +3680,8 @@ function _renderVacObrigatorias() {
   const ativos = animais.filter(a=>isAtivo(a));
   const prenhes = ativos.filter(a=>a.sexo==='Fêmea' && coberturas2.some(c=>c.egua===a.nome&&c.resultado==='Prenha'));
 
-  // Verificar Influenza/GET-Vacina (todos) — últimos 12 meses
-  const semInfluenza = ativos.filter(a=>{
+  // Verificar Influenza/GET-Vacina (não CAMPO) — últimos 12 meses
+  const semInfluenza = ativos.filter(a=>{ if(a.estagio==='CAMPO') return false;
     const hist = histVacinas[animais.indexOf(a)]||[];
     const ult = hist.filter(r=>{
       const v=(r.vacina||'').toUpperCase();
@@ -3682,8 +3692,8 @@ function _renderVacObrigatorias() {
     return d !== null && d <= 30;
   });
 
-  // Verificar Leptospirose (éguas prenhes) — últimos 6 meses
-  const semLepto = prenhes.filter(a=>{
+  // Verificar Leptospirose (éguas prenhes, não CAMPO) — últimos 6 meses
+  const semLepto = prenhes.filter(a=>{ if(a.estagio==='CAMPO') return false;
     const hist = histVacinas[animais.indexOf(a)]||[];
     const ult = hist.filter(r=>(r.vacina||'').toUpperCase().includes('LEPTO')).sort((a,b)=>b.data.localeCompare(a.data))[0];
     return !ult;
@@ -3732,6 +3742,7 @@ function renderKanbanExam() {
   const fBusca = document.getElementById('kexam-busca')?.value?.toLowerCase()||'';
   const lista  = animais.filter(a=>
     isAtivo(a) &&
+    a.estagio !== 'CAMPO' &&          // CAMPO não controla exames
     (!fEst   || a.estagio===fEst) &&
     (!fBusca || a.nome.toLowerCase().includes(fBusca))
   );
@@ -7132,10 +7143,27 @@ function editarVac(animalIdx, regIdx) {
 
 async function excluirVac(animalIdx, regIdx) {
   const reg = histVacinas[animalIdx]?.[regIdx]; if(!reg) return;
-  if(!confirm('Excluir vacinação de '+animais[animalIdx]?.nome+'?\n'+reg.vacina+' — '+fd(reg.data)+'\n\nEsta ação não pode ser desfeita.')) return;
-  histVacinas[animalIdx].splice(regIdx,1);
+  const a = animais[animalIdx];
+  if(!confirm('Excluir vacinação de '+(a?.nome||'')+'?\n'+reg.vacina+' — '+fd(reg.data)+'\n\nEsta ação não pode ser desfeita.')) return;
+
+  // Remover do array local
+  histVacinas[animalIdx].splice(regIdx, 1);
+
+  // Recalcular ult_vac e prox_vac com base no histórico restante
+  const hist = histVacinas[animalIdx] || [];
+  if(hist.length) {
+    const mais = hist.reduce((a,b) => b.data > a.data ? b : a);
+    if(a) { a.ult_vac = mais.data; a.prox_vac = mais.prox || null; }
+  } else {
+    // Sem mais vacinas — zerar os campos
+    if(a) { a.ult_vac = null; a.prox_vac = null; }
+  }
+
+  // Excluir no banco e atualizar animal
   if(reg.db_id) await _supa('DELETE','vacinacoes',null,'?id=eq.'+reg.db_id);
-  renderSaude(); renderHistVac();
+  if(a?.db_id) await _supa('PATCH','animais',{prox_vac: a.prox_vac||null, ult_vac: a.ult_vac||null},'?id=eq.'+a.db_id);
+
+  renderSaude(); renderHistVac(); renderDashboard();
   _mostrarStatusSync('🗑️ Vacinação excluída','green');
 }
 
@@ -7161,10 +7189,27 @@ function editarExame(animalIdx, regIdx) {
 
 async function excluirExame(animalIdx, regIdx) {
   const reg = histExames[animalIdx]?.[regIdx]; if(!reg) return;
-  if(!confirm('Excluir exame de '+animais[animalIdx]?.nome+'?\n'+reg.tipo+' — '+fd(reg.data)+'\n\nEsta ação não pode ser desfeita.')) return;
-  histExames[animalIdx].splice(regIdx,1);
+  const a = animais[animalIdx];
+  if(!confirm('Excluir exame de '+(a?.nome||'')+'?\n'+reg.tipo+' — '+fd(reg.data)+'\n\nEsta ação não pode ser desfeita.')) return;
+
+  // Remover do array local
+  histExames[animalIdx].splice(regIdx, 1);
+
+  // Recalcular val_exame com base no histórico restante
+  const hist = histExames[animalIdx] || [];
+  const comVal = hist.filter(x => x.validade);
+  if(comVal.length) {
+    const mais = comVal.reduce((a,b) => b.validade > a.validade ? b : a);
+    if(a) a.val_exame = mais.validade;
+  } else {
+    if(a) a.val_exame = null;
+  }
+
+  // Excluir no banco e atualizar animal
   if(reg.db_id) await _supa('DELETE','exames',null,'?id=eq.'+reg.db_id);
-  renderSaude(); renderHistExam();
+  if(a?.db_id) await _supa('PATCH','animais',{val_exame: a.val_exame||null},'?id=eq.'+a.db_id);
+
+  renderSaude(); renderHistExam(); renderDashboard();
   _mostrarStatusSync('🗑️ Exame excluído','green');
 }
 
@@ -7218,6 +7263,12 @@ async function excluirVerm(animalIdx, regIdx) {
 // Interceptar saves para suportar edição
 const salvarRegistroVac_orig = salvarRegistroVac;
 window.salvarRegistroVac = function() {
+  // Guard CAMPO
+  const _aIdx7 = parseInt(document.getElementById('rv-animal-idx').value);
+  if(!isNaN(_aIdx7) && _aIdx7>=0 && animais[_aIdx7]?.estagio==='CAMPO') {
+    alert('Animais em estágio CAMPO não têm controle de vacinação.');
+    closeModal('modal-reg-vac'); return;
+  }
   const aIdx = window._rvEditAnimalIdx;
   const rIdx = window._rvEditRegIdx;
   if(aIdx!==undefined && rIdx!==undefined) {
