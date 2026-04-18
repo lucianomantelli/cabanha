@@ -1450,6 +1450,39 @@
   </div>
 </div>
 
+
+<!-- MODAL EDITAR VERMIFUGAÇÃO -->
+<div class="modal-bg" id="modal-edit-verm">
+  <div class="modal" style="width:min(500px,96vw)">
+    <div class="modal-header">
+      <span class="modal-title">Editar vermifugação</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-verm')">×</button>
+    </div>
+    <input type="hidden" id="ev-animal-idx">
+    <input type="hidden" id="ev-reg-idx">
+    <input type="hidden" id="ev-db-id">
+    <div class="form-grid">
+      <div class="form-group"><label>Data</label><input type="date" id="ev-data"></div>
+      <div class="form-group"><label>Próxima</label><input type="date" id="ev-prox"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Vermífugo</label><input type="text" id="ev-produto"></div>
+      <div class="form-group"><label>Via</label>
+        <select id="ev-via">
+          <option value="Oral">Oral</option>
+          <option value="Injetável">Injetável</option>
+          <option value="Tópica">Tópica</option>
+          <option value="Pasta">Pasta</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Dose</label><input type="text" id="ev-dose" placeholder="Ex: 10ml"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Responsável</label><input type="text" id="ev-resp"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observação</label><textarea id="ev-obs" rows="2" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-verm')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoVerm()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
 <!-- MODAL REGISTRO VACINA -->
 <div class="modal-bg" id="modal-reg-vac">
   <div class="modal" style="width:620px;max-height:92vh;display:flex;flex-direction:column">
@@ -1457,7 +1490,7 @@
       <span class="modal-title" id="rv-titulo">Registrar Vacinação</span>
       <button class="modal-close" onclick="closeModal('modal-reg-vac')">×</button>
     </div>
-    <input type="hidden" id="rv-animal-idx">
+    <input type="hidden" id="rv-animal-idx"><input type="hidden" id="rv-db-id">
     <div style="overflow-y:auto;flex:1;padding:0 1.25rem 1rem">
 
       <!-- ANIMAL -->
@@ -1704,7 +1737,7 @@
       <span class="modal-title" id="re-titulo">Registrar Exame Sanitário</span>
       <button class="modal-close" onclick="closeModal('modal-reg-exam')">×</button>
     </div>
-    <input type="hidden" id="re-animal-idx">
+    <input type="hidden" id="re-animal-idx"><input type="hidden" id="re-db-id">
     <div style="overflow-y:auto;flex:1;padding:0 1.25rem 1rem">
 
       <!-- ANIMAL -->
@@ -2870,6 +2903,10 @@ function renderHistVac() {
       <td style="font-size:12px">${validadeCell}</td>
       <td style="font-size:11px;color:var(--text2)">${r.vet||'—'}</td>
       <td style="white-space:nowrap">${docsBtns}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" style="font-size:10px;padding:2px 7px" onclick="editarVac(${r._idx},${r._ri})" title="Editar">✏️</button>
+        <button class="btn btn-sm" style="font-size:10px;padding:2px 7px;color:var(--red-d);margin-left:2px" onclick="excluirVac(${r._idx},${r._ri})" title="Excluir">🗑</button>
+      </td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
 }
@@ -2886,7 +2923,7 @@ function renderHistExam() {
   rows.sort((a,b)=>b.data.localeCompare(a.data));
   if(!rows.length){el.innerHTML='<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum exame registrado ainda.</div>';return;}
   el.innerHTML=`<div class="card" style="padding:0;overflow:hidden;overflow-x:auto"><table><thead><tr>
-    <th style="padding:9px 10px">Animal</th><th>Data</th><th>Tipo</th><th>Resultado</th><th>Válido até</th><th>Veterinário</th><th>Documentos</th>
+    <th style="padding:9px 10px">Animal</th><th>Data</th><th>Tipo</th><th>Resultado</th><th>Válido até</th><th>Veterinário</th><th>Documentos</th><th style="width:80px">Ações</th>
   </tr></thead><tbody>${rows.map(r=>{
     const rc=r.resultado==='Negativo'?'bg':r.resultado==='Positivo'?'br':'ba';
     // Suporte a múltiplos anexos (campo anexos) ou legado (campo laudo)
@@ -2904,6 +2941,10 @@ function renderHistExam() {
       <td style="font-size:12px;font-weight:${da(r.validade)!==null&&da(r.validade)<=30?'700':'400'}">${r.validade?fd(r.validade):'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${r.vet||'—'}</td>
       <td style="white-space:nowrap">${docsBtns}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" style="font-size:10px;padding:2px 7px" onclick="editarExame(${r._idx},${r._ri})" title="Editar">✏️</button>
+        <button class="btn btn-sm" style="font-size:10px;padding:2px 7px;color:var(--red-d);margin-left:2px" onclick="excluirExame(${r._idx},${r._ri})" title="Excluir">🗑</button>
+      </td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
 }
@@ -3181,7 +3222,7 @@ function renderVermHistorico() {
   if(!filtered.length){el.innerHTML='<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma vermifugação registrada ainda.</div>';return;}
   el.innerHTML=`<div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
     <table><thead><tr>
-      <th style="padding:9px 10px">Animal</th><th>Data</th><th>Vermífugo</th><th>Via</th><th>Próxima</th><th>Responsável</th><th>Obs</th>
+      <th style="padding:9px 10px">Animal</th><th>Data</th><th>Vermífugo</th><th>Via</th><th>Próxima</th><th>Responsável</th><th>Obs</th><th style="width:80px">Ações</th>
     </tr></thead><tbody>
     ${filtered.map(r=>`<tr>
       <td style="padding:6px 10px;font-weight:600">${r.nomeAnimal}</td>
@@ -3191,6 +3232,10 @@ function renderVermHistorico() {
       <td style="font-size:12px">${r.prox?fd(r.prox):'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${r.resp||'—'}</td>
       <td style="font-size:11px;color:var(--text3)">${r.obs||'—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-sm" style="font-size:10px;padding:2px 7px" onclick="editarVerm(${r._idx},${r._ri})" title="Editar">✏️</button>
+        <button class="btn btn-sm" style="font-size:10px;padding:2px 7px;color:var(--red-d);margin-left:2px" onclick="excluirVerm(${r._idx},${r._ri})" title="Excluir">🗑</button>
+      </td>
     </tr>`).join('')}
     </tbody></table></div>`;
 }
@@ -7050,6 +7095,176 @@ function verFotoAmpliada(src,titulo,desc){
   document.getElementById('foto-full-caption').textContent=[titulo,desc].filter(Boolean).join(' — ');
   openModal('modal-foto-full');
 }
+
+
+// ─── EDIÇÃO E EXCLUSÃO — SAÚDE ────────────────────────────────────────────────
+function editarVac(animalIdx, regIdx) {
+  const reg = histVacinas[animalIdx]?.[regIdx]; if(!reg) return;
+  document.getElementById('rv-animal-idx').value = animalIdx;
+  if(document.getElementById('rv-db-id')) document.getElementById('rv-db-id').value = reg.db_id||'';
+  document.getElementById('rv-titulo').textContent = 'Editar vacinação';
+  document.getElementById('rv-animal-nome').textContent = animais[animalIdx]?.nome||'—';
+  document.getElementById('rv-data').value = reg.data||'';
+  document.getElementById('rv-prox').value = reg.prox||'';
+  document.getElementById('rv-vacina').value = reg.vacina||'';
+  document.getElementById('rv-vet').value = reg.vet||'';
+  document.getElementById('rv-dose').value = reg.dose||'';
+  document.getElementById('rv-obs').value = reg.obs||'';
+  const isAIE = reg.isAIE||(reg.vacina||'').toUpperCase().includes('AIE');
+  const aieExtra = document.getElementById('rv-aie-extra');
+  if(aieExtra) aieExtra.style.display = isAIE?'':'none';
+  if(isAIE) {
+    const r=document.getElementById('rv-aie-resultado'), n=document.getElementById('rv-aie-num'), l=document.getElementById('rv-aie-lab');
+    if(r) r.value=reg.aieResultado||''; if(n) n.value=reg.aieNum||''; if(l) l.value=reg.aieLab||'';
+  }
+  window._rvEditAnimalIdx = animalIdx;
+  window._rvEditRegIdx = regIdx;
+  _rvAnexos = [];
+  openModal('modal-reg-vac');
+}
+
+async function excluirVac(animalIdx, regIdx) {
+  const reg = histVacinas[animalIdx]?.[regIdx]; if(!reg) return;
+  if(!confirm('Excluir vacinação de '+animais[animalIdx]?.nome+'?\n'+reg.vacina+' — '+fd(reg.data)+'\n\nEsta ação não pode ser desfeita.')) return;
+  histVacinas[animalIdx].splice(regIdx,1);
+  if(reg.db_id) await _supa('DELETE','vacinacoes',null,'?id=eq.'+reg.db_id);
+  renderSaude(); renderHistVac();
+  _mostrarStatusSync('🗑️ Vacinação excluída','green');
+}
+
+function editarExame(animalIdx, regIdx) {
+  const reg = histExames[animalIdx]?.[regIdx]; if(!reg) return;
+  document.getElementById('re-animal-idx').value = animalIdx;
+  if(document.getElementById('re-db-id')) document.getElementById('re-db-id').value = reg.db_id||'';
+  document.getElementById('re-titulo').textContent = 'Editar exame';
+  document.getElementById('re-animal-nome').textContent = animais[animalIdx]?.nome||'—';
+  document.getElementById('re-data').value = reg.data||'';
+  document.getElementById('re-validade').value = reg.validade||'';
+  document.getElementById('re-tipo').value = reg.tipo||'AIE';
+  document.getElementById('re-vet').value = reg.vet||'';
+  document.getElementById('re-resultado').value = reg.resultado||'PENDENTE';
+  document.getElementById('re-num-laudo').value = reg.numLaudo||'';
+  document.getElementById('re-motivo').value = reg.motivo||'';
+  document.getElementById('re-obs').value = reg.obs||'';
+  window._reEditAnimalIdx = animalIdx;
+  window._reEditRegIdx = regIdx;
+  _exameAnexos = [];
+  openModal('modal-reg-exam');
+}
+
+async function excluirExame(animalIdx, regIdx) {
+  const reg = histExames[animalIdx]?.[regIdx]; if(!reg) return;
+  if(!confirm('Excluir exame de '+animais[animalIdx]?.nome+'?\n'+reg.tipo+' — '+fd(reg.data)+'\n\nEsta ação não pode ser desfeita.')) return;
+  histExames[animalIdx].splice(regIdx,1);
+  if(reg.db_id) await _supa('DELETE','exames',null,'?id=eq.'+reg.db_id);
+  renderSaude(); renderHistExam();
+  _mostrarStatusSync('🗑️ Exame excluído','green');
+}
+
+function editarVerm(animalIdx, regIdx) {
+  const reg = histVermifugacoes[animalIdx]?.[regIdx]; if(!reg) return;
+  document.getElementById('ev-animal-idx').value = animalIdx;
+  document.getElementById('ev-reg-idx').value    = regIdx;
+  document.getElementById('ev-db-id').value      = reg.db_id||'';
+  document.getElementById('ev-data').value    = reg.data   ||'';
+  document.getElementById('ev-prox').value    = reg.prox   ||'';
+  document.getElementById('ev-produto').value = reg.produto||'';
+  document.getElementById('ev-via').value     = reg.via    ||'Oral';
+  document.getElementById('ev-dose').value    = reg.dose   ||'';
+  document.getElementById('ev-resp').value    = reg.resp   ||'';
+  document.getElementById('ev-obs').value     = reg.obs    ||'';
+  openModal('modal-edit-verm');
+}
+
+async function salvarEdicaoVerm() {
+  const animalIdx = parseInt(document.getElementById('ev-animal-idx').value);
+  const regIdx    = parseInt(document.getElementById('ev-reg-idx').value);
+  const data      = document.getElementById('ev-data').value;
+  const produto   = document.getElementById('ev-produto').value.trim();
+  if(!data||!produto) return alert('Data e vermífugo são obrigatórios.');
+  const reg = histVermifugacoes[animalIdx]?.[regIdx]; if(!reg) return;
+  reg.data=data; reg.produto=produto;
+  reg.prox   = document.getElementById('ev-prox').value||null;
+  reg.via    = document.getElementById('ev-via').value||null;
+  reg.dose   = document.getElementById('ev-dose').value||null;
+  reg.resp   = document.getElementById('ev-resp').value||null;
+  reg.obs    = document.getElementById('ev-obs').value||null;
+  closeModal('modal-edit-verm');
+  const a = animais[animalIdx];
+  if(a?.db_id) {
+    const payload={data:reg.data,produto:reg.produto,via:reg.via||null,dose:reg.dose||null,resp:reg.resp||null,prox_data:reg.prox||null,obs:reg.obs||null};
+    if(reg.db_id) await _supa('PATCH','vermifugacoes',payload,'?id=eq.'+reg.db_id);
+  }
+  renderSaude(); renderVermHistorico();
+  _mostrarStatusSync('✅ Vermifugação atualizada','green');
+}
+
+async function excluirVerm(animalIdx, regIdx) {
+  const reg = histVermifugacoes[animalIdx]?.[regIdx]; if(!reg) return;
+  if(!confirm('Excluir vermifugação de '+animais[animalIdx]?.nome+'?\n'+reg.produto+' — '+fd(reg.data)+'\n\nEsta ação não pode ser desfeita.')) return;
+  histVermifugacoes[animalIdx].splice(regIdx,1);
+  if(reg.db_id) await _supa('DELETE','vermifugacoes',null,'?id=eq.'+reg.db_id);
+  renderSaude(); renderVermHistorico();
+  _mostrarStatusSync('🗑️ Vermifugação excluída','green');
+}
+
+// Interceptar saves para suportar edição
+const _OrigSalvarVac = window.salvarRegistroVac;
+window.salvarRegistroVac = function() {
+  const aIdx = window._rvEditAnimalIdx;
+  const rIdx = window._rvEditRegIdx;
+  if(aIdx!==undefined && rIdx!==undefined) {
+    const data=document.getElementById('rv-data').value, vacina=document.getElementById('rv-vacina').value.trim(), vet=document.getElementById('rv-vet').value.trim();
+    if(!data||!vacina||!vet) return alert('Preencha data, vacina e veterinário.');
+    const reg=histVacinas[aIdx]?.[rIdx]; if(!reg){window._rvEditAnimalIdx=window._rvEditRegIdx=undefined;return;}
+    const isAIE=vacina.toUpperCase().includes('AIE');
+    reg.data=data; reg.vacina=vacina; reg.vet=vet;
+    reg.prox=document.getElementById('rv-prox').value||null;
+    reg.dose=document.getElementById('rv-dose').value||null;
+    reg.obs=document.getElementById('rv-obs').value||null;
+    reg.isAIE=isAIE;
+    if(isAIE){const r=document.getElementById('rv-aie-resultado'),n=document.getElementById('rv-aie-num'),l=document.getElementById('rv-aie-lab');if(r)reg.aieResultado=r.value||null;if(n)reg.aieNum=n.value||null;if(l)reg.aieLab=l.value||null;}
+    window._rvEditAnimalIdx=window._rvEditRegIdx=undefined;
+    document.getElementById('rv-titulo').textContent='Registrar Vacinação';
+    closeModal('modal-reg-vac');
+    _dbSalvarVacina(reg,aIdx);
+    renderSaude(); renderHistVac();
+    _mostrarStatusSync('✅ Vacinação atualizada','green');
+    return;
+  }
+  window._rvEditAnimalIdx=window._rvEditRegIdx=undefined;
+  salvarRegistroVac_orig();
+};
+const salvarRegistroVac_orig = salvarRegistroVac;
+
+const _OrigSalvarExam = window.salvarRegistroExame;
+window.salvarRegistroExame = function() {
+  const aIdx = window._reEditAnimalIdx;
+  const rIdx = window._reEditRegIdx;
+  if(aIdx!==undefined && rIdx!==undefined) {
+    const data=document.getElementById('re-data').value;
+    if(!data) return alert('Data obrigatória.');
+    const reg=histExames[aIdx]?.[rIdx]; if(!reg){window._reEditAnimalIdx=window._reEditRegIdx=undefined;return;}
+    reg.data=data;
+    reg.validade=document.getElementById('re-validade').value||null;
+    reg.tipo=document.getElementById('re-tipo').value;
+    reg.vet=document.getElementById('re-vet').value||null;
+    reg.resultado=document.getElementById('re-resultado').value;
+    reg.numLaudo=document.getElementById('re-num-laudo').value||null;
+    reg.motivo=document.getElementById('re-motivo').value||null;
+    reg.obs=document.getElementById('re-obs').value||null;
+    window._reEditAnimalIdx=window._reEditRegIdx=undefined;
+    document.getElementById('re-titulo').textContent='Registrar Exame';
+    closeModal('modal-reg-exam');
+    _dbSalvarExame(reg,aIdx);
+    renderSaude(); renderHistExam();
+    _mostrarStatusSync('✅ Exame atualizado','green');
+    return;
+  }
+  window._reEditAnimalIdx=window._reEditRegIdx=undefined;
+  salvarRegistroExame_orig();
+};
+const salvarRegistroExame_orig = salvarRegistroExame;
 
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
 function _mostrarStatusSync(msg, tipo) {
