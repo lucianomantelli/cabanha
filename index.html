@@ -7216,7 +7216,7 @@ async function excluirVerm(animalIdx, regIdx) {
 }
 
 // Interceptar saves para suportar edição
-const _OrigSalvarVac = window.salvarRegistroVac;
+const salvarRegistroVac_orig = salvarRegistroVac;
 window.salvarRegistroVac = function() {
   const aIdx = window._rvEditAnimalIdx;
   const rIdx = window._rvEditRegIdx;
@@ -7241,10 +7241,9 @@ window.salvarRegistroVac = function() {
   }
   window._rvEditAnimalIdx=window._rvEditRegIdx=undefined;
   salvarRegistroVac_orig();
-};
-const salvarRegistroVac_orig = salvarRegistroVac;
+}
 
-const _OrigSalvarExam = window.salvarRegistroExame;
+const salvarRegistroExame_orig = salvarRegistroExame;
 window.salvarRegistroExame = function() {
   const aIdx = window._reEditAnimalIdx;
   const rIdx = window._reEditRegIdx;
@@ -7270,8 +7269,7 @@ window.salvarRegistroExame = function() {
   }
   window._reEditAnimalIdx=window._reEditRegIdx=undefined;
   salvarRegistroExame_orig();
-};
-const salvarRegistroExame_orig = salvarRegistroExame;
+}
 
 // ── STATUS SYNC ───────────────────────────────────────────────────────────────
 function _mostrarStatusSync(msg, tipo) {
