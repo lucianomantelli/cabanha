@@ -1510,11 +1510,15 @@
           </div>
           <div class="vac-protocolo" onclick="aplicarProtocolo('influenza')">
             <div class="vac-protocolo-nome">💉 Influenza Equina</div>
-            <div class="vac-protocolo-desc">Obrigatória para eventos e transporte · Reforço 6 meses</div>
+            <div class="vac-protocolo-desc">Obrigatória para eventos e transporte · Reforço anual</div>
           </div>
           <div class="vac-protocolo" onclick="aplicarProtocolo('encefalomielite')">
             <div class="vac-protocolo-nome">💉 Encefalomielite + Tétano (combo)</div>
             <div class="vac-protocolo-desc">Proteção dupla · Reforço anual · Recomendado para plantel</div>
+          </div>
+          <div class="vac-protocolo" onclick="aplicarProtocolo('get_vacina')">
+            <div class="vac-protocolo-nome">💉 GET-Vacina Syntec</div>
+            <div class="vac-protocolo-desc">Influenza + Tétano em dose única · Reforço anual</div>
           </div>
           <div class="vac-protocolo" onclick="aplicarProtocolo('leptospirose')">
             <div class="vac-protocolo-nome">💉 Leptospirose <span class="badge bpk" style="font-size:9px">Éguas prenhes</span></div>
@@ -3666,12 +3670,15 @@ function _renderVacObrigatorias() {
   const ativos = animais.filter(a=>isAtivo(a));
   const prenhes = ativos.filter(a=>a.sexo==='Fêmea' && coberturas2.some(c=>c.egua===a.nome&&c.resultado==='Prenha'));
 
-  // Verificar Influenza (todos) — últimos 6 meses
+  // Verificar Influenza/GET-Vacina (todos) — últimos 12 meses
   const semInfluenza = ativos.filter(a=>{
     const hist = histVacinas[animais.indexOf(a)]||[];
-    const ult = hist.filter(r=>(r.vacina||'').toUpperCase().includes('INFLUEN')).sort((a,b)=>b.data.localeCompare(a.data))[0];
+    const ult = hist.filter(r=>{
+      const v=(r.vacina||'').toUpperCase();
+      return v.includes('INFLUEN')||v.includes('GET-VAC')||v.includes('GET VAC')||v.includes('SYNTEC');
+    }).sort((a,b)=>b.data.localeCompare(a.data))[0];
     if(!ult) return true;
-    const d = da(ult.prox||null) ?? da(new Date(new Date(ult.data).getTime()+180*864e5).toISOString().slice(0,10));
+    const d = da(ult.prox||null) ?? da(new Date(new Date(ult.data).getTime()+365*864e5).toISOString().slice(0,10));
     return d !== null && d <= 30;
   });
 
@@ -7971,8 +7978,14 @@ const VAC_PROTOCOLOS = {
   influenza: {
     vacina:'Influenza Equina (Fluvac Innovator / similar)',
     dose:'1 mL IM',
-    obs:'Obrigatória para eventos e transporte. Primeiramente: 2 doses com 3-4 semanas de intervalo. Reforço a cada 6 meses.',
-    mesesProx:6,
+    obs:'Obrigatória para eventos e transporte. Primeiramente: 2 doses com 3-4 semanas de intervalo. Reforço anual (12 meses).',
+    mesesProx:12,
+  },
+  get_vacina: {
+    vacina:'GET-Vacina Syntec (Influenza + Tétano)',
+    dose:'2 mL IM',
+    obs:'Vacina combinada: Influenza Equina (A-equi-1 e A-equi-2) + Toxóide Tetânico. Indicada para potros, éguas gestantes e adultos. Reforço anual (12 meses).',
+    mesesProx:12,
   },
   encefalomielite: {
     vacina:'Encefalomielite + Tétano (combo)',
