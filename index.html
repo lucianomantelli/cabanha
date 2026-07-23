@@ -320,9 +320,9 @@
   .login-btn:hover { background:var(--green-d); }
   .login-error { background:var(--red-l);color:var(--red-d);border-radius:var(--radius);padding:8px 10px;font-size:12px;margin-top:8px;display:none; }
   .perfil-badge { display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:700;text-transform:uppercase; }
-  .perfil-adm  { background:var(--purple-l);color:var(--purple-d); }
-  .perfil-cab  { background:var(--green-l);color:var(--green-d); }
-  .perfil-vet  { background:var(--blue-l);color:var(--blue-d); }
+  .perfil-adm, .perfil-admin       { background:var(--purple-l);color:var(--purple-d); }
+  .perfil-cab, .perfil-cabanheiro  { background:var(--green-l);color:var(--green-d); }
+  .perfil-vet, .perfil-veterinario { background:var(--blue-l);color:var(--blue-d); }
   /* DASHBOARD DRILL-DOWN */
   .stat-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px; cursor:pointer; border-radius:var(--radius); padding:3px 4px; transition:background 0.12s; }
   .stat-row:hover { background:var(--bg3); }
@@ -6378,19 +6378,25 @@ function dashClick(tipo){ dashDrill(tipo); }
 // ─── GESTÃO DE USUÁRIOS ────────────────────────────────────────────────────────
 let USUARIOS = []; // Array global de usuários — populado pelo sync do banco
 const PERFIS_INFO = {
-  adm: { label:'Administrador', cor:'var(--green-d)', bg:'var(--green-l)',
-         desc:'Acesso total ao sistema: animais, saúde, financeiro, estoque, gestação, eventos, nutrição, medidas e gestão de usuários.' },
-  vet: { label:'Veterinário',   cor:'var(--blue-d)',  bg:'var(--blue-l)',
-         desc:'Acesso a: dashboard, animais, saúde & vacinas, nutrição, gestação e medidas. Pode registrar e editar dados sanitários e nutricionais.' },
-  cab: { label:'Cabanheiro',    cor:'var(--text)',    bg:'var(--bg3)',
-         desc:'Acesso a: dashboard, animais e saúde (somente leitura em nutrição, gestação, eventos, estoque e financeiro). Não pode editar cadastros.' },
+  admin:       { label:'Administrador', cor:'var(--green-d)', bg:'var(--green-l)',
+                 desc:'Acesso total ao sistema.' },
+  adm:         { label:'Administrador', cor:'var(--green-d)', bg:'var(--green-l)',
+                 desc:'Acesso total ao sistema.' },
+  veterinario: { label:'Veterinário',   cor:'var(--blue-d)',  bg:'var(--blue-l)',
+                 desc:'Acesso a: dashboard, animais, saúde, nutrição, gestação e medidas.' },
+  vet:         { label:'Veterinário',   cor:'var(--blue-d)',  bg:'var(--blue-l)',
+                 desc:'Acesso a: dashboard, animais, saúde, nutrição, gestação e medidas.' },
+  cabanheiro:  { label:'Cabanheiro',    cor:'var(--text)',    bg:'var(--bg3)',
+                 desc:'Acesso a: dashboard, animais e saúde (somente leitura demais módulos).' },
+  cab:         { label:'Cabanheiro',    cor:'var(--text)',    bg:'var(--bg3)',
+                 desc:'Acesso a: dashboard, animais e saúde (somente leitura demais módulos).' },
 };
 
 function renderUsuarios() {
   // Counters
-  ['adm','vet','cab'].forEach(p=>{
-    const el = document.getElementById(`usr-count-${p}`);
-    if(el) el.textContent = USUARIOS.filter(u=>u.perfil===p&&u.ativo!==false).length;
+  [['adm','admin'],['vet','veterinario'],['cab','cabanheiro']].forEach(([old,novo])=>{
+    const el = document.getElementById(`usr-count-${old}`);
+    if(el) el.textContent = USUARIOS.filter(u=>(u.perfil===old||u.perfil===novo)&&u.ativo!==false).length;
   });
 
   const el = document.getElementById('usuarios-table-content'); if(!el) return;
@@ -6580,7 +6586,12 @@ function salvarTrocarSenha() {
 const SUPABASE_URL = 'https://fmjfvfufkqswweyasjyp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtamZ2ZnVma3Fzd3dleWFzanlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTA1NzAsImV4cCI6MjA5MDQ2NjU3MH0.wKwB51Ug80T8cYML9Dh8GcbXc5pRxMQKrdK7Y49f7AU';
 
-// ── Helper base ───────────────────────────────────────────────────────────────
+// ── Tenant (schema da cabanha ativa) ─────────────────────────────────────────
+// Para o MVP: schema fixo 'cab_mae_de_deus'
+// Nas próximas versões: resolvido via JWT/login multi-tenant
+let TENANT_SCHEMA = 'cab_mae_de_deus';
+
+// ── Helper base — suporta schema por tenant via Accept-Profile ────────────────
 async function _supa(method, table, body=null, query='') {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
     method,
@@ -6588,6 +6599,8 @@ async function _supa(method, table, body=null, query='') {
       'apikey': SUPABASE_KEY,
       'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Content-Type': 'application/json',
+      'Accept-Profile':  TENANT_SCHEMA,
+      'Content-Profile': TENANT_SCHEMA,
       'Prefer': method==='POST' ? 'return=representation' : 'return=minimal'
     },
     body: body ? JSON.stringify(body) : null
@@ -7801,13 +7814,18 @@ async function _verificarLoginBanco(login, senha) {
 function _saveUsuarios() { try { localStorage.setItem('cabanha_usuarios', JSON.stringify(USUARIOS)); } catch(e){} }
 function _loadUsuarios() { try { const s=localStorage.getItem('cabanha_usuarios'); if(s) USUARIOS=JSON.parse(s); } catch(e){} }
 
-// Permissões por perfil
+// Permissões por perfil (suporta nomes antigos e novos)
 const PERMISSOES = {
-  adm: { tudo:true },
-  vet: { paginas:['dashboard','animais','saude','nutricional','gestacao','medidas'],
-         salvar:true, novoAnimal:false, financeiro:false, estoque:false },
-  cab: { paginas:['dashboard','animais','saude'],
-         salvar:false, somenteLeitura:['nutricional','gestacao','medidas','eventos','estoque','financeiro'] },
+  admin:        { tudo:true },
+  adm:          { tudo:true },   // compatibilidade
+  veterinario:  { paginas:['dashboard','animais','saude','nutricional','gestacao','medidas'],
+                  salvar:true, novoAnimal:false, financeiro:false, estoque:false },
+  vet:          { paginas:['dashboard','animais','saude','nutricional','gestacao','medidas'],
+                  salvar:true, novoAnimal:false, financeiro:false, estoque:false },
+  cabanheiro:   { paginas:['dashboard','animais','saude'],
+                  salvar:false, somenteLeitura:['nutricional','gestacao','medidas','eventos','estoque','financeiro'] },
+  cab:          { paginas:['dashboard','animais','saude'],
+                  salvar:false, somenteLeitura:['nutricional','gestacao','medidas','eventos','estoque','financeiro'] },
 };
 
 let usuarioAtual = null;
@@ -7885,11 +7903,11 @@ document.getElementById('login-screen').style.display='flex';
 
 function _aplicarPermissoes() {
   if(!usuarioAtual) return;
-  const isAdm = usuarioAtual.perfil === 'adm';
+  const isAdm = usuarioAtual.perfil === 'adm' || usuarioAtual.perfil === 'admin';
   // Mostrar botão de usuários apenas para admin
   const usrBtn = document.getElementById('nav-btn-usuarios');
   if(usrBtn) usrBtn.style.display = isAdm ? '' : 'none';
-  const p = PERMISSOES[usuarioAtual.perfil];
+  const p = PERMISSOES[usuarioAtual.perfil] || PERMISSOES['cab'];
   if(p.tudo) return; // admin vê tudo
   // Esconder páginas não autorizadas no menu
   const pageMap = {
@@ -7909,14 +7927,14 @@ function _aplicarPermissoes() {
     btn.style.pointerEvents = permitido||somenteLeitura ? '' : 'none';
   });
   // Esconder botões de edição para cabanheiro
-  if(usuarioAtual.perfil==='cab') {
+  if(usuarioAtual.perfil==='cab' || usuarioAtual.perfil==='cabanheiro') {
     document.querySelectorAll('.btn-primary').forEach(b=>{ if(!b.closest('.modal-footer')&&!b.closest('#page-saude')) b.style.display='none'; });
   }
 }
 
 function podeSalvar() {
   if(!usuarioAtual) return false;
-  const p = PERMISSOES[usuarioAtual.perfil];
+  const p = PERMISSOES[usuarioAtual.perfil] || PERMISSOES['cab'];
   return p.tudo || p.salvar;
 }
 
