@@ -7889,10 +7889,23 @@ function _mostrarSeletor(cabs) {
 }
 function _entrarSeletor(i){ if(window.__cabs && window.__cabs[i]) _entrarCabanha(window.__cabs[i]); }
 
+// Zera TODO o estado em memória do tenant anterior.
+// Precisa rodar ANTES de renderizar a nova cabanha: sem isso, os dados da
+// cabanha anterior continuam na tela até o sync terminar — vazamento visual
+// entre tenants para quem trabalha em mais de uma cabanha.
+function _limparEstadoLocal() {
+  [animais, coberturas2, eventosEsp, estoque, movimentos, lancamentos, pendencias, USUARIOS]
+    .forEach(a => { if (Array.isArray(a)) a.length = 0; });
+  [histVacinas, histExames, medidas, histVermifugacoes]
+    .forEach(o => Object.keys(o).forEach(k => delete o[k]));
+  try { localStorage.removeItem('cabanha_usuarios'); } catch(e) {}
+}
+
 // Entrar numa cabanha: define o schema e carrega o usuário do schema pela identidade global
 async function _entrarCabanha(cab) {
   TENANT_SCHEMA = cab.schema_name;
   TENANT_INFO   = cab;
+  _limparEstadoLocal();   // nunca renderizar a cabanha nova com dado da anterior
   let u = null;
   try {
     const rows = await _supa('GET','usuarios','',`?auth_user_id=eq.${AUTH_USER?.id}&select=id,nome,perfil,ativo&limit=1`);
@@ -7931,8 +7944,8 @@ function _entrarApp() {
 function fazerLogout() {
   usuarioAtual = null;
   AUTH_TOKEN = null; AUTH_USER = null; TENANT_INFO = null;
-  // não deixar lista de usuários de uma cabanha vazar para a próxima sessão
-  try { localStorage.removeItem('cabanha_usuarios'); } catch(e){}
+  // não deixar dado da cabanha na memória/localStorage após sair
+  _limparEstadoLocal();
   _loadUsuarios();
   document.getElementById('login-screen').style.display='flex';
   // restaurar campos e esconder o seletor
