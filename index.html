@@ -7383,8 +7383,27 @@ async function _sincronizarAoLogin() {
       }));
     }
 
+    // Demais requisicoes em PARALELO. O processamento abaixo segue na ordem
+    // original (depende de `animais` ja carregado); so a rede foi paralelizada:
+    // 11 idas e voltas sequenciais viram 1 rodada.
+    const [dbVac, dbExam, dbVerm, dbCob, dbMed, dbEvt, dbEst, dbMov, dbLanc, dbPend, dbUsr] =
+      await Promise.all([
+        _supa('GET','vacinacoes','','?select=*&order=data.desc'),
+        _supa('GET','exames','','?select=*&order=data.desc'),
+        _supa('GET','vermifugacoes','','?select=*&order=data.desc'),
+        _supa('GET','coberturas','','?select=*&order=data.desc'),
+        _supa('GET','medidas','','?select=*&order=data.desc'),
+        _supa('GET','eventos','','?select=*,eventos_animais(*)&order=data.desc'),
+        _supa('GET','estoque_itens','','?select=*&ativo=eq.true&order=nome'),
+        _supa('GET','estoque_movimentos','','?select=*&order=criado_em.desc&limit=500'),
+        _supa('GET','lancamentos','','?select=*&order=data.desc&limit=1000'),
+        _supa('GET','pendencias','','?select=*&resolvida=eq.false&order=gerada_em.desc'),
+        usuarioAtual?.perfil === 'adm'
+          ? _supa('GET','usuarios','','?select=id,login,senha_hash,nome,perfil,ativo,criado_em&order=nome')
+          : Promise.resolve(null),
+      ]);
+
     // 2. Vacinações por animal
-    const dbVac = await _supa('GET','vacinacoes','','?select=*&order=data.desc');
     if(dbVac) {
       Object.keys(histVacinas).forEach(k => delete histVacinas[k]);
       dbVac.forEach(v => {
@@ -7402,7 +7421,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 3. Exames
-    const dbExam = await _supa('GET','exames','','?select=*&order=data.desc');
     if(dbExam) {
       Object.keys(histExames).forEach(k => delete histExames[k]);
       dbExam.forEach(e => {
@@ -7420,7 +7438,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 4. Vermifugações
-    const dbVerm = await _supa('GET','vermifugacoes','','?select=*&order=data.desc');
     if(dbVerm) {
       Object.keys(histVermifugacoes).forEach(k => delete histVermifugacoes[k]);
       dbVerm.forEach(v => {
@@ -7436,7 +7453,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 5. Coberturas
-    const dbCob = await _supa('GET','coberturas','','?select=*&order=data.desc');
     if(dbCob) {
       coberturas2.length = 0;
       dbCob.forEach(c => coberturas2.push({
@@ -7450,7 +7466,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 6. Medidas
-    const dbMed = await _supa('GET','medidas','','?select=*&order=data.desc');
     if(dbMed) {
       Object.keys(medidas).forEach(k => delete medidas[k]);
       dbMed.forEach(m => {
@@ -7467,7 +7482,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 7. Eventos
-    const dbEvt = await _supa('GET','eventos','','?select=*,eventos_animais(*)&order=data.desc');
     if(dbEvt) {
       eventosEsp.length = 0;
       dbEvt.forEach(e => {
@@ -7486,7 +7500,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 8. Estoque
-    const dbEst = await _supa('GET','estoque_itens','','?select=*&ativo=eq.true&order=nome');
     if(dbEst) {
       estoque.length = 0;
       dbEst.forEach(e => estoque.push({
@@ -7498,7 +7511,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 9. Movimentos de estoque
-    const dbMov = await _supa('GET','estoque_movimentos','','?select=*&order=criado_em.desc&limit=500');
     if(dbMov) {
       movimentos.length = 0;
       dbMov.forEach(m => movimentos.push({
@@ -7509,7 +7521,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 10. Lançamentos financeiros
-    const dbLanc = await _supa('GET','lancamentos','','?select=*&order=data.desc&limit=1000');
     if(dbLanc) {
       lancamentos.length = 0;
       dbLanc.forEach(l => lancamentos.push({
@@ -7520,7 +7531,6 @@ async function _sincronizarAoLogin() {
     }
 
     // 11. Pendências
-    const dbPend = await _supa('GET','pendencias','','?select=*&resolvida=eq.false&order=gerada_em.desc');
     if(dbPend) {
       pendencias.length = 0;
       dbPend.forEach(p => pendencias.push({
@@ -7533,7 +7543,6 @@ async function _sincronizarAoLogin() {
 
     // 12. Usuários (só adm vê todos)
     if(usuarioAtual?.perfil === 'adm') {
-      const dbUsr = await _supa('GET','usuarios','','?select=id,login,senha_hash,nome,perfil,ativo,criado_em&order=nome');
       if(dbUsr) {
         USUARIOS.length = 0;
         dbUsr.forEach(u => USUARIOS.push({
