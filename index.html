@@ -3,18 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gestão Crioulo — Sistema de Gestão</title>
+<title>Mimba — Gestão Crioulos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f5f4f0;
+    /* Mimba — terra, couro, ouro velho, campo, creme */
+    --bg: #FAFAF7;
     --bg2: #ffffff;
-    --bg3: #f0efe9;
-    --text: #1a1a18;
-    --text2: #5f5e5a;
-    --text3: #9e9c96;
-    --border: rgba(0,0,0,0.1);
-    --border2: rgba(0,0,0,0.18);
-    --green: #639922; --green-l: #EAF3DE; --green-d: #3B6D11;
+    --bg3: #F5EFE0;
+    --text: #1C1008;
+    --text2: #5C4F42;
+    --text3: #8A7F72;
+    --border: #DDD5C8;
+    --border2: #C9BEAD;
+    --green: #2D5A3D; --green-l: #EBF5EF; --green-d: #2D5A3D;   /* verde campo = ação primária */
+    --ouro: #B8860B; --ouro-l: #FBF5DC; --ouro-d: #8A6608;      /* ouro velho = acento de marca */
     --amber: #EF9F27; --amber-l: #FAEEDA; --amber-d: #854F0B;
     --red: #E24B4A; --red-l: #FCEBEB; --red-d: #A32D2D;
     --blue: #378ADD; --blue-l: #E6F1FB; --blue-d: #185FA5;
@@ -23,22 +28,24 @@
     --teal: #1D9E75; --teal-l: #E1F5EE; --teal-d: #0F6E56;
     --gray-l: #F1EFE8; --gray-d: #5F5E5A;
     --radius: 8px; --radius-lg: 12px;
-    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --mono: 'SF Mono', 'Fira Code', monospace;
+    --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'DM Mono', 'SF Mono', 'Fira Code', monospace;
+    --serif: 'Playfair Display', Georgia, serif;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #1a1a18; --bg2: #252522; --bg3: #1f1f1c;
-      --text: #f0efe9; --text2: #a8a69e; --text3: #6b6963;
-      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.18);
-      --green-l: #1a2e0a; --green-d: #9fcc56;
+      --bg: #1C1008; --bg2: #2E1A0C; --bg3: #241610;
+      --text: #F5EFE0; --text2: #C0B4A8; --text3: #8A7F72;
+      --border: rgba(245,239,224,0.12); --border2: rgba(245,239,224,0.2);
+      --green: #3D7A54; --green-l: #16281c; --green-d: #52A870;
+      --ouro: #E8C547; --ouro-l: #2a2008; --ouro-d: #E8C547;
       --amber-l: #2e1f08; --amber-d: #f0b94a;
       --red-l: #2e0d0d; --red-d: #f07070;
       --blue-l: #0d1e2e; --blue-d: #7ab8f0;
       --purple-l: #1a1840; --purple-d: #a89ef0;
       --pink-l: #2e1020; --pink-d: #f08ab0;
       --teal-l: #0d2420; --teal-d: #5dd4a8;
-      --gray-l: #2a2a28; --gray-d: #b0ae a6;
+      --gray-l: #2a2a28; --gray-d: #b0aea6;
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,7 +69,7 @@
   .page { display:none; }
   .page.active { display:block; }
   .page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.25rem; flex-wrap:wrap; gap:8px; }
-  .page-title { font-size:20px; font-weight:600; color:var(--text); }
+  .page-title { font-family:var(--serif); font-size:23px; font-weight:700; color:var(--text); letter-spacing:-0.01em; }
   .page-sub { font-size:12px; color:var(--text2); margin-top:3px; }
   .btn { padding:7px 14px; border-radius:var(--radius); border:0.5px solid var(--border2); background:var(--bg2); font-size:12px; cursor:pointer; color:var(--text); font-family:var(--font); transition:background 0.12s; }
   .btn:hover { background:var(--bg3); }
@@ -310,8 +317,8 @@
   .login-logo { text-align:center;margin-bottom:1.5rem; }
   .login-logo img { mix-blend-mode:screen; background:transparent; max-width:240px; filter:brightness(1.05); }
   .login-logo-icon { font-size:42px;margin-bottom:8px; }
-  .login-logo-title { font-size:18px;font-weight:800;color:var(--text);letter-spacing:-0.5px; }
-  .login-logo-sub { font-size:12px;color:var(--text2);margin-top:3px; }
+  .login-logo-title { font-family:var(--serif);font-size:40px;font-weight:900;color:var(--ouro);letter-spacing:-0.01em;line-height:1; }
+  .login-logo-sub { font-size:12px;color:var(--text2);margin-top:8px;letter-spacing:.02em; }
   .login-field { margin-bottom:1rem; }
   .login-field label { display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px; }
   .login-field input { width:100%;padding:10px 12px;font-size:14px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-family:var(--font); }
@@ -389,8 +396,8 @@
 <div id="login-screen" class="login-screen">
   <div class="login-box">
     <div class="login-logo">
-      <div class="login-logo-title">Gestão Crioulo</div>
-      <div class="login-logo-sub">Gestão para cabanhas de cavalos crioulos</div>
+      <div class="login-logo-title">Mimba</div>
+      <div class="login-logo-sub">Gestão Crioulos · A inteligência da sua cabanha</div>
     </div>
     <div class="login-field">
       <label>Email</label>
@@ -7918,7 +7925,7 @@ function _entrarApp() {
     if(TENANT_INFO && TENANT_INFO.logo_url) { logoEl.src = TENANT_INFO.logo_url; logoEl.style.display=''; }
     else { logoEl.removeAttribute('src'); logoEl.style.display='none'; }
   }
-  if(nomeCab) document.title = `${nomeCab} — Gestão Crioulo`;
+  if(nomeCab) document.title = `${nomeCab} — Mimba`;
   const usrSub = document.getElementById('usuarios-sub');
   if(usrSub) usrSub.textContent = 'Controle de acesso ao sistema' + (nomeCab ? ` — ${nomeCab}` : '');
   _aplicarPermissoes();
@@ -7939,7 +7946,7 @@ function fazerLogout() {
   const _lg = document.getElementById('sidebar-logo-img');
   if(_lg){ _lg.removeAttribute('src'); _lg.style.display='none'; }
   const _cb = document.getElementById('sidebar-cabanha'); if(_cb) _cb.textContent='';
-  document.title = 'Gestão Crioulo — Sistema de Gestão';
+  document.title = 'Mimba — Gestão Crioulos';
   _loadUsuarios();
   document.getElementById('login-screen').style.display='flex';
   // restaurar campos e esconder o seletor
