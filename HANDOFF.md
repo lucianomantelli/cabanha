@@ -1,8 +1,13 @@
 # Handoff — Mimba · checkpoint 2026-07-25
 
 > Documento de retomada. Condensa tudo que já foi construído e o que falta.
-> Para continuar em sessão nova: leia este arquivo + os arquivos de memória do projeto (MEMORY.md).
-> **Não contém segredos** (só nomes de secrets e onde vivem). Mantenha local se o repo for público.
+> **Não contém segredos** (só nomes de secrets e onde vivem).
+
+## Como retomar (2 trilhas)
+- **App/produto Mimba:** abra sessão em `projetos/cabanha` e peça *"lê o HANDOFF.md e vamos continuar"*. Carregam sozinhos: CLAUDE.md, memória (`MEMORY.md`), subagentes (`revisor-isolamento`, `arquiteto`, `engenheiro-frontend`) e skills (`nova-migration-tenant`, `deploy`, `testar-provisionamento`).
+- **Landing:** abra sessão em `projetos/mimba-landing` (repo `mimba-app/mimba-landing`, já clonado). ⚠️ O `index.html` é um **bundle gerado** ("Bundled Page", 615 KB, imagens base64, React via unpkg) — ajustes pequenos de texto/cor dá pra fazer direto; mudança estrutural é melhor no source que gerou o bundle e re-exportar.
+
+_Estrutura de dev (`CLAUDE.md`, `.claude/agents`, `.claude/skills`, `docs/adr`) já está **versionada** no repo `cabanha` (viaja junto no transfer)._
 
 ## O que é
 **Mimba** — SaaS multi-tenant de gestão para cabanhas de cavalo crioulo (marca: Mimba; razão social: Mimba Tech; nicho v1: "Gestão Crioulos", integra ABCCC). Domínios: **mimba.com.br** (landing) e **app.mimba.com.br** (sistema).
