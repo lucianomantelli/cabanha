@@ -6539,7 +6539,10 @@ function carregarUsuariosDoBackup(dados) {
 }
 
 // ── TROCAR SENHA (self-service) ──────────────────────────────────────────────
-function salvarTrocarSenha() {
+// A senha real é a do Supabase Auth (não o campo `senha` local). Validamos a
+// senha atual re-autenticando no Auth e, se ok, atualizamos via PUT /auth/v1/user
+// com o JWT do usuário logado.
+async function salvarTrocarSenha() {
   const atual  = document.getElementById('ts-senha-atual').value;
   const nova   = document.getElementById('ts-nova').value;
   const nova2  = document.getElementById('ts-nova2').value;
@@ -6547,13 +6550,46 @@ function salvarTrocarSenha() {
   if(!nova)  return alert('Informe a nova senha.');
   if(nova.length < 6) return alert('Nova senha deve ter no mínimo 6 caracteres.');
   if(nova !== nova2)  return alert('As senhas não conferem.');
-  const u = USUARIOS.find(x => x.id === usuarioAtual?.id);
-  if(!u) return alert('Usuário não encontrado.');
-  if(u.senha !== atual) return alert('Senha atual incorreta.');
-  u.senha = nova;
-  _saveUsuarios();
-  closeModal('modal-trocar-senha');
-  alert('Senha alterada com sucesso!');
+  const email = AUTH_USER?.email || usuarioAtual?.login;
+  if(!email || !AUTH_TOKEN) return alert('Sessão expirada. Faça login novamente.');
+
+  const btn = document.querySelector('#modal-trocar-senha .btn-primary');
+  const _resetBtn = () => { if(btn){ btn.disabled=false; btn.textContent='Alterar senha'; } };
+  if(btn){ btn.disabled=true; btn.textContent='Alterando...'; }
+  try {
+    // 1) Validar a senha atual re-autenticando no Supabase Auth.
+    const reauth = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method:'POST',
+      headers:{ 'apikey':SUPABASE_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, password: atual })
+    });
+    const reauthData = await reauth.json().catch(()=>({}));
+    if(!reauth.ok || !reauthData.access_token) { _resetBtn(); return alert('Senha atual incorreta.'); }
+    // Renova o token da sessão a partir do re-login (evita usar JWT prestes a expirar).
+    AUTH_TOKEN = reauthData.access_token;
+    AUTH_USER  = reauthData.user || AUTH_USER;
+
+    // 2) Atualizar a senha no Auth com o JWT do próprio usuário.
+    const upd = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method:'PUT',
+      headers:{ 'apikey':SUPABASE_KEY, 'Authorization':`Bearer ${AUTH_TOKEN}`, 'Content-Type':'application/json' },
+      body: JSON.stringify({ password: nova })
+    });
+    if(!upd.ok) {
+      const e = await upd.json().catch(()=>({}));
+      _resetBtn();
+      return alert('Não foi possível alterar a senha. ' + (e?.msg || e?.error_description || 'Tente novamente.'));
+    }
+    closeModal('modal-trocar-senha');
+    document.getElementById('ts-senha-atual').value = '';
+    document.getElementById('ts-nova').value = '';
+    document.getElementById('ts-nova2').value = '';
+    _resetBtn();
+    alert('Senha alterada com sucesso!');
+  } catch(e) {
+    _resetBtn();
+    alert('Falha ao conectar. Tente novamente.');
+  }
 }
 
 
