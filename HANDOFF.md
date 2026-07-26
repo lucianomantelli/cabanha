@@ -6,12 +6,17 @@
 - **App/produto Mimba:** sessão em `projetos/cabanha` → *"lê o HANDOFF.md e vamos continuar"*. Carregam sozinhos: CLAUDE.md, memória (`MEMORY.md`), subagentes (`revisor-isolamento`, `arquiteto`, `engenheiro-frontend`) e skills (`nova-migration-tenant`, `deploy`, `testar-provisionamento`).
 - **Landing:** sessão em `projetos/mimba-landing` (repo `mimba-app/mimba-landing`, clonado). O `index.html` é um bundle gerado; as páginas `/assinar` e `/obrigado` são hand-authored (editáveis à vontade).
 
-## ▶️ PRÓXIMO PASSO: e-mail de acesso
-É o elo que falta pro self-serve fechar: hoje o cliente paga → a cabanha é provisionada → **mas ninguém recebe como entrar**. Objetivo: ao final do provisionamento, enviar ao admin um email com **email + senha temporária + link `app.mimba.com.br`**.
-- **Onde a senha temp está:** a Edge Function `provisionar-cabanha` gera `senha_temp = slug[0:6] + '@' + ano` e a retorna no JSON (`senha_temporaria`), **só quando `identidade_nova=true`**. O `asaas-webhook` chama a `provisionar-cabanha` e recebe esse retorno — hoje **não faz nada** com ele. O passo do email liga aqui: webhook → após provisionar com sucesso → envia o email.
-- **Caso multi-cabanha** (`identidade_nova=false`, email já existia): não há senha nova → o email deve dizer "use sua senha atual; a cabanha X foi adicionada à sua conta".
-- **Provedor:** vão usar o gmail da empresa (`app.mimba@gmail.com`). Opções: (a) **SMTP do Gmail** com App Password (simples); (b) provedor transacional (Resend/Sendgrid — melhor entregabilidade, precisa verificar domínio). Decidir isso é o 1º passo da etapa.
-- **Onde implementar:** nova edge function `enviar-acesso` (ou inline no webhook). Marcar `provision_log.status = 'email_enviado'` (o CHECK já prevê).
+## ✅ E-mail de acesso — construído (via link "definir senha"/recovery)
+O elo que faltava pro self-serve: cliente paga → cabanha provisionada → admin recebe e-mail e **define a própria senha**. **Decisão (2026-07-26):** em vez de senha temporária determinística (era `slug[0:6]+'@'+ano`, adivinhável), usar **link estilo magic-link — `type=recovery` (definir senha)** via Supabase Auth Admin `generateLink` + envio pelo **Resend**. A senha determinística foi **removida** (agora a inicial é aleatória e nunca divulgada). *(Vale virar ADR curto.)*
+- **`enviar-acesso`** (nova edge function): gera o link recovery (`/auth/v1/admin/generate_link`, `redirect_to = app.mimba.com.br/`) e envia por Resend. Trancada por `Bearer service_role`. `identidade_nova=true` → e-mail "defina sua senha"; `false` (multi-cabanha) → "use sua senha atual". Valida o destinatário contra `tenants.email_admin` quando há `tenant_id`. Grava `provision_log = email_enviado` (ou `erro_email`).
+- **`provisionar-cabanha`**: senha inicial aleatória (`crypto.randomUUID`), `senha_temporaria: null` no retorno. Mantém `identidade_nova`/`email_acesso`.
+- **`asaas-webhook`**: após provisionar (200), chama `enviar-acesso` best-effort (não derruba o webhook nem re-dispara o Asaas se o e-mail falhar).
+- **App (`index.html`, JÁ NO AR):** tela "Primeiro acesso · defina sua senha" — detecta `#access_token&type=recovery` no boot, faz `PUT /auth/v1/user`, entra direto (`minhas_cabanhas`). Limpa o token da URL; trata link expirado.
+- **Revisão de isolamento:** ✅ APROVADO (revisor-isolamento, 2026-07-26).
+- **Falta aplicar (usuário):** deploy das 3 edge functions (verify_jwt=OFF) + Auth → URL Configuration (Site URL `app.mimba.com.br`, Redirect URLs `https://app.mimba.com.br/**`) + teste ponta a ponta no sandbox. Secret `RESEND_API_KEY` já configurado; opcionais: `RESEND_FROM`, `RESEND_REPLY_TO`, `APP_URL`, `ACCESS_REDIRECT_TO` (têm default).
+
+## ▶️ PRÓXIMO PASSO: testar o e-mail de acesso ponta a ponta e cutover Asaas prod
+Depois do deploy das functions + config de Auth: checkout no sandbox → pagar → conferir e-mail chega e `provision_log` termina em `email_enviado` → clicar no link → definir senha → acessar. Em seguida, **cutover Asaas p/ produção** (ver tabela).
 
 ## Arquitetura (o que existe e funciona)
 - **App:** `index.html` único, sem framework/bundler, GitHub Pages. Em **`app.mimba.com.br`** (HTTPS). Marca Mimba (paleta terra/ouro/campo/creme; DM Sans + Playfair + DM Mono).
@@ -32,8 +37,9 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
 
 ## Edge Functions
 - `criar-checkout` (verify_jwt=false) — form → Asaas → signup → invoiceUrl. Usa `ASAAS_API_KEY` + `ASAAS_BASE_URL` (default sandbox). Tem `callback` p/ /obrigado.
-- `asaas-webhook` (verify_jwt=false) — valida `asaas-access-token` = `ASAAS_WEBHOOK_TOKEN`; nos eventos PAYMENT_CONFIRMED/RECEIVED chama a `provisionar-cabanha`.
-- `provisionar-cabanha` (verify_jwt=false, exige `Bearer service_role`) — cria tenant, RPC, admin no auth.users, membership, expõe schema (Management API).
+- `asaas-webhook` (verify_jwt=false) — valida `asaas-access-token` = `ASAAS_WEBHOOK_TOKEN`; nos eventos PAYMENT_CONFIRMED/RECEIVED chama a `provisionar-cabanha` e, após 200, a `enviar-acesso`.
+- `provisionar-cabanha` (verify_jwt=false, exige `Bearer service_role`) — cria tenant, RPC, admin no auth.users (senha inicial aleatória), membership, expõe schema (Management API).
+- `enviar-acesso` (verify_jwt=false, exige `Bearer service_role`) — gera link recovery via Auth Admin `generateLink` e envia por Resend (`RESEND_API_KEY`). Templates on-brand.
 - `buscar-abccc`, `analise-sangues` (features do app).
 - RPCs: `provisionar_schema_cabanha(p_schema)`, `minhas_cabanhas()`, `tem_acesso_tenant(uuid)`, `buscar_auth_user_por_email`, `vincular_admin_cabanha`.
 
@@ -42,6 +48,7 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
 - `ASAAS_WEBHOOK_TOKEN` (= token dos webhooks Asaas; mesmo valor serve sandbox e prod).
 - `ASAAS_API_KEY` (chave da API Asaas — **sandbox** agora; trocar p/ prod no go-live). ⚠️ inclui o `$` do começo.
 - `ASAAS_BASE_URL` (opcional; default sandbox `https://api-sandbox.asaas.com/v3`; no go-live setar prod `https://api.asaas.com/v3`).
+- `RESEND_API_KEY` (Resend — envio do e-mail de acesso; domínio `mimba.com.br` verificado). Opcionais: `RESEND_FROM` (default `Mimba <acesso@mimba.com.br>`), `RESEND_REPLY_TO`, `APP_URL`, `ACCESS_REDIRECT_TO`.
 
 ## Estado por frente
 | Frente | Estado |
@@ -52,7 +59,7 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
 | **Domínio + migração de conta** (mimba-app) | ✅ concluído (mimba.com.br + app.mimba.com.br, HTTPS) |
 | Estrutura de dev (.claude agents/skills, docs/adr) | ✅ versionada |
 | **Checkout self-serve (sandbox)** | ✅ testado ponta a ponta + UX (/obrigado, voltar) |
-| **E-mail de acesso** | ❌ **próximo passo** |
+| **E-mail de acesso** (link recovery + Resend) | ✅ app no ar; backend escrito + revisado — aguarda deploy das functions + config Auth + teste |
 | Linkar "Contratar" da home → /assinar | ⏳ (outra sessão trata a landing) |
 | Cutover Asaas p/ produção | ❌ (trocar ASAAS_API_KEY p/ prod + ASAAS_BASE_URL + ativar webhook prod) |
 | reCAPTCHA/rate-limit no criar-checkout | ❌ (antes de expor de verdade — é público) |
