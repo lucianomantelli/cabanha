@@ -93,10 +93,10 @@
   confirmação exige idade mínima de 2 anos).
 - [ ] **Buscar as medidas da confirmação** (altura, tórax, canela) direto da ABCCC para
   pré-preencher o cadastro de novo animal.
-- [ ] **Login:** lembrar o e-mail digitado (evitar redigitar sempre), opção de mostrar/ocultar a
-  senha digitada, e investigar manter a sessão entre recarregamentos de página (hoje qualquer
-  reload derruba o acesso — avaliar persistir o JWT/refresh de forma seragura, ex. localStorage
-  com expiração, já que hoje `AUTH_TOKEN` só vive em memória).
+- [x] **Login concluído:** e-mail lembrado (localStorage, nunca a senha), botão de mostrar/ocultar
+  senha, e sessão persistida entre recarregamentos — guarda `access_token`/`refresh_token`, renova
+  silenciosamente no boot se expirado, cai de volta no login (com e-mail lembrado) se falhar.
+  "Sair" limpa a sessão persistida de propósito.
 
 ---
 
