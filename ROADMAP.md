@@ -11,41 +11,44 @@
 
 ---
 
-## 🔴 Prioridade 1 — Dashboard lento
-- [ ] **Demora excessiva na tela de dashboard para carregar os dados sobre os animais.**
-  Investigar: é 1 query grande, N+1 (várias por animal), ou processamento no cliente após carregar tudo?
-  Onde mexe: função de carregamento inicial / `renderDashboard` e o que ela busca via `_supa`.
+## 🔴 Prioridade 1 — Dashboard lento ✅
+- [x] **Demora excessiva na tela de dashboard para carregar os dados sobre os animais.**
+  Causa raiz medida com dados reais de rede: 12 requisições REST separadas no sync, cada uma
+  disparando seu próprio preflight CORS — não era o banco (provado com `EXPLAIN ANALYZE`, poucos
+  ms). Resolvido com a RPC `carregar_dados_cabanha` (1 requisição em vez de 12) + skeleton animado
+  enquanto carrega. Ver memória `staging-e-isolamento-de-dados` / commits `perf:` na `staging`.
 
-## 🔴 Prioridade 2 — Tela de conta centralizada + onboarding de usuário via Auth
-- [ ] Criar uma **tela de conta** (dados da cabanha: nome, afixo, logo) acessível por um
-  card/botão fixo no rodapé do menu lateral esquerdo (foto de perfil, nome, badge do perfil
-  de acesso — adm/vet/cab —, opção de sair da conta, botão para abrir as configurações).
-- [ ] Remover a aba "usuários" do menu lateral solto e **unificar** dentro dessa tela de conta.
-- [ ] **Aproveitar para corrigir o convite de usuário** conforme já registrado no `HANDOFF.md`:
-  hoje criar um usuário (vet/cabanheiro) provavelmente não usa o fluxo correto de identidade via
-  Supabase Auth (login único, JWT, `tenant_memberships`). Corrigir para que todo usuário novo
-  nasça como identidade real no Auth (mesma lógica do admin no provisionamento), não só uma linha
-  na tabela `usuarios` do schema.
-  Onde mexe: telas/tabela de usuários do app + possivelmente nova edge function
-  "convidar-usuario" (cria identidade no Auth + membership), análoga à `provisionar-cabanha`.
+## 🔴 Prioridade 2 — Tela de conta centralizada + onboarding de usuário via Auth ✅
+- [x] Tela de conta (modal "Conta", abas Cabanha/Usuários) acessível por um card no rodapé do
+  menu lateral — avatar, nome, badge de perfil, botão "Sair" (vermelho, sempre visível) e ícone
+  de engrenagem (SVG, estilo shadcn/ui) que abre as configurações.
+- [x] Aba "Usuários" solta removida do menu lateral, unificada dentro da Tela de Conta.
+- [x] **Convite de usuário corrigido** — nova edge function `convidar-usuario` cria identidade
+  real no Supabase Auth + `tenant_memberships` + linha no schema, em vez de só uma linha local.
+- [x] Achado extra do `revisor-isolamento` também corrigido: suspender/excluir usuário agora
+  revoga o acesso de verdade (`tenant_memberships`), não só a linha local.
+- [x] *(Achado maior, registrado para depois — ver memória `rls-permissiva-por-perfil`):* a RLS
+  de todas as tabelas de tenant libera escrita a qualquer perfil, não só admin — não corrigido
+  nesta rodada, precisa do `arquiteto`.
 
-## 🔴 Prioridade 3 — Importação de animais por lista de códigos SBB
-- [ ] Recurso de **importar lista de códigos SBB** para criar animais em lote, buscando os dados
-  direto na busca da ABCCC (reaproveita a função `buscar-abccc` já existente).
-- [ ] Aceitar: upload de `.txt`/`.csv`/`.xlsx` simples (1 código por linha), **ou** colar/digitar
-  uma lista (um valor por linha) direto num textarea.
-- [ ] É pré-requisito para um onboarding bom de cabanha nova.
-- [ ] *(Futuro — não entra nesta rodada):* usar o código/afixo da cabanha na ABCCC para acessar a
-  área logada de lá, puxar todos os animais cadastrados e sugerir quais importar (com seleção
-  pelo administrador).
+## 🔴 Prioridade 3 — Importação de animais por lista de códigos SBB ✅
+- [x] Botão "📋 Importar por SBB" na página Animais — cola lista ou carrega `.txt`/`.csv`,
+  deduplica, cruza contra SBBs já cadastrados, busca cada um novo na ABCCC (`buscar-abccc`, 3 em
+  paralelo) com barra de progresso real, e insere tudo num único POST em lote.
+- [x] `.xlsx` fica para depois (decisão consciente — evita introduzir a 1ª dependência externa
+  do projeto sem necessidade imediata).
+- [ ] *(Futuro — não entra nesta rodada):* puxar automaticamente todos os animais da cabanha via
+  código/afixo na ABCCC e sugerir quais importar.
 
-## 🔴 Prioridade 4 — Eventos não estão carregando
-- [ ] Investigar por que a aba de **eventos** não mostra os registros esperados — a cabanha
-  Mãe de Deus tinha eventos cadastrados que deveriam aparecer.
-- [ ] Checar se os dados **se perderam na migração** para o schema próprio (`cab_mae_de_deus`)
-  ou se foi introduzido por alguma alteração de código posterior.
-  Onde mexe: conferir a tabela de eventos no schema `cab_mae_de_deus` direto no banco
-  (existem os registros?) vs. a query/render da aba Eventos no app.
+## 🔴 Prioridade 4 — Eventos não estão carregando ⚠️ parcial
+- [x] Causa da **não-carga** encontrada e corrigida como efeito colateral da Prioridade 1: o
+  PostgREST não reconhecia o relacionamento `eventos`→`eventos_animais` nesse schema
+  (`PGRST200`). A RPC `carregar_dados_cabanha` monta esse vínculo manualmente em SQL — testado
+  ao vivo, eventos carregam certinho agora.
+- [ ] **Ainda não verificado:** se dados de eventos **se perderam na migração** da Mãe de Deus
+  para o schema próprio. O sintoma de "não carregar" tinha outra causa (acima); falta confirmar
+  se há eventos de fato ausentes no banco.
+  Onde mexe: conferir a tabela `cab_mae_de_deus.eventos` direto no banco.
 
 ## 🔴 Prioridade 5 — Modal de detalhes do animal quebrado
 - [ ] Ao abrir os detalhes de um animal na lista, o visual está quebrado: textos colados,
@@ -63,8 +66,8 @@
 ## Sem prioridade explícita (ordem em que foram citados — ficam para depois dos 6 acima)
 
 - [ ] **Tela de Animais (V1) — modernizar usando a tela de Gestações (V2) como referência de padrão.**
-- [ ] **Remover o recurso "salvar e carregar dados"** do menu lateral inferior esquerdo — resquício
-  da versão antiga de importação por planilha, não é mais usado.
+- [x] **Remover o recurso "salvar e carregar dados"** do menu lateral inferior esquerdo — resquício
+  da versão antiga de importação por planilha, não é mais usado. *(Feito junto da Prioridade 2.)*
 - [ ] **Tela de Animais — edição sem confirmação e editável direto na "planilha"** (mistura
   modo leitura e edição ao mesmo tempo). Ideal: visualização em modo leitura + botão "editar" que
   abre um pop-up/tela de edição com confirmação — no mesmo padrão do fluxo "criar novo animal"
