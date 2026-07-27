@@ -454,19 +454,18 @@
   <button class="nav-btn" onclick="showPage('estoque')"><span class="nav-icon">📦</span><span>Estoque</span></button>
   <button class="nav-btn" onclick="showPage('medidas')"><span class="nav-icon">📏</span><span>Medidas</span></button>
   <button class="nav-btn" onclick="showPage('sangues')"><span class="nav-icon">🧬</span><span>Sangues</span></button>
-  <div style="margin-top:auto;padding-top:1rem;border-top:0.5px solid var(--border);position:relative">
-    <div id="sidebar-account-card" onclick="toggleContaMenu()"
-      style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);cursor:pointer;user-select:none">
+  <div style="margin-top:auto;padding-top:1rem;border-top:0.5px solid var(--border)">
+    <div id="sidebar-account-card" style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius)">
       <div id="sidebar-avatar" style="width:28px;height:28px;border-radius:50%;background:var(--green-l);color:var(--green-d);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">?</div>
       <div style="flex:1;min-width:0">
         <div id="sidebar-username" style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
-        <span id="sidebar-perfil-badge"></span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span id="sidebar-perfil-badge"></span>
+          <button onclick="fazerLogout()" title="Sair" style="background:none;border:none;padding:0;cursor:pointer;font-size:10px;color:var(--text3);text-decoration:underline">Sair</button>
+        </div>
       </div>
-      <span style="font-size:14px;color:var(--text3)">⋮</span>
-    </div>
-    <div id="sidebar-account-menu" style="display:none;position:absolute;bottom:100%;left:8px;right:8px;margin-bottom:6px;background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,0.12);overflow:hidden;z-index:50">
-      <button class="btn" style="width:100%;border:none;border-radius:0;text-align:left;font-size:12px;padding:10px 12px" onclick="abrirTelaConta()">⚙️ Configurações da conta</button>
-      <button class="btn" style="width:100%;border:none;border-radius:0;text-align:left;font-size:12px;padding:10px 12px;color:var(--red-d);border-top:0.5px solid var(--border)" onclick="fazerLogout()">⎋ Sair</button>
+      <button onclick="abrirTelaConta()" title="Configurações da conta"
+        style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--text3);padding:4px 6px;border-radius:var(--radius)">⋮</button>
     </div>
   </div>
 </div>
@@ -1134,28 +1133,28 @@
 <!-- MODAL USUÁRIO -->
 <!-- TELA DE CONTA: cabanha (nome/logo) + usuários da cabanha -->
 <div class="modal-bg" id="modal-conta">
-  <div class="modal" style="width:640px;max-width:92vw">
+  <div class="modal" style="width:920px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <span class="modal-title">Conta</span>
       <button class="modal-close" onclick="closeModal('modal-conta')">×</button>
     </div>
-    <div class="tab-row" style="margin-bottom:1rem">
+    <div class="tab-row" style="margin-bottom:1.25rem">
       <button class="tab active" onclick="switchContaTab(this,'conta-tab-cabanha')">🏠 Cabanha</button>
       <button class="tab" onclick="switchContaTab(this,'conta-tab-usuarios')">👤 Usuários</button>
     </div>
 
-    <div id="conta-tab-cabanha">
-      <div class="form-grid">
-        <div class="form-group" style="grid-column:1/-1;display:flex;align-items:center;gap:14px">
-          <img id="conta-logo-preview" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--bg3);display:none">
-          <div id="conta-logo-placeholder" style="width:64px;height:64px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text3)">🏠</div>
+    <div id="conta-tab-cabanha" style="overflow-y:auto;flex:1">
+      <div class="form-grid" style="max-width:520px">
+        <div class="form-group" style="grid-column:1/-1;display:flex;align-items:center;gap:18px">
+          <img id="conta-logo-preview" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;background:var(--bg3);display:none">
+          <div id="conta-logo-placeholder" style="width:84px;height:84px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text3)">🏠</div>
           <label class="btn btn-sm" style="cursor:pointer">
             📷 Trocar logo<input type="file" accept="image/*" style="display:none" onchange="_onLogoFileSelect(event)">
           </label>
         </div>
         <div class="form-group" style="grid-column:1/-1">
           <label>Nome de exibição</label>
-          <input type="text" id="conta-nome-exibicao" placeholder="Ex: Cabanha Mãe de Deus">
+          <input type="text" id="conta-nome-exibicao" placeholder="Ex: Cabanha Mãe de Deus" style="width:100%">
         </div>
       </div>
       <div class="modal-footer">
@@ -1164,26 +1163,26 @@
       </div>
     </div>
 
-    <div id="conta-tab-usuarios" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+    <div id="conta-tab-usuarios" style="display:none;overflow-y:auto;flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.1rem">
         <span class="page-sub" id="usuarios-sub" style="margin:0">Controle de acesso ao sistema</span>
         <button class="btn btn-primary btn-sm" id="conta-btn-convidar" onclick="abrirModalUsuario(-1)">+ Convidar usuário</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1rem">
-        <div class="card" style="text-align:center;padding:0.75rem">
-          <div style="font-size:20px;font-weight:800;color:var(--green-d)" id="usr-count-adm">0</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:2px">Administradores</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.25rem">
+        <div class="card" style="text-align:center;padding:1rem">
+          <div style="font-size:24px;font-weight:800;color:var(--green-d)" id="usr-count-adm">0</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">Administradores</div>
         </div>
-        <div class="card" style="text-align:center;padding:0.75rem">
-          <div style="font-size:20px;font-weight:800;color:var(--blue-d)" id="usr-count-vet">0</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:2px">Veterinários</div>
+        <div class="card" style="text-align:center;padding:1rem">
+          <div style="font-size:24px;font-weight:800;color:var(--blue-d)" id="usr-count-vet">0</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">Veterinários</div>
         </div>
-        <div class="card" style="text-align:center;padding:0.75rem">
-          <div style="font-size:20px;font-weight:800;color:var(--text)" id="usr-count-cab">0</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:2px">Cabanheiros</div>
+        <div class="card" style="text-align:center;padding:1rem">
+          <div style="font-size:24px;font-weight:800;color:var(--text)" id="usr-count-cab">0</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">Cabanheiros</div>
         </div>
       </div>
-      <div class="card" style="padding:0;overflow:hidden;max-height:320px;overflow-y:auto">
+      <div class="card" style="padding:0;overflow:hidden">
         <div id="usuarios-table-content"></div>
       </div>
     </div>
@@ -6601,19 +6600,9 @@ Esta ação não pode ser desfeita.`)) return;
 }
 
 // ── Tela de Conta (card no rodapé da sidebar) ──────────────────────────────
-function toggleContaMenu() {
-  const menu = document.getElementById('sidebar-account-menu');
-  if(menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-}
-document.addEventListener('click', (e) => {
-  const menu = document.getElementById('sidebar-account-menu');
-  const card = document.getElementById('sidebar-account-card');
-  if(!menu || menu.style.display === 'none') return;
-  if(!menu.contains(e.target) && !card?.contains(e.target)) menu.style.display = 'none';
-});
-
+// O card só mostra info (avatar/nome/perfil); "Sair" é um link direto e os
+// três-pontinhos (⋮) abrem a Tela de Conta — sem menu intermediário.
 function abrirTelaConta() {
-  const menu = document.getElementById('sidebar-account-menu'); if(menu) menu.style.display = 'none';
   document.getElementById('conta-nome-exibicao').value = TENANT_INFO?.nome_exibicao || TENANT_INFO?.nome_cabanha || '';
   const logoImg = document.getElementById('conta-logo-preview');
   const logoPh  = document.getElementById('conta-logo-placeholder');
@@ -8074,8 +8063,7 @@ function fazerLogout() {
   AUTH_TOKEN = null; AUTH_USER = null; TENANT_INFO = null;
   // não deixar dado da cabanha na memória/localStorage após sair
   _limparEstadoLocal();
-  // fechar o menu/modal de conta, se estiverem abertos
-  const _menu = document.getElementById('sidebar-account-menu'); if(_menu) _menu.style.display='none';
+  // fechar a Tela de Conta, se estiver aberta
   closeModal('modal-conta');
   // limpar a marca da cabanha (logo/nome/título) ao voltar para o login
   const _lg = document.getElementById('sidebar-logo-img');
