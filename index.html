@@ -446,17 +446,20 @@
   <button class="nav-btn" onclick="showPage('estoque')"><span class="nav-icon">📦</span><span>Estoque</span></button>
   <button class="nav-btn" onclick="showPage('medidas')"><span class="nav-icon">📏</span><span>Medidas</span></button>
   <button class="nav-btn" onclick="showPage('sangues')"><span class="nav-icon">🧬</span><span>Sangues</span></button>
-  <button class="nav-btn nav-btn-usuarios" id="nav-btn-usuarios" onclick="showPage('usuarios')" style="display:none"><span class="nav-icon">👤</span><span>Usuários</span></button>
-  <div style="margin-top:auto;padding-top:1rem;border-top:0.5px solid var(--border)">
-    <div id="sidebar-user" style="font-size:11px;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:6px">
-      <span id="sidebar-perfil-badge"></span>
-      <span id="sidebar-username" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+  <div style="margin-top:auto;padding-top:1rem;border-top:0.5px solid var(--border);position:relative">
+    <div id="sidebar-account-card" onclick="toggleContaMenu()"
+      style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:var(--radius);cursor:pointer;user-select:none">
+      <div id="sidebar-avatar" style="width:28px;height:28px;border-radius:50%;background:var(--green-l);color:var(--green-d);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">?</div>
+      <div style="flex:1;min-width:0">
+        <div id="sidebar-username" style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        <span id="sidebar-perfil-badge"></span>
+      </div>
+      <span style="font-size:14px;color:var(--text3)">⋮</span>
     </div>
-    <button class="btn" style="width:100%;font-size:11px;margin-bottom:6px" onclick="salvarDados()">💾 Salvar dados</button>
-    <label class="btn" style="width:100%;font-size:11px;cursor:pointer;display:block;text-align:center">
-      📂 Carregar dados<input type="file" accept=".json" style="display:none" onchange="carregarDados(event)">
-    </label>
-    <button class="btn" style="width:100%;font-size:11px;margin-top:6px;color:var(--red-d)" onclick="fazerLogout()">⎋ Sair</button>
+    <div id="sidebar-account-menu" style="display:none;position:absolute;bottom:100%;left:8px;right:8px;margin-bottom:6px;background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,0.12);overflow:hidden;z-index:50">
+      <button class="btn" style="width:100%;border:none;border-radius:0;text-align:left;font-size:12px;padding:10px 12px" onclick="abrirTelaConta()">⚙️ Configurações da conta</button>
+      <button class="btn" style="width:100%;border:none;border-radius:0;text-align:left;font-size:12px;padding:10px 12px;color:var(--red-d);border-top:0.5px solid var(--border)" onclick="fazerLogout()">⎋ Sair</button>
+    </div>
   </div>
 </div>
 
@@ -873,36 +876,7 @@
 
 
 <!-- PAGE USUÁRIOS -->
-<div class="page" id="page-usuarios">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Gestão de Usuários</div>
-      <div class="page-sub" id="usuarios-sub">Controle de acesso ao sistema</div>
-    </div>
-    <button class="btn btn-primary" onclick="abrirModalUsuario(-1)">+ Novo usuário</button>
-  </div>
-
-  <!-- Resumo de perfis -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">
-    <div class="card" style="text-align:center;padding:1rem">
-      <div style="font-size:22px;font-weight:800;color:var(--green-d)" id="usr-count-adm">0</div>
-      <div style="font-size:11px;color:var(--text2);margin-top:2px">Administradores</div>
-    </div>
-    <div class="card" style="text-align:center;padding:1rem">
-      <div style="font-size:22px;font-weight:800;color:var(--blue-d)" id="usr-count-vet">0</div>
-      <div style="font-size:11px;color:var(--text2);margin-top:2px">Veterinários</div>
-    </div>
-    <div class="card" style="text-align:center;padding:1rem">
-      <div style="font-size:22px;font-weight:800;color:var(--text)" id="usr-count-cab">0</div>
-      <div style="font-size:11px;color:var(--text2);margin-top:2px">Cabanheiros</div>
-    </div>
-  </div>
-
-  <!-- Tabela de usuários -->
-  <div class="card" style="padding:0;overflow:hidden">
-    <div id="usuarios-table-content"></div>
-  </div>
-</div>
+<!-- page-usuarios removida: absorvida pela Tela de Conta (modal-conta, aba Usuários) -->
 
 <!-- EVENTOS -->
 <div class="page" id="page-eventos">
@@ -1150,10 +1124,69 @@
 <div class="save-badge" id="save-badge">✓ Dados salvos</div>
 
 <!-- MODAL USUÁRIO -->
-<div class="modal-bg" id="modal-usuario">
-  <div class="modal" style="width:520px">
+<!-- TELA DE CONTA: cabanha (nome/logo) + usuários da cabanha -->
+<div class="modal-bg" id="modal-conta">
+  <div class="modal" style="width:640px;max-width:92vw">
     <div class="modal-header">
-      <span class="modal-title" id="usr-modal-titulo">Novo usuário</span>
+      <span class="modal-title">Conta</span>
+      <button class="modal-close" onclick="closeModal('modal-conta')">×</button>
+    </div>
+    <div class="tab-row" style="margin-bottom:1rem">
+      <button class="tab active" onclick="switchContaTab(this,'conta-tab-cabanha')">🏠 Cabanha</button>
+      <button class="tab" onclick="switchContaTab(this,'conta-tab-usuarios')">👤 Usuários</button>
+    </div>
+
+    <div id="conta-tab-cabanha">
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1;display:flex;align-items:center;gap:14px">
+          <img id="conta-logo-preview" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--bg3);display:none">
+          <div id="conta-logo-placeholder" style="width:64px;height:64px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text3)">🏠</div>
+          <label class="btn btn-sm" style="cursor:pointer">
+            📷 Trocar logo<input type="file" accept="image/*" style="display:none" onchange="_onLogoFileSelect(event)">
+          </label>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Nome de exibição</label>
+          <input type="text" id="conta-nome-exibicao" placeholder="Ex: Cabanha Mãe de Deus">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('modal-conta')">Fechar</button>
+        <button class="btn btn-primary" id="conta-btn-salvar-cabanha" onclick="salvarDadosCabanha()">Salvar</button>
+      </div>
+    </div>
+
+    <div id="conta-tab-usuarios" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <span class="page-sub" id="usuarios-sub" style="margin:0">Controle de acesso ao sistema</span>
+        <button class="btn btn-primary btn-sm" id="conta-btn-convidar" onclick="abrirModalUsuario(-1)">+ Convidar usuário</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1rem">
+        <div class="card" style="text-align:center;padding:0.75rem">
+          <div style="font-size:20px;font-weight:800;color:var(--green-d)" id="usr-count-adm">0</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">Administradores</div>
+        </div>
+        <div class="card" style="text-align:center;padding:0.75rem">
+          <div style="font-size:20px;font-weight:800;color:var(--blue-d)" id="usr-count-vet">0</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">Veterinários</div>
+        </div>
+        <div class="card" style="text-align:center;padding:0.75rem">
+          <div style="font-size:20px;font-weight:800;color:var(--text)" id="usr-count-cab">0</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">Cabanheiros</div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;max-height:320px;overflow-y:auto">
+        <div id="usuarios-table-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Convidar / editar usuário -->
+<div class="modal-bg" id="modal-usuario">
+  <div class="modal" style="width:480px">
+    <div class="modal-header">
+      <span class="modal-title" id="usr-modal-titulo">Convidar usuário</span>
       <button class="modal-close" onclick="closeModal('modal-usuario')">×</button>
     </div>
     <input type="hidden" id="usr-edit-id">
@@ -1162,11 +1195,12 @@
         <label>Nome completo <span style="color:var(--red-d)">*</span></label>
         <input type="text" id="usr-nome" placeholder="Ex: João da Silva">
       </div>
-      <div class="form-group">
-        <label>Login <span style="color:var(--red-d)">*</span></label>
-        <input type="text" id="usr-login" placeholder="Ex: joao.silva" autocomplete="off">
+      <div class="form-group" style="grid-column:1/-1" id="usr-email-group">
+        <label>E-mail <span style="color:var(--red-d)">*</span></label>
+        <input type="email" id="usr-login" placeholder="Ex: joao@email.com" autocomplete="off">
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">A pessoa recebe um e-mail para definir a própria senha e acessar esta cabanha.</div>
       </div>
-      <div class="form-group">
+      <div class="form-group" style="grid-column:1/-1">
         <label>Perfil <span style="color:var(--red-d)">*</span></label>
         <select id="usr-perfil" style="width:100%" onchange="usrPerfilChange()">
           <option value="adm">Administrador</option>
@@ -1176,32 +1210,10 @@
       </div>
       <!-- Info do perfil -->
       <div id="usr-perfil-info" style="grid-column:1/-1;font-size:11px;padding:7px 10px;border-radius:var(--radius);background:var(--bg3);color:var(--text2)"></div>
-      <!-- Senha -->
-      <div class="form-group">
-        <label id="usr-senha-label">Senha <span style="color:var(--red-d)">*</span></label>
-        <div style="position:relative">
-          <input type="password" id="usr-senha" placeholder="Mínimo 6 caracteres" autocomplete="new-password"
-            style="padding-right:36px">
-          <button type="button" onclick="usrToggleSenha('usr-senha','usr-eye')"
-            style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px;color:var(--text3)" id="usr-eye">👁</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>Confirmar senha</label>
-        <div style="position:relative">
-          <input type="password" id="usr-senha2" placeholder="Repita a senha" autocomplete="new-password"
-            style="padding-right:36px">
-          <button type="button" onclick="usrToggleSenha('usr-senha2','usr-eye2')"
-            style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px;color:var(--text3)" id="usr-eye2">👁</button>
-        </div>
-      </div>
-      <div id="usr-senha-info" style="grid-column:1/-1;font-size:11px;color:var(--text3)">
-        Deixe em branco para manter a senha atual ao editar.
-      </div>
     </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-usuario')">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarUsuario()">Salvar</button>
+      <button class="btn btn-primary" id="usr-btn-salvar" onclick="salvarUsuario()">Convidar</button>
     </div>
   </div>
 </div>
@@ -4196,8 +4208,6 @@ function showPage(id){
   if(id==='saude')renderSaude();
   if(id==='reprodutivo')renderReprodutivo();
   if(id==='financeiro')renderFinanceiro();
-
-  if(id==='usuarios') renderUsuarios();
 }
 function switchTab(btn,tid){
   btn.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
@@ -6094,39 +6104,6 @@ function renderMovimentos(){
   }).join('');
 }
 
-// ─── SALVAR / CARREGAR ─────────────────────────────────────────────────────────
-function _montarDados(){
-  return {versao:11,dataExportacao:new Date().toISOString(),animais,nutProj,coberturas2,eventosEsp,estoque,movimentos,lancamentos,pendencias,histVacinas,histExames,medidas,histVermifugacoes,registrosAIE,nutTemplatesCustom,usuarios_v2:USUARIOS};
-}
-
-
-
-// Auto-salvar na nuvem silenciosamente (sem download)
-async function _autoSalvar(){
-  if(!_SUPABASE_OK()) return;
-  const dados = _montarDados();
-  await _salvarNuvem(dados);
-}
-
-function carregarDados(event){
-  const file=event.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const dados=JSON.parse(e.target.result);
-      if(!confirm(`Carregar dados de ${dados.dataExportacao?new Date(dados.dataExportacao).toLocaleString('pt-BR'):'data desconhecida'}? Os dados atuais serão substituídos.`))return;
-      _aplicarDados(dados);
-      // Também enviar para nuvem ao carregar arquivo
-      _salvarNuvem(dados).then(ok=>{
-        _mostrarStatusSync(ok?'✅ Dados carregados e enviados para a nuvem':'📥 Dados carregados (nuvem indisponível)', ok?'green':'amber');
-      });
-      populaCiclos();renderDashboard();renderAnimais();atualizarBadgePendencias();
-      alert('Dados carregados com sucesso!');
-    }catch(err){alert('Erro ao carregar: '+err.message);}
-  };
-  reader.readAsText(file);event.target.value='';
-}
-
 // ─── PATCH showPage ────────────────────────────────────────────────────────────
 const _origShowPage=showPage;
 showPage=function(id){
@@ -6425,7 +6402,7 @@ function renderUsuarios() {
 
   el.innerHTML = `<table><thead><tr>
     <th style="padding:10px 14px">Nome</th>
-    <th>Login</th>
+    <th>E-mail</th>
     <th>Perfil</th>
     <th>Status</th>
     <th>Criado em</th>
@@ -6453,19 +6430,17 @@ function renderUsuarios() {
 
 function abrirModalUsuario(idx) {
   const isNovo = idx < 0;
-  document.getElementById('usr-modal-titulo').textContent = isNovo ? 'Novo usuário' : 'Editar usuário';
+  document.getElementById('usr-modal-titulo').textContent = isNovo ? 'Convidar usuário' : 'Editar usuário';
   document.getElementById('usr-edit-id').value = isNovo ? '' : (USUARIOS[idx]?.id || '');
   document.getElementById('usr-nome').value    = isNovo ? '' : USUARIOS[idx]?.nome || '';
-  document.getElementById('usr-login').value   = isNovo ? '' : USUARIOS[idx]?.login || '';
+  const emailInput = document.getElementById('usr-login');
+  emailInput.value = isNovo ? '' : USUARIOS[idx]?.login || '';
+  emailInput.disabled = !isNovo; // e-mail é a identidade Auth — não editável depois de convidado
+  const emailHint = document.querySelector('#usr-email-group > div');
+  if(emailHint) emailHint.style.display = isNovo ? '' : 'none';
   document.getElementById('usr-perfil').value  = isNovo ? 'cab' : USUARIOS[idx]?.perfil || 'cab';
-  document.getElementById('usr-senha').value   = '';
-  document.getElementById('usr-senha2').value  = '';
-  const senhaLabel = document.getElementById('usr-senha-label');
-  const senhaInfo  = document.getElementById('usr-senha-info');
-  if(senhaLabel) senhaLabel.innerHTML = isNovo
-    ? 'Senha <span style="color:var(--red-d)">*</span>'
-    : 'Nova senha <span style="font-size:10px;font-weight:400;color:var(--text3)">(opcional)</span>';
-  if(senhaInfo) senhaInfo.style.display = isNovo ? 'none' : 'block';
+  const btn = document.getElementById('usr-btn-salvar');
+  if(btn) { btn.disabled = false; btn.textContent = isNovo ? 'Convidar' : 'Salvar'; }
   usrPerfilChange();
   openModal('modal-usuario');
   setTimeout(()=>document.getElementById('usr-nome').focus(), 100);
@@ -6482,67 +6457,83 @@ function usrPerfilChange() {
   }
 }
 
-function usrToggleSenha(inputId, btnId) {
-  const inp = document.getElementById(inputId);
-  const btn = document.getElementById(btnId);
-  if(!inp) return;
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-  if(btn) btn.textContent = inp.type === 'password' ? '👁' : '🙈';
-}
-
-function salvarUsuario() {
+async function salvarUsuario() {
   const editId = document.getElementById('usr-edit-id').value;
   const nome   = document.getElementById('usr-nome').value.trim();
-  const login  = document.getElementById('usr-login').value.trim().toLowerCase();
+  const email  = document.getElementById('usr-login').value.trim().toLowerCase();
   const perfil = document.getElementById('usr-perfil').value;
-  const senha  = document.getElementById('usr-senha').value;
-  const senha2 = document.getElementById('usr-senha2').value;
   const isNovo = !editId;
 
-  if(!nome)  return alert('Nome é obrigatório.');
-  if(!login) return alert('Login é obrigatório.');
-  if(!/^[a-z0-9._-]{3,30}$/.test(login)) return alert('Login inválido. Use letras minúsculas, números, ponto ou hífen (3-30 chars).');
-
-  // Verificar login duplicado
-  const dupLogin = USUARIOS.find(u => u.login === login && u.id !== editId);
-  if(dupLogin) return alert(`Login "${login}" já está em uso por outro usuário.`);
-
-  if(isNovo && !senha) return alert('Senha obrigatória para novo usuário.');
-  if(senha && senha.length < 6) return alert('Senha deve ter no mínimo 6 caracteres.');
-  if(senha && senha !== senha2) return alert('As senhas não conferem.');
+  if(!nome) return alert('Nome é obrigatório.');
 
   if(isNovo) {
-    const novoId = 'usr_' + Date.now();
-    USUARIOS.push({
-      id: novoId, login, senha, nome, perfil,
-      label: PERFIS_INFO[perfil]?.label || perfil,
-      ativo: true,
-      criadoEm: new Date().toISOString().slice(0,10),
-    });
-    _dbSalvarUsuario(USUARIOS[USUARIOS.length-1], true);
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return alert('Informe um e-mail válido.');
+    if(USUARIOS.find(u => u.login === email)) return alert(`Já existe um usuário com o e-mail "${email}" nesta cabanha.`);
+
+    const btn = document.getElementById('usr-btn-salvar');
+    if(btn) { btn.disabled = true; btn.textContent = 'Convidando...'; }
+    const { ok, status, data } = await _chamarConvidarUsuario({ tenant_id: TENANT_INFO?.tenant_id, nome, email, perfil });
+    if(btn) { btn.disabled = false; btn.textContent = 'Convidar'; }
+
+    if(!ok) {
+      if(status === 409) return alert('Este usuário já tem acesso a esta cabanha.');
+      if(status === 403) return alert('Somente administradores podem convidar usuários.');
+      return alert('Falha ao convidar usuário: ' + (data?.erro || 'erro desconhecido'));
+    }
+    closeModal('modal-usuario');
+    await _recarregarUsuarios();
+    _mostrarStatusSync(data?.email_enviado === false ? '⚠️ Usuário criado, mas o e-mail falhou' : '✅ Convite enviado', data?.email_enviado === false ? 'amber' : 'green');
   } else {
     const idx = USUARIOS.findIndex(u => u.id === editId);
     if(idx < 0) return alert('Usuário não encontrado.');
-    _dbSalvarUsuario({...USUARIOS[idx], db_id: USUARIOS[idx].db_id||USUARIOS[idx].id}, false);
     USUARIOS[idx].nome   = nome;
-    USUARIOS[idx].login  = login;
     USUARIOS[idx].perfil = perfil;
     USUARIOS[idx].label  = PERFIS_INFO[perfil]?.label || perfil;
-    if(senha) USUARIOS[idx].senha = senha;
-    // Se é o usuário logado, atualizar usuarioAtual
+    await _dbSalvarUsuario(USUARIOS[idx]);
+    // Se é o usuário logado, refletir nome/perfil na sidebar
     if(usuarioAtual?.id === editId) {
-      usuarioAtual.nome   = nome;
-      usuarioAtual.perfil = perfil;
-      usuarioAtual.label  = PERMISSOES[perfil] ? perfil : 'cab';
+      usuarioAtual.nome = nome; usuarioAtual.perfil = perfil;
+      usuarioAtual.label = PERFIS_INFO[perfil]?.label || perfil;
+      const uEl = document.getElementById('sidebar-username'); if(uEl) uEl.textContent = nome;
+      const bEl = document.getElementById('sidebar-perfil-badge'); if(bEl) bEl.innerHTML = `<span class="perfil-badge perfil-${perfil}">${usuarioAtual.label}</span>`;
+      const avEl = document.getElementById('sidebar-avatar'); if(avEl) avEl.textContent = (nome||'?').trim().charAt(0).toUpperCase();
     }
+    _saveUsuarios();
+    closeModal('modal-usuario');
+    renderUsuarios();
   }
+}
 
+// Chama a edge function convidar-usuario com o JWT do admin logado (não é
+// service_role — a função autentica e autoriza o chamador do lado do servidor).
+async function _chamarConvidarUsuario(payload) {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/convidar-usuario`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, 'Authorization': `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json().catch(()=>({}));
+    return { ok: r.ok, status: r.status, data };
+  } catch(e) {
+    return { ok: false, status: 0, data: { erro: 'Falha de conexão' } };
+  }
+}
+
+// Recarrega a lista de usuários da cabanha ativa a partir do banco (após convite/edição).
+async function _recarregarUsuarios() {
+  const rows = await _supa('GET','usuarios','','?select=id,login,nome,perfil,ativo,criado_em&order=nome');
+  if(!rows) return;
+  USUARIOS.length = 0;
+  rows.forEach(u => USUARIOS.push({
+    id: u.id, db_id: u.id, login: u.login, nome: u.nome, perfil: u.perfil,
+    label: PERFIS_INFO[u.perfil]?.label || u.perfil, ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10)
+  }));
   _saveUsuarios();
-  closeModal('modal-usuario');
   renderUsuarios();
 }
 
-function toggleSuspenderUsuario(idx) {
+async function toggleSuspenderUsuario(idx) {
   const u = USUARIOS[idx];
   if(!u) return;
   if(u.id === usuarioAtual?.id) return alert('Não é possível suspender sua própria conta.');
@@ -6550,34 +6541,92 @@ function toggleSuspenderUsuario(idx) {
   const acao = ativo ? 'suspender' : 'reativar';
   if(!confirm(`Tem certeza que deseja ${acao} o usuário "${u.nome}" (${u.login})?`)) return;
   USUARIOS[idx].ativo = !ativo;
+  if(u.db_id) await _supa('PATCH','usuarios',{ativo: !ativo},`?id=eq.${u.db_id}`);
   _saveUsuarios();
   renderUsuarios();
 }
 
-function excluirUsuario(idx) {
+async function excluirUsuario(idx) {
   const u = USUARIOS[idx];
   if(!u) return;
   if(u.id === usuarioAtual?.id) return alert('Não é possível excluir sua própria conta.');
   if(u.perfil === 'adm' && USUARIOS.filter(x=>x.perfil==='adm'&&x.ativo!==false).length <= 1)
     return alert('Não é possível excluir o único administrador ativo.');
-  if(!confirm(`Excluir permanentemente "${u.nome}" (${u.login})?
+  if(!confirm(`Excluir "${u.nome}" (${u.login}) desta cabanha?
 
 Esta ação não pode ser desfeita.`)) return;
+  if(u.db_id) await _supa('DELETE','usuarios',null,`?id=eq.${u.db_id}`);
   USUARIOS.splice(idx, 1);
   _saveUsuarios();
   renderUsuarios();
 }
 
-// Auto-save usuarios no backup geral
-function salvarUsuariosNoBackup(dados) {
-  dados.usuarios_v2 = USUARIOS;
+// ── Tela de Conta (card no rodapé da sidebar) ──────────────────────────────
+function toggleContaMenu() {
+  const menu = document.getElementById('sidebar-account-menu');
+  if(menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
 }
-function carregarUsuariosDoBackup(dados) {
-  if(dados.usuarios_v2 && Array.isArray(dados.usuarios_v2) && dados.usuarios_v2.length > 0) {
-    USUARIOS.length = 0;
-    dados.usuarios_v2.forEach(u => USUARIOS.push(u));
-    _saveUsuarios();
-  }
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('sidebar-account-menu');
+  const card = document.getElementById('sidebar-account-card');
+  if(!menu || menu.style.display === 'none') return;
+  if(!menu.contains(e.target) && !card?.contains(e.target)) menu.style.display = 'none';
+});
+
+function abrirTelaConta() {
+  const menu = document.getElementById('sidebar-account-menu'); if(menu) menu.style.display = 'none';
+  document.getElementById('conta-nome-exibicao').value = TENANT_INFO?.nome_exibicao || TENANT_INFO?.nome_cabanha || '';
+  const logoImg = document.getElementById('conta-logo-preview');
+  const logoPh  = document.getElementById('conta-logo-placeholder');
+  if(TENANT_INFO?.logo_url) { logoImg.src = TENANT_INFO.logo_url; logoImg.style.display=''; logoPh.style.display='none'; }
+  else { logoImg.style.display='none'; logoPh.style.display='flex'; }
+  window._contaNovoLogo = undefined;
+  document.querySelectorAll('#modal-conta .tab-row .tab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  document.getElementById('conta-tab-cabanha').style.display = '';
+  document.getElementById('conta-tab-usuarios').style.display = 'none';
+  renderUsuarios();
+  _aplicarPermissoes();
+  openModal('modal-conta');
+}
+
+function switchContaTab(btn, tabId) {
+  btn.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('conta-tab-cabanha').style.display  = tabId === 'conta-tab-cabanha'  ? '' : 'none';
+  document.getElementById('conta-tab-usuarios').style.display = tabId === 'conta-tab-usuarios' ? '' : 'none';
+  if(tabId === 'conta-tab-usuarios') renderUsuarios();
+}
+
+function _onLogoFileSelect(e) {
+  const file = e.target.files[0]; if(!file) return;
+  if(file.size > 2*1024*1024) { alert('Logo muito grande. Máximo 2MB.'); e.target.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    window._contaNovoLogo = ev.target.result;
+    const logoImg = document.getElementById('conta-logo-preview');
+    const logoPh  = document.getElementById('conta-logo-placeholder');
+    logoImg.src = ev.target.result; logoImg.style.display=''; logoPh.style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function salvarDadosCabanha() {
+  if(!TENANT_INFO?.tenant_id) return;
+  const nome = document.getElementById('conta-nome-exibicao').value.trim();
+  const logo = window._contaNovoLogo !== undefined ? window._contaNovoLogo : (TENANT_INFO.logo_url || null);
+  const btn = document.getElementById('conta-btn-salvar-cabanha');
+  if(btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+  const okRpc = await _rpc('atualizar_tenant', { p_tenant_id: TENANT_INFO.tenant_id, p_nome_exibicao: nome, p_logo_url: logo });
+  if(btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+  if(okRpc !== true) return alert('Falha ao salvar. Confira se você é administrador desta cabanha.');
+
+  TENANT_INFO.nome_exibicao = nome || null;
+  TENANT_INFO.logo_url = logo || null;
+  const cabEl = document.getElementById('sidebar-cabanha'); if(cabEl) cabEl.textContent = nome || TENANT_INFO.nome_cabanha || '';
+  const logoEl = document.getElementById('sidebar-logo-img');
+  if(logoEl) { if(logo) { logoEl.src = logo; logoEl.style.display=''; } else { logoEl.removeAttribute('src'); logoEl.style.display='none'; } }
+  if(nome) document.title = `${nome} — Mimba`;
+  _mostrarStatusSync('✅ Dados da cabanha atualizados', 'green');
 }
 
 // ── TROCAR SENHA (self-service) ──────────────────────────────────────────────
@@ -7840,43 +7889,13 @@ async function _dbResolverPendencia(pend) {
 }
 
 // ── Usuários ───────────────────────────────────────────────────────────────
-async function _dbSalvarUsuario(u, isNovo) {
-  const payload = {
-    login: u.login, senha_hash: u.senha,
-    nome: u.nome, perfil: u.perfil, ativo: u.ativo !== false
-  };
-  if(!isNovo && u.db_id) {
-    await _supa('PATCH','usuarios',payload,`?id=eq.${u.db_id}`);
-  } else {
-    const res = await _supa('POST','usuarios',payload);
-    if(res?.[0]?.id) u.db_id = res[0].id;
-  }
+// Só edita usuário existente (nome/perfil/status) — criação vira convidar-usuario
+// (edge function), que já cuida da identidade Auth + membership + linha aqui.
+async function _dbSalvarUsuario(u) {
+  if(!u.db_id) return;
+  await _supa('PATCH','usuarios',{ nome: u.nome, perfil: u.perfil, ativo: u.ativo !== false },`?id=eq.${u.db_id}`);
 }
 
-// ── Salvar dados (botão sidebar) ───────────────────────────────────────────
-async function salvarDados() {
-  _mostrarStatusSync('💾 Salvando...', 'amber');
-  // Download local como backup
-  const dados = {versao:11, dataExportacao:new Date().toISOString(),
-    animais, nutProj, coberturas2, eventosEsp, estoque, movimentos,
-    lancamentos, pendencias, histVacinas, histExames, medidas,
-    histVermifugacoes, registrosAIE, nutTemplatesCustom, usuarios_v2:USUARIOS};
-  const blob = new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href=url;
-  a.download = `CabanhaMaeDeDeus_${new Date().toISOString().slice(0,10)}.json`;
-  a.click(); URL.revokeObjectURL(url);
-  const badge = document.getElementById('save-badge');
-  if(badge){badge.classList.add('show');setTimeout(()=>badge.classList.remove('show'),2500);}
-  _mostrarStatusSync('✅ Backup local baixado', 'green');
-}
-
-// ── Verificar login no banco ───────────────────────────────────────────────
-async function _verificarLoginBanco(login, senha) {
-  const res = await _supa('GET','usuarios','',
-    `?login=eq.${encodeURIComponent(login)}&senha_hash=eq.${encodeURIComponent(senha)}&ativo=eq.true&select=id,login,nome,perfil,ativo`);
-  return res?.[0] || null;
-}
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function _saveUsuarios() { try { localStorage.setItem('cabanha_usuarios', JSON.stringify(USUARIOS)); } catch(e){} }
@@ -7993,6 +8012,8 @@ function _entrarApp() {
   const uname = document.getElementById('sidebar-username');
   if(badge) badge.innerHTML=`<span class="perfil-badge perfil-${user.perfil}">${user.label}</span>`;
   if(uname) uname.textContent=user.nome;
+  const avatarEl = document.getElementById('sidebar-avatar');
+  if(avatarEl) avatarEl.textContent = (user.nome||'?').trim().charAt(0).toUpperCase();
   // Mostrar a cabanha ativa — essencial no multi-tenant (evita lançar dado na cabanha errada)
   const nomeCab = TENANT_INFO ? (TENANT_INFO.nome_exibicao || TENANT_INFO.nome_cabanha || '') : '';
   const cabEl = document.getElementById('sidebar-cabanha');
@@ -8021,6 +8042,9 @@ function fazerLogout() {
   AUTH_TOKEN = null; AUTH_USER = null; TENANT_INFO = null;
   // não deixar dado da cabanha na memória/localStorage após sair
   _limparEstadoLocal();
+  // fechar o menu/modal de conta, se estiverem abertos
+  const _menu = document.getElementById('sidebar-account-menu'); if(_menu) _menu.style.display='none';
+  closeModal('modal-conta');
   // limpar a marca da cabanha (logo/nome/título) ao voltar para o login
   const _lg = document.getElementById('sidebar-logo-img');
   if(_lg){ _lg.removeAttribute('src'); _lg.style.display='none'; }
@@ -8039,9 +8063,13 @@ function fazerLogout() {
 function _aplicarPermissoes() {
   if(!usuarioAtual) return;
   const isAdm = usuarioAtual.perfil === 'adm' || usuarioAtual.perfil === 'admin';
-  // Mostrar botão de usuários apenas para admin
-  const usrBtn = document.getElementById('nav-btn-usuarios');
-  if(usrBtn) usrBtn.style.display = isAdm ? '' : 'none';
+  // Aba de usuários e edição da cabanha (dentro da Tela de Conta) só para admin
+  const convidarBtn = document.getElementById('conta-btn-convidar');
+  if(convidarBtn) convidarBtn.style.display = isAdm ? '' : 'none';
+  const salvarCabBtn = document.getElementById('conta-btn-salvar-cabanha');
+  if(salvarCabBtn) salvarCabBtn.style.display = isAdm ? '' : 'none';
+  const nomeCabInput = document.getElementById('conta-nome-exibicao');
+  if(nomeCabInput) nomeCabInput.disabled = !isAdm;
   const p = PERMISSOES[usuarioAtual.perfil] || PERMISSOES['cab'];
   if(p.tudo) return; // admin vê tudo
   // Esconder páginas não autorizadas no menu
