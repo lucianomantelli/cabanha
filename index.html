@@ -7958,6 +7958,14 @@ async function _sincronizarAoLogin() {
       {usuario: usuarioAtual?.nome, ts: new Date().toISOString()});
 
     populaCiclos(); renderDashboard(); renderAnimais(); atualizarBadgePendencias();
+    // Se o usuário já tiver navegado para outra página (ex.: Gestação, Medidas)
+    // enquanto este sync ainda estava em andamento — corrida comum logo após o
+    // login —, essa página nunca era re-renderizada com os dados reais: ficava
+    // mostrando vazio/desatualizado até sair e voltar manualmente. Reaproveita
+    // o dispatch de showPage (já sabe renderizar cada página) na página que
+    // estiver ativa agora, sem precisar listar cada uma na mão.
+    const _paginaAtivaAoTerminarSync = document.querySelector('.page.active');
+    if(_paginaAtivaAoTerminarSync) showPage(_paginaAtivaAoTerminarSync.id.replace('page-',''));
     _gerarPendenciasAnimaisAtivos();
     _mostrarStatusSync('✅ Dados sincronizados', 'green');
 
