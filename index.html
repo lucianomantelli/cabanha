@@ -7511,9 +7511,16 @@ async function _sincronizarAoLogin() {
   Object.keys(medidas).forEach(k=>delete medidas[k]);
   Object.keys(histVermifugacoes).forEach(k=>delete histVermifugacoes[k]);
   try {
+    // Bootstrap único: antes eram 12 requisições REST separadas (1 sequencial +
+    // 11 em paralelo), cada uma disparando seu próprio preflight CORS (OPTIONS)
+    // por causa dos headers Accept-Profile/Content-Profile — ~24 idas-e-voltas
+    // de rede reais (300-850ms cada, medido) mesmo o banco respondendo em
+    // poucos ms. carregar_dados_cabanha() busca tudo no servidor numa RPC só.
+    const bootstrap = await _rpc('carregar_dados_cabanha', { p_tenant_id: TENANT_INFO?.tenant_id });
+    if(!bootstrap) throw new Error('Falha ao carregar dados da cabanha.');
+
     // 1. Animais
-    const dbAnimais = await _supa('GET','animais','',
-      '?select=*&ativo=eq.true&order=nome');
+    const dbAnimais = bootstrap.animais;
     if(dbAnimais) {
       animais.length = 0;
       dbAnimais.forEach(a => animais.push({
@@ -7526,25 +7533,11 @@ async function _sincronizarAoLogin() {
       }));
     }
 
-    // Demais requisicoes em PARALELO. O processamento abaixo segue na ordem
-    // original (depende de `animais` ja carregado); so a rede foi paralelizada:
-    // 11 idas e voltas sequenciais viram 1 rodada.
-    const [dbVac, dbExam, dbVerm, dbCob, dbMed, dbEvt, dbEst, dbMov, dbLanc, dbPend, dbUsr] =
-      await Promise.all([
-        _supa('GET','vacinacoes','','?select=*&order=data.desc'),
-        _supa('GET','exames','','?select=*&order=data.desc'),
-        _supa('GET','vermifugacoes','','?select=*&order=data.desc'),
-        _supa('GET','coberturas','','?select=*&order=data.desc'),
-        _supa('GET','medidas','','?select=*&order=data.desc'),
-        _supa('GET','eventos','','?select=*,eventos_animais(*)&order=data.desc'),
-        _supa('GET','estoque_itens','','?select=*&ativo=eq.true&order=nome'),
-        _supa('GET','estoque_movimentos','','?select=*&order=criado_em.desc&limit=500'),
-        _supa('GET','lancamentos','','?select=*&order=data.desc&limit=1000'),
-        _supa('GET','pendencias','','?select=*&resolvida=eq.false&order=gerada_em.desc'),
-        usuarioAtual?.perfil === 'adm'
-          ? _supa('GET','usuarios','','?select=id,login,senha_hash,nome,perfil,ativo,criado_em,auth_user_id&order=nome')
-          : Promise.resolve(null),
-      ]);
+    const dbVac = bootstrap.vacinacoes, dbExam = bootstrap.exames, dbVerm = bootstrap.vermifugacoes,
+          dbCob = bootstrap.coberturas, dbMed = bootstrap.medidas, dbEvt = bootstrap.eventos,
+          dbEst = bootstrap.estoque_itens, dbMov = bootstrap.estoque_movimentos,
+          dbLanc = bootstrap.lancamentos, dbPend = bootstrap.pendencias,
+          dbUsr = usuarioAtual?.perfil === 'adm' ? bootstrap.usuarios : null;
 
     // 2. Vacinações por animal
     if(dbVac) {
