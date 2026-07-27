@@ -2029,7 +2029,7 @@
       <div class="form-group"><label>Sexo</label><select id="nsex"><option value="">—</option><option>Fêmea</option><option>Macho</option></select></div>
       <div class="form-group"><label>Pelagem</label><input type="text" id="npel" placeholder="Ex: Gateada"></div>
       <div class="form-group"><label>Ciclo</label><input type="text" id="nciclo" placeholder="Ex: 24/25"></div>
-      <div class="form-group"><label>Nascimento</label><input type="date" id="nnasc"></div>
+      <div class="form-group"><label>Nascimento</label><input type="date" id="nnasc" onchange="_autoCiclo(this.value,'nciclo')"></div>
       <div class="form-group"><label>Situação</label><select id="nsit"><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option></select></div>
       <div class="form-group"><label>Mãe</label><input type="text" id="nmae"></div>
       <div class="form-group"><label>Pai</label><input type="text" id="npai"></div>
@@ -3786,7 +3786,7 @@ function _renderDetCorpo(i, editando) {
         <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Pelagem</label>
           <input id="ed-pelagem" value="${a.pelagem||''}" style="width:100%;font-size:12px" placeholder="Ex: Gateada"></div>
         <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Nascimento</label>
-          <input id="ed-nasc" type="date" value="${a.nasc||''}" style="width:100%;font-size:12px"></div>
+          <input id="ed-nasc" type="date" value="${a.nasc||''}" style="width:100%;font-size:12px" onchange="_autoCiclo(this.value,'ed-ciclo')"></div>
         <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Ciclo</label>
           <input id="ed-ciclo" value="${a.ciclo||''}" style="width:100%;font-size:12px" placeholder="Ex: 24/25"></div>
         <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Situação</label>
@@ -4027,6 +4027,7 @@ async function _buscarAbccc(ctx) {
       set('ed-nasc',    dados.nasc);
       set('ed-mae',     dados.mae);
       set('ed-pai',     dados.pai);
+      set('ed-ciclo',   dados.ciclo);
       if (dados.sexo) {
         const selSexo = document.getElementById('ed-sexo');
         if (selSexo) selSexo.value = dados.sexo;
@@ -4038,12 +4039,13 @@ async function _buscarAbccc(ctx) {
       set('nnasc',   dados.nasc);
       set('nmae',    dados.mae);
       set('npai',    dados.pai);
+      set('nciclo',  dados.ciclo);
       if (dados.sexo) {
         const selSexo = document.getElementById('nsex');
         if (selSexo) selSexo.value = dados.sexo;
       }
     }
-    const campos = [dados.nome, dados.nasc, dados.pelagem, dados.mae].filter(Boolean).length;
+    const campos = [dados.nome, dados.nasc, dados.pelagem, dados.mae, dados.pai, dados.rp, dados.ciclo].filter(Boolean).length;
     if (statEl) {
       statEl.innerHTML = `<span style="color:var(--green-d)">✅ ${campos} campo(s) preenchido(s) automaticamente a partir do ABCCC. Revise e salve.</span>`;
     }
@@ -4058,6 +4060,21 @@ async function _buscarAbccc(ctx) {
 }
 
 
+
+// Calcula ciclo ABCCC a partir da data de nascimento e preenche o campo alvo
+// Regra: 01/ago/ano → 31/jul/ano+1 = ciclo "AA/AA+1"
+function _autoCiclo(nasc, targetId) {
+  if (!nasc) return;
+  const d = new Date(nasc + 'T12:00:00');
+  if (isNaN(d.getTime())) return;
+  const mes = d.getMonth() + 1; // 1-12
+  const ano = d.getFullYear();
+  const anoInicio = mes >= 8 ? ano : ano - 1;
+  const s = n => String(n).slice(-2);
+  const ciclo = `${s(anoInicio)}/${s(anoInicio + 1)}`;
+  const el = document.getElementById(targetId);
+  if (el && !el.value) el.value = ciclo; // só preenche se estiver vazio
+}
 
 // ─── REPRODUTIVO ──────────────────────────────────────────────────────────────
 function renderReprodutivo(){
