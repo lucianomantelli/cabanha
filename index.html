@@ -247,6 +247,8 @@
   .ficha-row:last-child { border-bottom:none; }
   .ficha-label { color:var(--text2); flex-shrink:0; width:130px; }
   .ficha-val { color:var(--text); text-align:right; flex:1; }
+  .ficha-field-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:3px; }
+  .ficha-field-val { font-size:13px; color:var(--text); font-weight:600; word-break:break-word; }
   /* HISTÓRICO SAÚDE */
   .hist-row { display:grid; gap:8px; align-items:center; padding:6px 0; border-bottom:0.5px solid var(--border); font-size:12px; }
   .hist-vac { grid-template-columns:90px 90px 1fr 1fr 80px; }
@@ -399,7 +401,7 @@
   @media(max-width:600px){
     .tl-foto-thumb{width:72px;height:72px;}
     .tl-title{font-size:12px;}
-    #modal-midia .modal,#modal-detalhe2 .modal{width:100%!important;max-width:100vw;border-radius:12px 12px 0 0;max-height:88vh;}
+    #modal-midia .modal{width:100%!important;max-width:100vw;border-radius:12px 12px 0 0;max-height:88vh;}
     #modal-foto-full img{max-width:95vw;max-height:70vh;}
   }
 </style>
@@ -604,6 +606,26 @@
       <tbody id="tbody-animais"></tbody>
     </table>
   </div>
+</div>
+
+<!-- Detalhe do animal — página cheia (era modal; texto colado/espaçamento
+     inconsistente + pouco espaço eram sintoma de ficar espremido em 900px) -->
+<div class="page" id="page-detalhe-animal">
+  <div class="page-header">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      <button class="btn btn-sm" onclick="showPage('animais')" title="Voltar para Animais">← Voltar</button>
+      <div style="min-width:0">
+        <div class="page-title" id="det-titulo" style="font-size:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Animal</div>
+        <div class="page-sub">Ficha completa do animal</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn btn-sm" id="det-btn-editar" onclick="alternarEdicaoAnimal()">✏️ Editar</button>
+      <button class="btn btn-sm btn-primary" id="det-btn-salvar" onclick="salvarEdicaoAnimal()" style="display:none">💾 Salvar</button>
+      <button class="btn btn-sm" id="det-btn-cancelar" onclick="cancelarEdicaoAnimal()" style="display:none">✕ Cancelar</button>
+    </div>
+  </div>
+  <div id="det-corpo" style="max-width:980px"></div>
 </div>
 
 <!-- SAUDE -->
@@ -2026,22 +2048,6 @@
       <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="mv-obs"></div>
     </div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('modal-movimento')">Cancelar</button><button class="btn btn-primary" onclick="salvarMovimento()">Salvar</button></div>
-  </div>
-</div>
-
-<div class="modal-bg" id="modal-detalhe2">
-  <div class="modal" style="width:min(900px,96vw);max-height:94vh;overflow-y:auto;padding:0">
-    <div class="modal-header" style="position:sticky;top:0;z-index:10;background:var(--bg2);border-bottom:1px solid var(--border);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:1rem 1.4rem">
-      <span class="modal-title" id="det-titulo">Animal</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn btn-sm" id="det-btn-editar" onclick="alternarEdicaoAnimal()" style="font-size:11px">✏️ Editar</button>
-        <button class="btn btn-sm btn-primary" id="det-btn-salvar" onclick="salvarEdicaoAnimal()" style="display:none;font-size:11px">💾 Salvar</button>
-        <button class="btn btn-sm" id="det-btn-cancelar" onclick="cancelarEdicaoAnimal()" style="display:none;font-size:11px">✕</button>
-        <button class="modal-close" onclick="closeModal('modal-detalhe2')">×</button>
-      </div>
-    </div>
-    <div id="det-corpo" style="padding:1.2rem 1.4rem"></div>
-    <div class="modal-footer" style="padding:0.8rem 1.4rem;border-top:1px solid var(--border)"><button class="btn" onclick="closeModal('modal-detalhe2')">Fechar</button></div>
   </div>
 </div>
 
@@ -3843,7 +3849,10 @@ function verDetalhe(i){
   document.getElementById('det-btn-editar').style.display='';
   document.getElementById('det-btn-salvar').style.display='none';
   document.getElementById('det-btn-cancelar').style.display='none';
-  openModal('modal-detalhe2');
+  showPage('detalhe-animal');
+  // 'detalhe-animal' não tem item próprio no menu — mantém "Animais" destacado,
+  // já que é conceitualmente onde o usuário está (chegou via lista de Animais).
+  document.querySelector('.nav-btn[onclick*="\'animais\'"]')?.classList.add('active');
 }
 
 function _renderDetCorpo(i, editando) {
@@ -3891,19 +3900,22 @@ function _renderDetCorpo(i, editando) {
       </div>
     </div>`;
   } else {
+    // Grid de cards independentes (não .ficha-row dentro de grid — cada linha flex
+    // espremida numa coluna de grid era a causa do texto colado/espaçamento
+    // inconsistente). Cada campo tem sua própria altura, sem depender da coluna vizinha.
     S1=`<div class="ficha-section"><div class="ficha-section-title">🐴 Identificação</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px 18px">
       ${[['RP',a.rp||'—'],['SBB ABCCC',a.sbb?`<a class="sbb-link" href="#" onclick="abrirAbccc('${a.sbb}');return false;">${a.sbb} ↗</a>`:'—'],
          ['Sexo',a.sexo||'—'],['Pelagem',a.pelagem||'—'],['Nascimento',fd(a.nasc)||'—'],['Ciclo',a.ciclo||'—'],
          ['Situação',sitLabel(a.situacao)],['Estágio',a.estagio||'—'],['Mãe',a.mae||'—'],['Pai',a.pai||'—']]
-        .map(([l,v])=>`<div class="ficha-row"><span class="ficha-label">${l}</span><span class="ficha-val">${v}</span></div>`).join('')}
-      </div>${a.obs?`<div style="margin-top:6px;font-size:11px;color:var(--text2)">Obs: ${a.obs}</div>`:''}</div>`;
+        .map(([l,v])=>`<div><div class="ficha-field-label">${l}</div><div class="ficha-field-val">${v}</div></div>`).join('')}
+      </div>${a.obs?`<div style="margin-top:12px;font-size:12px;color:var(--text2)">Obs: ${a.obs}</div>`:''}</div>`;
   }
 
   // ── VACINAS ───────────────────────────────────────────────────────
   const hv=getHistVac(i);
   const S2=`<div class="ficha-section"><div class="ficha-section-title">💉 Vacinas
-    <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="closeModal('modal-detalhe2');abrirModalVac(${i})">+ Vacinar</button></div>
+    <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="abrirModalVac(${i})">+ Vacinar</button></div>
     ${!hv.length?`<div style="font-size:12px;color:var(--text2)">Última: ${fd(a.ult_vac)||'—'} · Próxima: ${fd(a.prox_vac)||'—'} <span class="badge ${svac(a.prox_vac).c}">${svac(a.prox_vac).l}</span></div>`
     :`<div class="card" style="padding:0;overflow:hidden;overflow-x:auto;margin:0"><table><thead><tr>
       <th style="padding:6px 8px">Data</th><th>Vacina</th><th>Próx.</th><th>Veterinário</th><th>Dose</th>
@@ -3918,7 +3930,7 @@ function _renderDetCorpo(i, editando) {
   // ── EXAMES ────────────────────────────────────────────────────────
   const he=getHistExam(i);
   const S3=`<div class="ficha-section"><div class="ficha-section-title">🔬 Exames Sanitários
-    <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="closeModal('modal-detalhe2');abrirModalExame(${i})">+ Exame</button></div>
+    <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="abrirModalExame(${i})">+ Exame</button></div>
     ${!he.length?`<div style="font-size:12px;color:var(--text2)">Validade: ${fd(a.val_exame)||'—'} ${a.val_exame?`<span class="badge ${svac(a.val_exame).c}">${svac(a.val_exame).l}</span>`:''}</div>`
     :`<div class="card" style="padding:0;overflow:hidden;overflow-x:auto;margin:0"><table><thead><tr>
       <th style="padding:6px 8px">Data</th><th>Tipo</th><th>Resultado</th><th>Válido até</th><th>Veterinário</th>
@@ -3936,7 +3948,7 @@ function _renderDetCorpo(i, editando) {
   const hm=getMedidas(i);
   const pad=a.sexo?.toLowerCase().includes('macho')?PADRÃO_ABCCC.macho:PADRÃO_ABCCC.femea;
   const S4=`<div class="ficha-section"><div class="ficha-section-title">📏 Medidas Biométricas
-    <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="closeModal('modal-detalhe2');abrirModalMedida(${i})">+ Medir</button></div>
+    <button class="btn btn-sm" style="margin-left:auto;font-size:10px" onclick="abrirModalMedida(${i})">+ Medir</button></div>
     <div style="font-size:10px;color:var(--blue-d);margin-bottom:6px">Padrão ABCCC: cernelha ${pad.cernelha_min}–${pad.cernelha_max}m · tórax ≥${pad.torax_min}m · canela ≥${pad.canela_min}m</div>
     ${!hm.length?'<div class="nut-empty">Nenhuma medição registrada.</div>'
     :hm.slice().sort((a,b)=>b.data.localeCompare(a.data)).map(m=>{
@@ -7827,8 +7839,13 @@ async function _sincronizarAoLogin() {
     if(dbEvt) {
       eventosEsp.length = 0;
       dbEvt.forEach(e => {
+        // animal/nome e animais/participantes: apelidos duplicados de propósito —
+        // partes diferentes do app foram escritas lendo nomes de campo diferentes
+        // pro mesmo dado (achado ao investigar o modal de detalhes do animal, que
+        // lia e.participantes/p.nome e sempre ficava vazio). Popular os dois evita
+        // ter que caçar e corrigir cada um dos ~10 pontos de leitura divergentes.
         const animaisEvt = (e.eventos_animais||[]).map(ea => ({
-          animal: ea.animal_nome, classe: ea.classe||'',
+          animal: ea.animal_nome, nome: ea.animal_nome, classe: ea.classe||'',
           resultado: ea.resultado||'', colocacao: ea.colocacao||null,
           pontos: ea.pontos||null, obs: ea.obs||''
         }));
@@ -7836,7 +7853,7 @@ async function _sincronizarAoLogin() {
           db_id: e.id, nome: e.nome, tipo: e.tipo, data: e.data,
           local: e.local||'', nucleo: e.nucleo||'',
           status: e.status, obs: e.obs||'',
-          animais: animaisEvt
+          animais: animaisEvt, participantes: animaisEvt
         });
       });
     }
