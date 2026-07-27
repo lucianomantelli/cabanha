@@ -59,11 +59,17 @@
   Corrigir na origem também resolveu ~9 outros pontos de leitura no app (ranking Reprodutivo,
   busca da aba Eventos, timeline).
 
-## 🔴 Prioridade 6 — Responsividade mobile quebrada
-- [ ] Logo quebrada em mobile; a página inteira fica **mais larga que a tela**, gerando
-  scroll lateral indevido.
-- [ ] Repensar o menu lateral em mobile: começar **oculto**, com um botão de atalho que abre em
-  painel suspenso (overlay), em vez de disputar espaço fixo com o conteúdo da página.
+## 🔴 Prioridade 6 — Responsividade mobile quebrada ✅
+- [x] Causa raiz medida em 375px (não suposição): nada travava `overflow-x` na raiz
+  (`html`/`body`), então `.tab-row` (sub-abas tipo Vacinas/Exames/Vermifugação, sem quebra de
+  linha nem scroll próprio) forçava a página inteira a crescer (scrollWidth chegava a 572px numa
+  tela de 375px). Corrigido: trava `overflow-x:hidden` na raiz + `.tab-row` agora rola dentro de
+  si mesma.
+- [x] Menu lateral mobile **oculto por padrão**, com botão hamburger fixo que abre um painel
+  suspenso (drawer) com overlay — fecha sozinho ao navegar ou tocar fora. Não disputa mais espaço
+  fixo com o conteúdo (antes era uma barra de 60px só ícones sempre visível).
+- [x] Testado em 375px: as 12 páginas + login sem overflow (`scrollWidth === innerWidth` em
+  todas). Desktop confirmado sem regressão.
 
 ---
 
