@@ -432,11 +432,24 @@
     </div>
     <div class="login-field">
       <label>Senha</label>
-      <input type="password" id="login-senha" placeholder="Sua senha" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()">
+      <div style="position:relative">
+        <input type="password" id="login-senha" placeholder="Sua senha" autocomplete="current-password" style="width:100%;padding-right:38px" onkeydown="if(event.key==='Enter')fazerLogin()">
+        <button type="button" onclick="_toggleLoginSenha()" title="Mostrar/ocultar senha" aria-label="Mostrar/ocultar senha"
+          style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;display:flex">
+          <svg id="login-senha-icon-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg id="login-senha-icon-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.9 18.9 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+      </div>
     </div>
     <button class="login-btn" onclick="fazerLogin()">Entrar</button>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div id="login-seletor" style="display:none;margin-top:10px"></div>
+  </div>
+  <div class="login-box" id="login-restaurando" style="display:none;text-align:center">
+    <div class="login-logo">
+      <div class="login-logo-title">Mimba</div>
+      <div class="login-logo-sub">Restaurando sua sessão...</div>
+    </div>
   </div>
   <div class="login-box" id="definir-senha-box" style="display:none">
     <div class="login-logo">
@@ -8219,14 +8232,98 @@ async function fazerLogin() {
     if(!authRes.ok || !authData.access_token) { _err('Email ou senha incorretos.'); if(btn){btn.disabled=false;btn.textContent='Entrar';} return; }
     AUTH_TOKEN = authData.access_token;
     AUTH_USER  = authData.user || null;
+    _salvarSessao(authData);
+    _lembrarEmail(email);
     // 2) Buscar as cabanhas do usuário
     const cabs = await _rpc('minhas_cabanhas', {});
-    if(!cabs || cabs.length===0) { _err('Seu acesso não está vinculado a nenhuma cabanha.'); AUTH_TOKEN=null; AUTH_USER=null; if(btn){btn.disabled=false;btn.textContent='Entrar';} return; }
+    if(!cabs || cabs.length===0) { _err('Seu acesso não está vinculado a nenhuma cabanha.'); AUTH_TOKEN=null; AUTH_USER=null; _limparSessaoSalva(); if(btn){btn.disabled=false;btn.textContent='Entrar';} return; }
     if(cabs.length===1) { await _entrarCabanha(cabs[0]); }
     else { _mostrarSeletor(cabs); if(btn){btn.disabled=false;btn.textContent='Entrar';} }
   } catch(e) {
     _err('Falha ao conectar. Tente novamente.'); if(btn){btn.disabled=false;btn.textContent='Entrar';}
   }
+}
+
+function _toggleLoginSenha() {
+  const inp = document.getElementById('login-senha');
+  const show = document.getElementById('login-senha-icon-show');
+  const hide = document.getElementById('login-senha-icon-hide');
+  const oculta = inp.type === 'password';
+  inp.type = oculta ? 'text' : 'password';
+  show.style.display = oculta ? 'none' : '';
+  hide.style.display = oculta ? '' : 'none';
+}
+
+// ── Lembrar e-mail (só o e-mail — nunca a senha) ────────────────────────────
+const EMAIL_LEMBRADO_KEY = 'mimba_last_email';
+function _lembrarEmail(email) { try { localStorage.setItem(EMAIL_LEMBRADO_KEY, email); } catch(e){} }
+function _carregarEmailLembrado() {
+  try {
+    const email = localStorage.getItem(EMAIL_LEMBRADO_KEY);
+    if(email) document.getElementById('login-user').value = email;
+  } catch(e){}
+}
+
+// ── Persistir sessão entre recarregamentos (access_token vive só em memória;
+// guardamos o refresh_token pra renovar silenciosamente ao recarregar a página) ──
+const SESSAO_KEY = 'mimba_sessao';
+function _salvarSessao(authData) {
+  try {
+    localStorage.setItem(SESSAO_KEY, JSON.stringify({
+      access_token: authData.access_token,
+      refresh_token: authData.refresh_token,
+      expires_at: Date.now() + ((authData.expires_in || 3600) * 1000),
+    }));
+  } catch(e){}
+}
+function _limparSessaoSalva() { try { localStorage.removeItem(SESSAO_KEY); } catch(e){} }
+function _lerSessaoSalva() {
+  try { const s = localStorage.getItem(SESSAO_KEY); return s ? JSON.parse(s) : null; } catch(e){ return null; }
+}
+
+// Tenta retomar a sessão salva ao carregar a página. Se o access_token já
+// expirou (ou está perto disso), renova com o refresh_token antes de tentar
+// entrar. Falhando em qualquer etapa, cai de volta na tela de login normal.
+async function _tentarRetomarSessao() {
+  const sessao = _lerSessaoSalva();
+  if(!sessao || !sessao.access_token) return false;
+
+  document.getElementById('login-box-main').style.display = 'none';
+  document.getElementById('login-restaurando').style.display = '';
+
+  let token = sessao.access_token;
+  if(!sessao.expires_at || Date.now() > sessao.expires_at - 30000) {
+    if(!sessao.refresh_token) { _limparSessaoSalva(); return _cancelarRetomada(); }
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: sessao.refresh_token })
+      });
+      const d = await r.json().catch(()=>({}));
+      if(!r.ok || !d.access_token) { _limparSessaoSalva(); return _cancelarRetomada(); }
+      token = d.access_token;
+      _salvarSessao(d);
+    } catch(e) { _limparSessaoSalva(); return _cancelarRetomada(); }
+  }
+
+  AUTH_TOKEN = token;
+  try {
+    const cabs = await _rpc('minhas_cabanhas', {});
+    if(!cabs || cabs.length === 0) { AUTH_TOKEN = null; _limparSessaoSalva(); return _cancelarRetomada(); }
+    document.getElementById('login-restaurando').style.display = 'none';
+    if(cabs.length === 1) { await _entrarCabanha(cabs[0]); }
+    else { document.getElementById('login-box-main').style.display = ''; _mostrarSeletor(cabs); }
+    return true;
+  } catch(e) {
+    AUTH_TOKEN = null; _limparSessaoSalva(); return _cancelarRetomada();
+  }
+}
+function _cancelarRetomada() {
+  document.getElementById('login-restaurando').style.display = 'none';
+  document.getElementById('login-box-main').style.display = '';
+  _carregarEmailLembrado();
+  return false;
 }
 
 // RPC autenticada (usa o JWT do usuário logado)
@@ -8324,6 +8421,7 @@ function fazerLogout() {
   AUTH_TOKEN = null; AUTH_USER = null; TENANT_INFO = null;
   // não deixar dado da cabanha na memória/localStorage após sair
   _limparEstadoLocal();
+  _limparSessaoSalva(); // sair de verdade não pode voltar sozinho no próximo reload
   // fechar a Tela de Conta, se estiver aberta
   closeModal('modal-conta');
   // limpar a marca da cabanha (logo/nome/título) ao voltar para o login
@@ -8336,8 +8434,9 @@ function fazerLogout() {
   // restaurar campos e esconder o seletor
   const box = document.getElementById('login-seletor'); if(box){ box.style.display='none'; box.innerHTML=''; }
   const fu = document.getElementById('login-user'); const fs = document.getElementById('login-senha');
-  if(fu){ fu.value=''; fu.closest('.login-field').style.display=''; }
+  if(fu) fu.closest('.login-field').style.display='';
   if(fs){ fs.value=''; fs.closest('.login-field').style.display=''; }
+  _carregarEmailLembrado(); // e-mail continua lembrado mesmo depois de sair
   const b = document.querySelector('.login-btn'); if(b){ b.style.display=''; b.disabled=false; b.textContent='Entrar'; }
 }
 
@@ -8614,8 +8713,12 @@ async function definirSenhaRecovery(){
 populaCiclos();
 // Não renderizar automaticamente — aguardar login (email + senha via Supabase Auth)
 _loadUsuarios();
-document.getElementById('login-screen').style.display='flex';
-_checkRecovery();
+// Link de recovery (definir senha) tem prioridade; senão, tenta retomar a
+// sessão salva (recarregar a página não derruba mais o acesso); por fim,
+// pré-preenche o e-mail lembrado na tela de login normal.
+if(!_checkRecovery()){
+  _tentarRetomarSessao().then(retomou => { if(!retomou) _carregarEmailLembrado(); });
+}
 
 </script>
 <div id="sync-status" style="display:none;position:fixed;bottom:1.25rem;right:1.25rem;padding:9px 18px;border-radius:99px;font-size:12px;font-weight:700;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,0.15)"></div>
