@@ -8008,11 +8008,12 @@ function _entrarApp() {
   if(usrSub) usrSub.textContent = 'Controle de acesso ao sistema' + (nomeCab ? ` — ${nomeCab}` : '');
   _aplicarPermissoes();
   populaCiclos();
-  renderDashboard();
+  // Não renderizar o dashboard aqui: animais ainda está vazio (limpo em _limparEstadoLocal)
+  // e isso piscava "0 animais" na tela até o sync terminar. _sincronizarAoLogin já
+  // renderiza no final, com os dados reais — as métricas ficam em "—" (placeholder do
+  // HTML) até lá, com o toast de status avisando que está carregando.
   atualizarBadgePendencias();
-  _sincronizarAoLogin().then(()=>{
-    populaCiclos(); renderDashboard(); atualizarBadgePendencias();
-  });
+  _sincronizarAoLogin();
 }
 
 function fazerLogout() {
@@ -8308,5 +8309,6 @@ document.getElementById('login-screen').style.display='flex';
 _checkRecovery();
 
 </script>
+<div id="sync-status" style="display:none;position:fixed;bottom:1.25rem;right:1.25rem;padding:9px 18px;border-radius:99px;font-size:12px;font-weight:700;z-index:500;box-shadow:0 4px 16px rgba(0,0,0,0.15)"></div>
 </body>
 </html>
