@@ -2237,41 +2237,38 @@ function sbbL(s){
 }
 
 function abrirAbccc(sbb) {
-  // Abre página ABCCC em popup e auto-preenche o campo SBB via postMessage + script injetado
+  // Versão antiga tentava injetar o SBB no DOM da popup via polling — bloqueado
+  // por cross-origin (não dá pra ler/escrever o document de outro domínio via
+  // window.open, é restrição do navegador, não bug de timing). A abordagem que
+  // funciona de verdade: montar o POST aqui na nossa própria página (mesmo
+  // domínio, sem restrição) e submeter mirando na popup pelo nome — é
+  // exatamente o que aconteceria se o usuário preenchesse e clicasse "Buscar"
+  // lá no site deles. Campos conferidos direto no formulário real da ABCCC.
   const url = 'https://www.cavalocrioulo.org.br/pesquisa/pesquisas.php';
-  const popup = window.open(url, 'abccc_busca',
+  const popup = window.open('', 'abccc_busca',
     'width=1100,height=720,scrollbars=yes,resizable=yes,toolbar=no');
   if(!popup) {
-    // Pop-up bloqueado — abrir normalmente com instrução
     alert(`Pop-up bloqueado.\n\nPermita pop-ups para esta página ou acesse:\n${url}\n\nE pesquise pelo SBB: ${sbb}`);
     return;
   }
-  // Aguardar carregamento e injetar o SBB no campo + submeter
-  let tentativas = 0;
-  const timer = setInterval(() => {
-    tentativas++;
-    if(tentativas > 40) { clearInterval(timer); return; } // timeout 8s
-    try {
-      const doc = popup.document;
-      if(!doc || !doc.body) return;
-      // Tentar preencher o campo SBB
-      const inputSBB = doc.querySelector('input[name="sbb"], input[placeholder*="SBB" i], #sbb, input[type="text"]');
-      if(inputSBB) {
-        inputSBB.value = sbb;
-        // Disparar evento de input para frameworks que escutam
-        inputSBB.dispatchEvent(new Event('input', {bubbles:true}));
-        inputSBB.dispatchEvent(new Event('change', {bubbles:true}));
-        // Submeter o formulário
-        const form = doc.querySelector('form');
-        if(form) {
-          clearInterval(timer);
-          form.submit();
-        }
-      }
-    } catch(e) {
-      // Cross-origin ainda carregando — continuar tentando
-    }
-  }, 200);
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = url;
+  form.target = 'abccc_busca';
+  form.style.display = 'none';
+  const campos = { submit: 'ok!', nomes: '', sbb, tipo_like: 'inicio', buscar: 'ok' };
+  Object.entries(campos).forEach(([nome, valor]) => {
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = nome; input.value = valor;
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  // Não usar form.submit() direto: um dos campos da ABCCC se chama "submit"
+  // (<input name="submit">), e por causa do "named-property shadowing" do
+  // HTML, isso troca form.submit pelo próprio elemento <input>, quebrando a
+  // chamada (form.submit vira um HTMLInputElement, não mais a função nativa).
+  HTMLFormElement.prototype.submit.call(form);
+  form.remove();
 }
 function brl(v){return'R$ '+Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2});}
 
