@@ -82,9 +82,14 @@
   modo leitura e edição ao mesmo tempo). Ideal: visualização em modo leitura + botão "editar" que
   abre um pop-up/tela de edição com confirmação — no mesmo padrão do fluxo "criar novo animal"
   que já existe e funciona bem.
-- [ ] **Bug de troca de aba em Gestação:** dados de gestações ativas não carregam na primeira
-  visita à aba — só aparecem depois de sair e voltar. Mesmo bug acontece na aba **Medidas**.
-- [ ] **Aba de Medidas — layout precisa de melhoria visual** (além do bug acima).
+- [x] **Bug de Gestação/Medidas não carregar na primeira visita — concluído.** Causa raiz
+  reproduzida antes de corrigir: era uma corrida com o sync do login — se o usuário navegava pra
+  Gestação/Medidas enquanto `_sincronizarAoLogin()` ainda estava em voo, a página renderizava com
+  os arrays ainda vazios, e o sync (ao terminar) só re-renderizava Dashboard/Animais, nunca a
+  página que o usuário estava vendo. Corrigido de forma abrangente: ao terminar o sync, re-renderiza
+  a página que estiver ativa no momento (não só Gestação/Medidas — a mesma corrida podia afetar
+  qualquer página visitada nesse intervalo).
+- [ ] **Aba de Medidas — layout ainda precisa de melhoria visual** (item visual separado, não feito).
 - [x] **Link do SBB para a ABCCC concluído:** o link já existia (Matrizes e Animais), mas nunca
   funcionava de verdade — tentava injetar o SBB no DOM da popup via polling, bloqueado por
   cross-origin (restrição do navegador). Corrigido para montar um POST na própria página e

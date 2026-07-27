@@ -1,4 +1,4 @@
-# Handoff — Mimba · checkpoint 2026-07-26
+# Handoff — Mimba · checkpoint 2026-07-27 (pós-maratona pré-apresentação)
 
 > Documento de retomada. Condensa o que já foi construído e o que falta. **Não contém segredos.**
 
@@ -6,94 +6,99 @@
 - **App/produto Mimba:** sessão em `projetos/cabanha` → *"lê o HANDOFF.md e vamos continuar"*. Carregam sozinhos: CLAUDE.md, memória (`MEMORY.md`), subagentes (`revisor-isolamento`, `arquiteto`, `engenheiro-frontend`) e skills (`nova-migration-tenant`, `deploy`, `testar-provisionamento`).
 - **Landing:** sessão em `projetos/mimba-landing` (repo `mimba-app/mimba-landing`, clonado). O `index.html` é um bundle gerado; as páginas `/assinar` e `/obrigado` são hand-authored (editáveis à vontade).
 
-## ✅ E-mail de acesso — construído (via link "definir senha"/recovery)
-O elo que faltava pro self-serve: cliente paga → cabanha provisionada → admin recebe e-mail e **define a própria senha**. **Decisão (2026-07-26):** em vez de senha temporária determinística (era `slug[0:6]+'@'+ano`, adivinhável), usar **link estilo magic-link — `type=recovery` (definir senha)** via Supabase Auth Admin `generateLink` + envio pelo **Resend**. A senha determinística foi **removida** (agora a inicial é aleatória e nunca divulgada). *(Vale virar ADR curto.)*
-- **`enviar-acesso`** (nova edge function): gera o link recovery (`/auth/v1/admin/generate_link`, `redirect_to = app.mimba.com.br/`) e envia por Resend. Trancada por `Bearer service_role`. `identidade_nova=true` → e-mail "defina sua senha"; `false` (multi-cabanha) → "use sua senha atual". Valida o destinatário contra `tenants.email_admin` quando há `tenant_id`. Grava `provision_log = email_enviado` (ou `erro_email`).
-- **`provisionar-cabanha`**: senha inicial aleatória (`crypto.randomUUID`), `senha_temporaria: null` no retorno. Mantém `identidade_nova`/`email_acesso`.
-- **`asaas-webhook`**: após provisionar (200), chama `enviar-acesso` best-effort (não derruba o webhook nem re-dispara o Asaas se o e-mail falhar).
-- **App (`index.html`, JÁ NO AR):** tela "Primeiro acesso · defina sua senha" — detecta `#access_token&type=recovery` no boot, faz `PUT /auth/v1/user`, entra direto (`minhas_cabanhas`). Limpa o token da URL; trata link expirado.
-- **Revisão de isolamento:** ✅ APROVADO (revisor-isolamento, 2026-07-26).
-- **Falta aplicar (usuário):** deploy das 3 edge functions (verify_jwt=OFF) + Auth → URL Configuration (Site URL `app.mimba.com.br`, Redirect URLs `https://app.mimba.com.br/**`) + teste ponta a ponta no sandbox. Secret `RESEND_API_KEY` já configurado; opcionais: `RESEND_FROM`, `RESEND_REPLY_TO`, `APP_URL`, `ACCESS_REDIRECT_TO` (têm default).
+## 🔴 O MAIS IMPORTANTE PRA SABER AGORA
+Toda a maratona de correções desta sessão (ver `ROADMAP.md`) está **só na branch `staging`**, publicada em **`https://mimba-hml.pages.dev/`** via Cloudflare Pages — **nada disso está em produção** (`app.mimba.com.br`, branch `main`) ainda. A `main` só tem o que foi feito antes da `staging` existir (dashboard/toast fix + e-mail de acesso). **Antes da apresentação, decidir: promover `staging` → `main`?** (`git checkout main && git merge staging` + skill `deploy`, depois de testar tudo na URL de staging).
 
-## ▶️ PRÓXIMO PASSO: testar o e-mail de acesso ponta a ponta e cutover Asaas prod
-Depois do deploy das functions + config de Auth: checkout no sandbox → pagar → conferir e-mail chega e `provision_log` termina em `email_enviado` → clicar no link → definir senha → acessar. Em seguida, **cutover Asaas p/ produção** (ver tabela).
+## ✅ ROADMAP — Prioridades 1 a 6 + vários itens extra: CONCLUÍDOS (nesta sessão, 2026-07-27)
+Ver `ROADMAP.md` para o detalhe de cada um. Resumo rápido do que mudou no app (`index.html`, tudo na `staging`):
+1. **Dashboard lento** → causa real era 12 requisições REST cada uma pagando preflight CORS; virou 1 RPC (`carregar_dados_cabanha`). Skeleton animado enquanto carrega.
+2. **Tela de Conta** → card no rodapé da sidebar (estilo shadcn/ui, ícones SVG), editar nome/logo da cabanha, gestão de usuários unificada, **convite de usuário agora cria identidade real no Auth** (antes só gravava linha local, login não funcionava).
+3. **Importar animais por lista de SBB** → cola lista ou `.txt`/`.csv`, busca em lote na ABCCC (3 em paralelo), insere tudo num POST só.
+4. **Eventos não carregavam** → resolvido de bônus pela RPC do item 1 (PostgREST não via o relacionamento `eventos`↔`eventos_animais` nesse schema).
+5. **Modal de detalhe do animal quebrado** → virou página cheia; corrigido bug de layout (texto colado) e um bug separado de nomes de campo (`participantes`/`animais`) que deixava a seção Eventos do detalhe sempre vazia.
+6. **Responsividade mobile** → trava de `overflow-x` na raiz + `.tab-row` rolável + menu vira painel suspenso (antes era barra fixa de ícones).
+7. **Login**: lembrar e-mail, mostrar/ocultar senha, **sessão sobrevive a recarregar a página** (access_token/refresh_token em localStorage, renova sozinho).
+8. **Link SBB → ABCCC**: já existia mas nunca funcionava de verdade (tentava contornar cross-origin, impossível); corrigido pra fazer o POST direto contra o formulário real da ABCCC.
+9. **Bug de Gestação/Medidas vazios na 1ª visita**: corrida com o sync do login — corrigido de forma abrangente (qualquer página ativa no momento em que o sync termina é re-renderizada).
+
+### ⚠️ Pendente de confirmação — aplicado no banco, mas não reconfirmado nesta sessão
+Dois artefatos da Tela de Conta (item 2 acima) foram **entregues** (SQL + edge function) mas eu não tenho confirmação explícita de que foram aplicados/deployados — **verificar antes de considerar esse item 100% funcional em qualquer ambiente**:
+- Migration `migration-tela-conta.sql` (RPCs `atualizar_tenant`, `vincular_usuario_cabanha`, `revogar_acesso_usuario` + fix de grant em `vincular_admin_cabanha`).
+- Edge function `convidar-usuario` (verify_jwt=**ON**, diferente das outras — é chamada direto pelo navegador do admin logado).
+- A migration `migration-carregar-dados-cabanha.sql` (RPC do item 1) **essa sim foi confirmada aplicada e testada ao vivo**.
+
+### Achado de segurança registrado, não corrigido (decisão deliberada)
+A RLS de **todas** as tabelas de tenant (não só `usuarios`) libera INSERT/UPDATE/DELETE pra qualquer perfil ativo do tenant, não só admin — um cabanheiro logado podia, via API direta, se autopromover a admin. Pré-existente a esta sessão, sistêmico (toda tabela, todo schema). **Não mexido de propósito** — 2 dias antes de uma apresentação não é hora de reescrever RLS de todo o sistema. Ver memória `rls-permissiva-por-perfil` — retomar com o `arquiteto` depois de quarta.
+
+## O que falta do ROADMAP (itens sem prioridade numerada, não feitos)
+- Tela de Animais (V1) modernizar no padrão da tela de Gestações (V2).
+- Tela de Animais: edição sem confirmação, editável direto na "planilha" (sem modo leitura/edição separado).
+- Aba de Medidas: layout ainda precisa de melhoria visual (o *bug* de carregar foi corrigido; a estética não).
+- Campo "situação"/"data de confirmação" no cadastro de novo animal.
+- Buscar medidas de confirmação (altura/tórax/canela) da ABCCC pro cadastro.
+
+## E-mail de acesso — construído (sessão anterior, ✅ já em produção)
+Cliente paga → cabanha provisionada → admin recebe e-mail e define a própria senha (link recovery via Auth Admin `generateLink` + Resend, sem senha determinística). Edge functions `enviar-acesso`/`provisionar-cabanha`/`asaas-webhook` já deployadas e testadas ponta a ponta. Revisão de isolamento: ✅ aprovado.
 
 ## Arquitetura (o que existe e funciona)
-- **App:** `index.html` único, sem framework/bundler, GitHub Pages. Em **`app.mimba.com.br`** (HTTPS). Marca Mimba (paleta terra/ouro/campo/creme; DM Sans + Playfair + DM Mono).
+- **App:** `index.html` único, sem framework/bundler. **Produção:** GitHub Pages, branch `main`, `app.mimba.com.br`. **Staging:** Cloudflare Pages, branch `staging`, `mimba-hml.pages.dev` — **mesmo banco Supabase da produção** (staging isola só código, não dados; só testar na "Cabanha Pedro Teste"; ver memória `staging-e-isolamento-de-dados`).
 - **Backend:** Supabase `fmjfvfufkqswweyasjyp` (Postgres + Edge Functions Deno + Auth). anon key pública (no index.html).
 - **Multi-tenant por schema:** cada cabanha = `cab_<slug>`. `public` é o **template** (tabelas vazias). Control-plane em `public`.
-- **Login identity-first:** Supabase Auth (email+senha, JWT). `tenant_memberships` (identidade → N cabanhas + perfil). `minhas_cabanhas()` → 1 entra direto, N abre seletor. App usa o **JWT do usuário** nas queries.
-- **Isolamento (RLS):** policies só `authenticated` via `tem_acesso_tenant(<tenant_id>)` em `(select ...)`. `anon` sem acesso aos schemas de cabanha (→ 401). Cabanha nova nasce isolada.
+- **Login identity-first:** Supabase Auth (email+senha, JWT). `tenant_memberships` (identidade → N cabanhas + perfil). `minhas_cabanhas()` → 1 entra direto, N abre seletor. Sessão agora persiste entre reloads (ver item 7 acima).
+- **Isolamento (RLS):** policies só `authenticated` via `tem_acesso_tenant(<tenant_id>)` em `(select ...)`. `anon` sem acesso aos schemas de cabanha (→ 401). Cabanha nova nasce isolada. *(Mas ver achado de segurança acima — escrita não é restrita por perfil ainda.)*
 
 ## Fluxo de contratação (self-serve) — construído e testado no sandbox
 ```
 mimba.com.br/assinar (form) → Edge Function criar-checkout → Asaas (cliente + assinatura mensal)
    → insere signup → devolve invoiceUrl (+ callback p/ /obrigado)
 cliente paga (Asaas) → redireciona p/ mimba.com.br/obrigado
-Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isolada    ✅ testado ponta a ponta
+Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isolada → enviar-acesso   ✅ testado ponta a ponta
 ```
-- Decisões: **cobrança imediata** (provisiona só após pagamento confirmado); assinatura **mensal**; cliente escolhe forma de pagamento (`billingType: UNDEFINED`); pagamento na **página hospedada do Asaas** (sem tocar em cartão).
-- **Recorrência:** cartão cobra automático/mês; PIX/boleto gera invoice/mês (cliente paga manual). Cada pagamento dispara `PAYMENT_CONFIRMED` → webhook **idempotente** (2º mês+ não re-provisiona). Inadimplência (`PAYMENT_OVERDUE` → suspender) = futuro.
+- Decisões: **cobrança imediata**; assinatura **mensal**; cliente escolhe forma de pagamento; pagamento na **página hospedada do Asaas**.
+- **Recorrência:** cartão cobra automático/mês; PIX/boleto gera invoice/mês. Webhook **idempotente**. Inadimplência = futuro.
+- **Gotcha conhecido:** conta Asaas precisa ter um **site/domínio cadastrado** em "Minha Conta" pro `callback`/redirect do checkout funcionar, senão dá erro genérico "Falha ao criar assinatura". Vale pra sandbox **e** pra produção no cutover.
 
-## Edge Functions
-- `criar-checkout` (verify_jwt=false) — form → Asaas → signup → invoiceUrl. Usa `ASAAS_API_KEY` + `ASAAS_BASE_URL` (default sandbox). Tem `callback` p/ /obrigado.
-- `asaas-webhook` (verify_jwt=false) — valida `asaas-access-token` = `ASAAS_WEBHOOK_TOKEN`; nos eventos PAYMENT_CONFIRMED/RECEIVED chama a `provisionar-cabanha` e, após 200, a `enviar-acesso`.
-- `provisionar-cabanha` (verify_jwt=false, exige `Bearer service_role`) — cria tenant, RPC, admin no auth.users (senha inicial aleatória), membership, expõe schema (Management API).
-- `enviar-acesso` (verify_jwt=false, exige `Bearer service_role`) — gera link recovery via Auth Admin `generateLink` e envia por Resend (`RESEND_API_KEY`). Templates on-brand.
+## Edge Functions (produção)
+- `criar-checkout` (verify_jwt=false) — form → Asaas → signup → invoiceUrl.
+- `asaas-webhook` (verify_jwt=false) — valida token; PAYMENT_CONFIRMED/RECEIVED → `provisionar-cabanha` → `enviar-acesso`.
+- `provisionar-cabanha` (verify_jwt=false, exige `Bearer service_role`) — cria tenant, RPC, admin no auth.users (senha aleatória nunca divulgada), membership, expõe schema.
+- `enviar-acesso` (verify_jwt=false, exige `Bearer service_role`) — link recovery + Resend.
+- `convidar-usuario` (verify_jwt=**true**) — **enviada, aplicação não reconfirmada** (ver seção de pendências acima).
 - `buscar-abccc`, `analise-sangues` (features do app).
-- RPCs: `provisionar_schema_cabanha(p_schema)`, `minhas_cabanhas()`, `tem_acesso_tenant(uuid)`, `buscar_auth_user_por_email`, `vincular_admin_cabanha`.
+- RPCs: `provisionar_schema_cabanha`, `minhas_cabanhas`, `tem_acesso_tenant`, `buscar_auth_user_por_email`, `vincular_admin_cabanha`, `carregar_dados_cabanha` (✅ aplicada), `atualizar_tenant`/`vincular_usuario_cabanha`/`revogar_acesso_usuario` (enviadas, **não reconfirmadas**).
 
 ## Secrets (nomes; valores só no Supabase)
-- `SB_MGMT_TOKEN` (Management API — expor schema).
-- `ASAAS_WEBHOOK_TOKEN` (= token dos webhooks Asaas; mesmo valor serve sandbox e prod).
-- `ASAAS_API_KEY` (chave da API Asaas — **sandbox** agora; trocar p/ prod no go-live). ⚠️ inclui o `$` do começo.
-- `ASAAS_BASE_URL` (opcional; default sandbox `https://api-sandbox.asaas.com/v3`; no go-live setar prod `https://api.asaas.com/v3`).
-- `RESEND_API_KEY` (Resend — envio do e-mail de acesso; domínio `mimba.com.br` verificado). Opcionais: `RESEND_FROM` (default `Mimba <acesso@mimba.com.br>`), `RESEND_REPLY_TO`, `APP_URL`, `ACCESS_REDIRECT_TO`.
+- `SB_MGMT_TOKEN`, `ASAAS_WEBHOOK_TOKEN`, `ASAAS_API_KEY` (⚠️ `$` no início, sandbox agora), `ASAAS_BASE_URL` (opcional), `RESEND_API_KEY` (+ opcionais `RESEND_FROM`/`RESEND_REPLY_TO`/`APP_URL`/`ACCESS_REDIRECT_TO`).
 
 ## Estado por frente
 | Frente | Estado |
 |---|---|
-| Login identity-first + isolamento | ✅ no ar |
+| Login identity-first + isolamento + sessão persistente | ✅ no ar (staging) / parcial em prod |
 | Provisionamento automático | ✅ testado |
-| Marca Mimba no app | ✅ no ar |
-| **Domínio + migração de conta** (mimba-app) | ✅ concluído (mimba.com.br + app.mimba.com.br, HTTPS) |
-| Estrutura de dev (.claude agents/skills, docs/adr) | ✅ versionada |
-| **Checkout self-serve (sandbox)** | ✅ testado ponta a ponta + UX (/obrigado, voltar) |
-| **E-mail de acesso** (link recovery + Resend) | ✅ app no ar; backend escrito + revisado — aguarda deploy das functions + config Auth + teste |
-| Linkar "Contratar" da home → /assinar | ⏳ (outra sessão trata a landing) |
-| Cutover Asaas p/ produção | ❌ (trocar ASAAS_API_KEY p/ prod + ASAAS_BASE_URL + ativar webhook prod) |
-| reCAPTCHA/rate-limit no criar-checkout | ❌ (antes de expor de verdade — é público) |
-| Migrar os 3 usuários da Mãe de Deus | ⏳ (precisam de email) |
-| Convidar usuário (vet/cabanheiro) no app | ❌ (edge fn cria auth identity + membership) |
-| Inadimplência (PAYMENT_OVERDUE → suspender) | ❌ futuro |
+| E-mail de acesso | ✅ em produção |
+| Checkout self-serve (sandbox) | ✅ testado ponta a ponta |
+| **ROADMAP Prioridades 1-6** | ✅ concluídas — **só na staging**, aguardando promover pra `main` |
+| Tela de Conta (SQL/edge function) | ⚠️ enviado, aplicação não reconfirmada nesta sessão |
+| RLS permissiva por perfil (achado de segurança) | ❌ registrado, não corrigido (pós-apresentação, c/ `arquiteto`) |
+| Rename repo `cabanha`→`mimba` | ⏳ adiado pra depois de 29/07 (ver memória) |
+| Linkar "Contratar" da home → /assinar | ⏳ (sessão da landing) |
+| Cutover Asaas p/ produção | ❌ trocar `ASAAS_API_KEY`/`ASAAS_BASE_URL` + cadastrar domínio na conta Asaas de prod + redeploy `criar-checkout`/`asaas-webhook` |
+| reCAPTCHA/rate-limit no `criar-checkout` | ❌ antes de expor de verdade (é público) |
+| Migrar os 3 usuários da Mãe de Deus | ⏳ (agora que convite de usuário existe, destravar isso) |
 | Refactor do index.html | ❌ futuro (ADR 0004 com o `arquiteto`) |
 
-## Limpeza pendente (rodar no SQL Editor)
-Sobraram 2 tenants de teste da Fase 5:
-```sql
-do $$ declare v uuid[]; begin
-  select array_agg(id) into v from public.tenants where slug in ('qa_isolamento','qa_segunda');
-  if v is not null then
-    delete from public.provision_log where tenant_id = any(v);
-    delete from public.tenant_memberships where tenant_id = any(v);
-    delete from public.tenants where id = any(v);
-  end if;
-end $$;
-drop schema if exists cab_qa_isolamento cascade;
-drop schema if exists cab_qa_segunda cascade;
-```
-Manual: remover `cab_qa_isolamento`/`cab_qa_segunda` de **Exposed schemas**; apagar a identidade de teste `pportella23@gmail.com` em **Authentication → Users** (se ainda existir).
-
 ## Gotchas (já mordido)
-- **Trocou secret de Edge Function → redeploy a função** (a instância usa o valor antigo em cache). Bateu com API key E webhook token.
-- **Secret com `$`/especial via CLI → aspas simples** (`'...'`), ou use o painel (o shell come o `$`). A API key do Asaas começa com `$aact_`.
-- `verify_jwt` deve ser **false** em webhook/funções públicas (Asaas/landing não mandam JWT do Supabase).
-- `perfil` é enum `adm/vet/cab` (não 'admin'). `sangues_linhagem.total_anc` é coluna gerada (insert com lista explícita). `tenants`: email_admin/asaas_customer_id **não** únicos.
-- MCP do Supabase é **read-only** → writes vão pelo SQL Editor.
+- **Trocou secret de Edge Function → redeploy a função** (cache do valor antigo).
+- **Secret com `$`/especial via CLI → aspas simples**, ou use o painel.
+- `verify_jwt` **false** em webhook/funções públicas; **true** só na `convidar-usuario` (chamada direto pelo navegador do usuário logado).
+- `perfil` é enum `adm/vet/cab`. `sangues_linhagem.total_anc` é gerada. `tenants`: email_admin/asaas_customer_id não únicos.
+- MCP do Supabase é **read-only** → writes vão pelo SQL Editor (eu gero o SQL, você aplica).
+- Named-property shadowing do HTML: um `<input name="submit">` sobrescreve `form.submit()` — use `HTMLFormElement.prototype.submit.call(form)` (mordido no fix do link ABCCC).
+- CORS preflight custa caro em request→request diferente de endpoint: prefira 1 RPC que devolve tudo a N chamadas REST separadas quando fizer sync de dados.
 
 ## Repos e domínios
-- App: `mimba-app/cabanha` → **app.mimba.com.br**. `origin` local já atualizado. `pportella23` é colaborador (push, sem admin).
-- Landing: `mimba-app/mimba-landing` → **mimba.com.br**. Páginas `/assinar` e `/obrigado`.
-- Deploy do app: push na `main` → Pages + `versionar.yml`.
+- App: `mimba-app/cabanha` → **app.mimba.com.br** (main) / **mimba-hml.pages.dev** (staging, Cloudflare Pages).
+- Landing: `mimba-app/mimba-landing` → **mimba.com.br**.
+- Deploy do app (main): push → GitHub Pages + `versionar.yml`. Deploy staging: push na branch `staging` → Cloudflare Pages automático.
 
-Memória do projeto (auto-carrega): `MEMORY.md` + arquivos (migração tenant, segurança/auth, provisionamento, hospedagem/domínio).
+Memória do projeto (auto-carrega): `MEMORY.md` + arquivos — inclui agora `staging-e-isolamento-de-dados`, `pendencias-pos-apresentacao`, `rls-permissiva-por-perfil` (novos desta sessão).
