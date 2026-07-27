@@ -582,7 +582,10 @@
 <div class="page" id="page-animais">
   <div class="page-header">
     <div><div class="page-title">Animais</div><div class="page-sub">Plantel completo · dados ABCCC integrados</div></div>
-    <button class="btn btn-primary" onclick="openModal('modal-novo')">+ Novo animal</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="abrirModalImportarSBB()">📋 Importar por SBB</button>
+      <button class="btn btn-primary" onclick="openModal('modal-novo')">+ Novo animal</button>
+    </div>
   </div>
   <div class="filter-row">
     <input style="width:210px" type="text" id="busca" placeholder="Buscar por nome ou SBB..." oninput="filtrar()">
@@ -2074,6 +2077,55 @@
       <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="nobs"></div>
     </div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('modal-novo')">Cancelar</button><button class="btn btn-primary" onclick="salvarAnimal()">Salvar animal</button></div>
+  </div>
+</div>
+
+<!-- IMPORTAR ANIMAIS POR LISTA DE SBB -->
+<div class="modal-bg" id="modal-import-sbb">
+  <div class="modal" style="width:720px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <span class="modal-title">Importar animais por SBB</span>
+      <button class="modal-close" onclick="closeModal('modal-import-sbb')">×</button>
+    </div>
+
+    <div id="import-sbb-step-lista" style="overflow-y:auto;flex:1">
+      <p style="font-size:12px;color:var(--text2);margin:0 0 10px">
+        Cole a lista de códigos SBB (um por linha) ou envie um arquivo .txt/.csv.
+        Nome, sexo, pelagem, nascimento, pai e mãe de cada animal são buscados
+        automaticamente na ABCCC.
+      </p>
+      <textarea id="import-sbb-textarea" rows="9" style="width:100%;font-family:var(--mono);font-size:12px;padding:10px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg2);color:var(--text);resize:vertical" placeholder="B649459&#10;B712233&#10;B998877&#10;..."></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+        <label class="btn btn-sm" style="cursor:pointer">
+          📁 Carregar arquivo (.txt/.csv)<input type="file" accept=".txt,.csv" style="display:none" onchange="_onImportSbbFileSelect(event)">
+        </label>
+        <span id="import-sbb-arquivo-nome" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModal('modal-import-sbb')">Cancelar</button>
+        <button class="btn btn-primary" onclick="_prepararImportacaoSBB()">Continuar →</button>
+      </div>
+    </div>
+
+    <div id="import-sbb-step-confirmar" style="display:none;overflow-y:auto;flex:1">
+      <div id="import-sbb-resumo" style="font-size:12px;color:var(--text2);margin-bottom:10px"></div>
+      <div id="import-sbb-lista-preview" style="max-height:300px;overflow-y:auto;border:0.5px solid var(--border);border-radius:var(--radius);padding:10px;font-family:var(--mono);font-size:11px;color:var(--text2)"></div>
+      <div class="modal-footer">
+        <button class="btn" onclick="_voltarListaImportSBB()">← Voltar</button>
+        <button class="btn btn-primary" id="import-sbb-btn-buscar" onclick="_executarImportacaoSBB()">Buscar na ABCCC e importar</button>
+      </div>
+    </div>
+
+    <div id="import-sbb-step-progresso" style="display:none;overflow-y:auto;flex:1">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px" id="import-sbb-progresso-txt">Buscando...</div>
+      <div style="background:var(--bg3);border-radius:99px;height:8px;overflow:hidden;margin-bottom:16px">
+        <div id="import-sbb-progresso-bar" style="background:var(--green);height:100%;width:0%;transition:width 0.25s"></div>
+      </div>
+      <div id="import-sbb-resultado-lista" style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="import-sbb-btn-fechar" style="display:none" onclick="_finalizarImportSBB()">Concluir</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4184,6 +4236,163 @@ function salvarAnimal(){
   _dbSalvarAnimal(animais[animais.length-1], animais.length-1);
   closeModal('modal-novo');
   populaCiclos();renderDashboard();renderAnimais();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// IMPORTAR ANIMAIS POR LISTA DE SBB (Prioridade 3 do ROADMAP)
+// ═══════════════════════════════════════════════════════════════════════════════
+let _importSbbLista = [];
+
+function abrirModalImportarSBB(){
+  document.getElementById('import-sbb-textarea').value = '';
+  document.getElementById('import-sbb-arquivo-nome').textContent = '';
+  document.getElementById('import-sbb-step-lista').style.display = '';
+  document.getElementById('import-sbb-step-confirmar').style.display = 'none';
+  document.getElementById('import-sbb-step-progresso').style.display = 'none';
+  openModal('modal-import-sbb');
+}
+
+function _parseListaSBB(texto){
+  return [...new Set(
+    texto.split(/[\n,;]+/).map(s => s.trim().toUpperCase()).filter(Boolean)
+  )];
+}
+
+function _onImportSbbFileSelect(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const ta = document.getElementById('import-sbb-textarea');
+    const atual = ta.value.trim();
+    ta.value = atual ? atual + '\n' + ev.target.result : ev.target.result;
+    document.getElementById('import-sbb-arquivo-nome').textContent = '📄 ' + file.name;
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function _prepararImportacaoSBB(){
+  const lista = _parseListaSBB(document.getElementById('import-sbb-textarea').value);
+  if(!lista.length) return alert('Cole ou carregue ao menos um código SBB.');
+
+  const existentesSet = new Set(animais.filter(a=>a.sbb).map(a=>a.sbb.trim().toUpperCase()));
+  _importSbbLista = lista.map(sbb => ({ sbb, status: existentesSet.has(sbb) ? 'ja_existe' : 'pendente' }));
+
+  const novos = _importSbbLista.filter(x=>x.status==='pendente').length;
+  const duplicados = _importSbbLista.length - novos;
+  document.getElementById('import-sbb-resumo').innerHTML =
+    `<strong>${_importSbbLista.length}</strong> código(s) detectado(s) — `+
+    `<strong style="color:var(--green-d)">${novos} novo(s)</strong>`+
+    (duplicados ? ` · <span style="color:var(--text3)">${duplicados} já cadastrado(s) nesta cabanha (serão ignorados)</span>` : '');
+  document.getElementById('import-sbb-lista-preview').innerHTML = _importSbbLista.map(x =>
+    `<div style="padding:3px 0">${x.status==='ja_existe' ? '⏭️' : '•'} ${x.sbb}${x.status==='ja_existe' ? ' <span style="color:var(--text3)">— já cadastrado</span>' : ''}</div>`
+  ).join('');
+
+  document.getElementById('import-sbb-step-lista').style.display = 'none';
+  document.getElementById('import-sbb-step-confirmar').style.display = '';
+  const btn = document.getElementById('import-sbb-btn-buscar');
+  btn.disabled = novos === 0;
+  btn.textContent = novos === 0 ? 'Nenhum código novo para importar' : `Buscar na ABCCC e importar (${novos})`;
+}
+
+function _voltarListaImportSBB(){
+  document.getElementById('import-sbb-step-confirmar').style.display = 'none';
+  document.getElementById('import-sbb-step-lista').style.display = '';
+}
+
+async function _buscarUmSbbParaImport(sbb){
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/buscar-abccc?sbb=${encodeURIComponent(sbb)}`,
+      { headers: { 'apikey': SUPABASE_KEY }, signal: AbortSignal.timeout(15000) });
+    if(!res.ok) return { sbb, ok:false, motivo:'Erro de comunicação' };
+    const d = await res.json();
+    if(d.encontrado !== 'sim') return { sbb, ok:false, motivo:'Não encontrado na ABCCC' };
+    return { sbb, ok:true, dados: d };
+  } catch(e) {
+    return { sbb, ok:false, motivo:'Tempo esgotado ou falha de conexão' };
+  }
+}
+
+function _renderLinhaResultadoImport(r){
+  if(r.ok){
+    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">
+      <span>✅ <strong>${r.dados.nome}</strong> <span style="color:var(--text3);font-family:var(--mono)">${r.sbb}</span></span>
+      <span style="color:var(--green-d);white-space:nowrap">importado</span>
+    </div>`;
+  }
+  return `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">
+    <span>❌ <span style="font-family:var(--mono)">${r.sbb}</span></span>
+    <span style="color:var(--red-d);white-space:nowrap">${r.motivo}</span>
+  </div>`;
+}
+
+// Busca com concorrência limitada (3 por vez) — não sobrecarrega a ABCCC/edge
+// function com dezenas de requisições simultâneas numa importação grande.
+async function _executarImportacaoSBB(){
+  const pendentes = _importSbbLista.filter(x=>x.status==='pendente').map(x=>x.sbb);
+  document.getElementById('import-sbb-step-confirmar').style.display = 'none';
+  document.getElementById('import-sbb-step-progresso').style.display = '';
+  document.getElementById('import-sbb-btn-fechar').style.display = 'none';
+
+  const resultados = [];
+  let concluidos = 0;
+  const total = pendentes.length;
+  const resultadoEl = document.getElementById('import-sbb-resultado-lista');
+  const barEl = document.getElementById('import-sbb-progresso-bar');
+  const txtEl = document.getElementById('import-sbb-progresso-txt');
+
+  const CONCORRENCIA = 3;
+  let cursor = 0;
+  async function worker(){
+    while(cursor < pendentes.length){
+      const sbb = pendentes[cursor++];
+      const r = await _buscarUmSbbParaImport(sbb);
+      resultados.push(r);
+      concluidos++;
+      barEl.style.width = Math.round(concluidos/total*100) + '%';
+      txtEl.textContent = `Buscando na ABCCC... ${concluidos}/${total}`;
+      resultadoEl.innerHTML = resultados.map(_renderLinhaResultadoImport).join('');
+    }
+  }
+  await Promise.all(Array.from({length: Math.min(CONCORRENCIA, pendentes.length)}, worker));
+
+  const encontrados = resultados.filter(r=>r.ok);
+  const naoEncontrados = resultados.filter(r=>!r.ok);
+
+  if(encontrados.length){
+    txtEl.textContent = `Salvando ${encontrados.length} animal(is) no banco...`;
+    const payload = encontrados.map(r => ({
+      rp: r.dados.rp||null, sbb: r.sbb, nome: r.dados.nome,
+      ciclo: r.dados.ciclo||null, nasc: r.dados.nasc||null,
+      sexo: r.dados.sexo||null, pelagem: r.dados.pelagem||null,
+      mae: r.dados.mae||null, pai: r.dados.pai||null,
+      situacao: 'NA CABANHA',
+      criado_por: usuarioAtual?.db_id || null
+    }));
+    const inseridos = await _supa('POST','animais',payload);
+    if(inseridos){
+      inseridos.forEach(ins => animais.push({
+        db_id: ins.id, rp: ins.rp||'', sbb: ins.sbb||'', nome: ins.nome,
+        ciclo: ins.ciclo||'', nasc: ins.nasc||'', mae: ins.mae||'', pai: ins.pai||'',
+        situacao: 'NA CABANHA', estagio: '',
+        obs: '', sexo: ins.sexo||'', pelagem: ins.pelagem||'',
+        ult_vac:'', prox_vac:'', ult_verm:'', val_exame:'',
+        ativo: true
+      }));
+    } else {
+      alert('Os dados foram encontrados na ABCCC, mas houve falha ao salvar no banco. Tente novamente.');
+    }
+  }
+
+  barEl.style.width = '100%';
+  txtEl.textContent = `Concluído: ${encontrados.length} importado(s)` +
+    (naoEncontrados.length ? `, ${naoEncontrados.length} não encontrado(s) — confira a lista abaixo e cadastre manualmente se necessário.` : '.');
+  document.getElementById('import-sbb-btn-fechar').style.display = '';
+}
+
+function _finalizarImportSBB(){
+  closeModal('modal-import-sbb');
+  populaCiclos(); renderDashboard(); renderAnimais();
 }
 
 function salvarEvento(){closeModal('modal-evento');}
