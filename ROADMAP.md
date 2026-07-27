@@ -40,15 +40,13 @@
 - [ ] *(Futuro — não entra nesta rodada):* puxar automaticamente todos os animais da cabanha via
   código/afixo na ABCCC e sugerir quais importar.
 
-## 🔴 Prioridade 4 — Eventos não estão carregando ⚠️ parcial
+## 🔴 Prioridade 4 — Eventos não estão carregando ✅
 - [x] Causa da **não-carga** encontrada e corrigida como efeito colateral da Prioridade 1: o
   PostgREST não reconhecia o relacionamento `eventos`→`eventos_animais` nesse schema
-  (`PGRST200`). A RPC `carregar_dados_cabanha` monta esse vínculo manualmente em SQL — testado
-  ao vivo, eventos carregam certinho agora.
-- [ ] **Ainda não verificado:** se dados de eventos **se perderam na migração** da Mãe de Deus
-  para o schema próprio. O sintoma de "não carregar" tinha outra causa (acima); falta confirmar
-  se há eventos de fato ausentes no banco.
-  Onde mexe: conferir a tabela `cab_mae_de_deus.eventos` direto no banco.
+  (`PGRST200`). A RPC `carregar_dados_cabanha` monta esse vínculo manualmente em SQL.
+- [x] **Confirmado ao vivo na Cabanha Mãe de Deus (2026-07-27)** pelo Pedro: os eventos que
+  estavam sumidos voltaram a aparecer. Não era perda de dado na migração — era só o bug de
+  leitura acima.
 
 ## 🔴 Prioridade 5 — Modal de detalhes do animal quebrado
 - [ ] Ao abrir os detalhes de um animal na lista, o visual está quebrado: textos colados,
