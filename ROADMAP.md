@@ -85,9 +85,11 @@
 - [ ] **Bug de troca de aba em Gestação:** dados de gestações ativas não carregam na primeira
   visita à aba — só aparecem depois de sair e voltar. Mesmo bug acontece na aba **Medidas**.
 - [ ] **Aba de Medidas — layout precisa de melhoria visual** (além do bug acima).
-- [ ] **Link do SBB para a ABCCC:** em Reprodutivo → Matrizes, clicar no SBB do animal deveria
-  abrir a ABCCC com a busca já preenchida com o código. Aplicar o mesmo comportamento na busca de
-  animais da aba Animais.
+- [x] **Link do SBB para a ABCCC concluído:** o link já existia (Matrizes e Animais), mas nunca
+  funcionava de verdade — tentava injetar o SBB no DOM da popup via polling, bloqueado por
+  cross-origin (restrição do navegador). Corrigido para montar um POST na própria página e
+  submeter mirando a popup, exatamente os campos do formulário real da ABCCC. Testado contra o
+  site real (curl) e no browser (mocks confirmando campos/target corretos).
 - [ ] **Campo "situação" e "data de confirmação"** no cadastro de novos animais — hoje ausente.
   Motivação: no futuro será preciso reportar quantidade de animais não confirmados (regra ABCCC:
   confirmação exige idade mínima de 2 anos).
