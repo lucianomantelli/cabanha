@@ -6400,13 +6400,18 @@ function renderUsuarios() {
   const el = document.getElementById('usuarios-table-content'); if(!el) return;
   if(!USUARIOS.length) { el.innerHTML='<div style="padding:2rem;text-align:center;color:var(--text3)">Nenhum usuário cadastrado.</div>'; return; }
 
+  // Editar/suspender/excluir só para admin — RLS hoje permite escrita a qualquer
+  // membro do tenant (achado do revisor-isolamento, corrigir à parte); isto é
+  // defesa em profundidade no client, não a proteção real.
+  const isAdmViewer = usuarioAtual?.perfil === 'adm' || usuarioAtual?.perfil === 'admin';
+
   el.innerHTML = `<table><thead><tr>
     <th style="padding:10px 14px">Nome</th>
     <th>E-mail</th>
     <th>Perfil</th>
     <th>Status</th>
     <th>Criado em</th>
-    <th style="width:130px">Ações</th>
+    ${isAdmViewer ? '<th style="width:130px">Ações</th>' : ''}
   </tr></thead><tbody>
   ${USUARIOS.map((u,i)=>{
     const pi = PERFIS_INFO[u.perfil] || PERFIS_INFO.cab;
@@ -6418,11 +6423,11 @@ function renderUsuarios() {
       <td><span class="badge" style="background:${pi.bg};color:${pi.cor}">${pi.label}</span></td>
       <td><span class="badge ${ativo?'bg':'br'}">${ativo?'Ativo':'Suspenso'}</span></td>
       <td style="font-size:11px;color:var(--text3)">${u.criadoEm||'—'}</td>
-      <td style="white-space:nowrap">
+      ${!isAdmViewer ? '' : `<td style="white-space:nowrap">
         <button class="btn btn-sm" onclick="abrirModalUsuario(${i})" title="Editar">✏️</button>
         ${!isMe ? `<button class="btn btn-sm" onclick="toggleSuspenderUsuario(${i})" title="${ativo?'Suspender':'Reativar'}" style="margin-left:3px">${ativo?'⏸':'▶'}</button>` : ''}
         ${!isMe ? `<button class="btn btn-sm" onclick="excluirUsuario(${i})" title="Excluir" style="margin-left:3px;color:var(--red-d)">✕</button>` : ''}
-      </td>
+      </td>`}
     </tr>`;
   }).join('')}
   </tbody></table>`;
@@ -6522,17 +6527,19 @@ async function _chamarConvidarUsuario(payload) {
 
 // Recarrega a lista de usuários da cabanha ativa a partir do banco (após convite/edição).
 async function _recarregarUsuarios() {
-  const rows = await _supa('GET','usuarios','','?select=id,login,nome,perfil,ativo,criado_em&order=nome');
+  const rows = await _supa('GET','usuarios','','?select=id,login,nome,perfil,ativo,criado_em,auth_user_id&order=nome');
   if(!rows) return;
   USUARIOS.length = 0;
   rows.forEach(u => USUARIOS.push({
-    id: u.id, db_id: u.id, login: u.login, nome: u.nome, perfil: u.perfil,
+    id: u.id, db_id: u.id, login: u.login, authUserId: u.auth_user_id, nome: u.nome, perfil: u.perfil,
     label: PERFIS_INFO[u.perfil]?.label || u.perfil, ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10)
   }));
   _saveUsuarios();
   renderUsuarios();
 }
 
+// Suspender/reativar: mexe na linha local (o que a UI mostra) E revoga o acesso de
+// verdade via tenant_memberships (é o que a RLS realmente checa — ver revogar_acesso_usuario).
 async function toggleSuspenderUsuario(idx) {
   const u = USUARIOS[idx];
   if(!u) return;
@@ -6540,10 +6547,16 @@ async function toggleSuspenderUsuario(idx) {
   const ativo = u.ativo !== false;
   const acao = ativo ? 'suspender' : 'reativar';
   if(!confirm(`Tem certeza que deseja ${acao} o usuário "${u.nome}" (${u.login})?`)) return;
+  if(ativo) {
+    if(!u.authUserId) return alert('Não foi possível localizar a identidade deste usuário. Recarregue a página e tente novamente.');
+    const ok = await _rpc('revogar_acesso_usuario', { p_tenant_id: TENANT_INFO?.tenant_id, p_auth_user_id: u.authUserId });
+    if(ok !== true) return alert('Falha ao revogar o acesso. Confira se você é administrador desta cabanha.');
+  }
   USUARIOS[idx].ativo = !ativo;
   if(u.db_id) await _supa('PATCH','usuarios',{ativo: !ativo},`?id=eq.${u.db_id}`);
   _saveUsuarios();
   renderUsuarios();
+  if(ativo) _mostrarStatusSync('✅ Acesso revogado', 'green');
 }
 
 async function excluirUsuario(idx) {
@@ -6555,6 +6568,10 @@ async function excluirUsuario(idx) {
   if(!confirm(`Excluir "${u.nome}" (${u.login}) desta cabanha?
 
 Esta ação não pode ser desfeita.`)) return;
+  if(u.authUserId) {
+    const ok = await _rpc('revogar_acesso_usuario', { p_tenant_id: TENANT_INFO?.tenant_id, p_auth_user_id: u.authUserId });
+    if(ok !== true) return alert('Falha ao revogar o acesso. Confira se você é administrador desta cabanha.');
+  }
   if(u.db_id) await _supa('DELETE','usuarios',null,`?id=eq.${u.db_id}`);
   USUARIOS.splice(idx, 1);
   _saveUsuarios();
@@ -7503,7 +7520,7 @@ async function _sincronizarAoLogin() {
         _supa('GET','lancamentos','','?select=*&order=data.desc&limit=1000'),
         _supa('GET','pendencias','','?select=*&resolvida=eq.false&order=gerada_em.desc'),
         usuarioAtual?.perfil === 'adm'
-          ? _supa('GET','usuarios','','?select=id,login,senha_hash,nome,perfil,ativo,criado_em&order=nome')
+          ? _supa('GET','usuarios','','?select=id,login,senha_hash,nome,perfil,ativo,criado_em,auth_user_id&order=nome')
           : Promise.resolve(null),
       ]);
 
@@ -7650,7 +7667,7 @@ async function _sincronizarAoLogin() {
       if(dbUsr) {
         USUARIOS.length = 0;
         dbUsr.forEach(u => USUARIOS.push({
-          id: u.id, db_id: u.id, login: u.login,
+          id: u.id, db_id: u.id, login: u.login, authUserId: u.auth_user_id,
           // Preservar senha_hash para fallback offline (não exibir na tela)
           senha: u.senha_hash || '***',
           nome: u.nome, perfil: u.perfil,
