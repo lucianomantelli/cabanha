@@ -48,10 +48,16 @@
   estavam sumidos voltaram a aparecer. Não era perda de dado na migração — era só o bug de
   leitura acima.
 
-## 🔴 Prioridade 5 — Modal de detalhes do animal quebrado
-- [ ] Ao abrir os detalhes de um animal na lista, o visual está quebrado: textos colados,
-  cards com espaçamento excessivo, informações mal organizadas.
-- [ ] Trocar de **janela/modal** para **tela cheia** (mesmo padrão de navegação das outras telas).
+## 🔴 Prioridade 5 — Modal de detalhes do animal quebrado ✅
+- [x] Causa do "texto colado" achada: `.ficha-row` (flex, label de largura fixa) estava dentro
+  de um grid de 2 colunas, espremendo cada linha pela metade. Trocado por um grid de campos
+  independentes.
+- [x] Virou **página cheia** (`page-detalhe-animal`), com botão "← Voltar" — mesmo padrão de
+  navegação das outras telas, em vez de modal de 900px.
+- [x] Bônus: achado e corrigido um bug separado que deixava a seção "Eventos" do detalhe sempre
+  vazia (`e.participantes`/`p.nome` vs. `e.animais`/`p.animal` — nomes de campo divergentes).
+  Corrigir na origem também resolveu ~9 outros pontos de leitura no app (ranking Reprodutivo,
+  busca da aba Eventos, timeline).
 
 ## 🔴 Prioridade 6 — Responsividade mobile quebrada
 - [ ] Logo quebrada em mobile; a página inteira fica **mais larga que a tela**, gerando
