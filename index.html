@@ -999,13 +999,22 @@
 <div class="page" id="page-gestacao">
   <div class="page-header">
     <div><div class="page-title">Gestação</div><div class="page-sub">Coberturas, gestações ativas e histórico de nascimentos</div></div>
-    <button class="btn btn-primary" onclick="abrirModalCobertura()">+ Registrar cobertura</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="abrirModalCobertura()">+ Registrar cobertura</button>
+      <button class="btn btn-primary" onclick="abrirModalFonteCobertura()">+ Nova fonte</button>
+      <button class="btn btn-primary" onclick="abrirModalAcasalamento()">+ Novo acasalamento</button>
+    </div>
   </div>
   <div class="tab-row">
     <button class="tab active" onclick="switchTab(this,'gest-ativas')">Gestações ativas</button>
     <button class="tab" onclick="switchTab(this,'gest-historico')">Histórico de coberturas</button>
     <button class="tab" onclick="switchTab(this,'gest-nascimentos')">Nascimentos</button>
     <button class="tab" onclick="switchTab(this,'gest-agenda')">Agenda reprodutiva</button>
+    <button class="tab" onclick="switchTab(this,'gest-fontes')">Fontes de Cobertura</button>
+    <button class="tab" onclick="switchTab(this,'gest-acasalamentos')">Acasalamentos</button>
+    <!-- Fase 4: tela nova de gestações (tabela `gestacoes`), coexiste com a aba
+         antiga "Gestações ativas" (tabela `coberturas`) até a Fase 7 substituir. -->
+    <button class="tab" onclick="switchTab(this,'gest-gestacoes')">Gestações</button>
   </div>
   <div id="gest-ativas"><div id="gest-ativas-content"></div></div>
   <div id="gest-historico" style="display:none">
@@ -1023,6 +1032,47 @@
     </div>
   </div>
   <div id="gest-agenda" style="display:none"><div id="gest-agenda-content"></div></div>
+  <div id="gest-fontes" style="display:none">
+    <div class="filter-row">
+      <select id="fc-f-ciclo" onchange="renderFontesCobertura()" style="width:160px">
+        <option value="">Todos os ciclos</option>
+      </select>
+      <select id="fc-f-status" onchange="renderFontesCobertura()" style="width:160px">
+        <option value="">Todos os status</option>
+        <option value="ativa">Ativa</option>
+        <option value="vencida">Vencida</option>
+        <option value="esgotada">Esgotada</option>
+        <option value="cancelada">Cancelada</option>
+      </select>
+    </div>
+    <div id="gest-fontes-content"></div>
+  </div>
+  <div id="gest-acasalamentos" style="display:none">
+    <div id="ac-kanban-content"></div>
+    <div id="ac-cancelados-wrap" style="margin-top:1rem">
+      <div class="card" style="cursor:pointer" onclick="_toggleCanceladosAcasalamentos()">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--text2)">Cancelados (<span id="ac-cancelados-count">0</span>)</span>
+          <span id="ac-cancelados-toggle" style="font-size:11px;color:var(--text3)">mostrar ▾</span>
+        </div>
+      </div>
+      <div id="ac-cancelados-content" style="display:none;margin-top:8px"></div>
+    </div>
+  </div>
+  <!-- Fase 4: gestações reais (tabela `gestacoes`, uma linha por acasalamento
+       confirmado), criadas automaticamente — sem botão de criação manual. -->
+  <div id="gest-gestacoes" style="display:none">
+    <div id="gest-gestacoes-content"></div>
+    <div style="margin-top:1rem">
+      <div class="card" style="cursor:pointer" onclick="_toggleHistoricoGestacoes()">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:700;color:var(--text2)">Histórico (<span id="gtc-historico-count">0</span>)</span>
+          <span id="gtc-historico-toggle" style="font-size:11px;color:var(--text3)">mostrar ▾</span>
+        </div>
+      </div>
+      <div id="gtc-historico-content" style="display:none;margin-top:8px"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ESTOQUE -->
@@ -2194,6 +2244,134 @@
       <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="cob-obs"></div>
     </div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('modal-cob')">Cancelar</button><button class="btn btn-primary" onclick="salvarCobertura()">Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-fonte-cobertura">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title" id="fc-titulo">Nova fonte de cobertura</span><button class="modal-close" onclick="closeModal('modal-fonte-cobertura')">×</button></div>
+    <input type="hidden" id="fc-edit-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group"><label>Tipo</label>
+        <select id="fc-tipo" onchange="_toggleCamposFonteCobertura()">
+          <option value="proprio">Próprio</option>
+          <option value="cota">Cota</option>
+          <option value="direito_uso">Direito de uso</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Garanhão</label><input type="text" id="fc-garanhao-nome" placeholder="Nome do garanhão"></div>
+      <div class="form-group"><label>SBB (opcional)</label><input type="text" id="fc-garanhao-sbb" placeholder="Código SBB"></div>
+      <div class="form-group" id="fc-grp-rm"><label>&nbsp;</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px">
+          <input type="checkbox" id="fc-tem-rm" style="width:auto"> Reserva de material (RM)
+        </label>
+      </div>
+      <div class="form-group"><label>Quantidade adquirida</label><input type="number" id="fc-qtd" min="1" step="1" placeholder="ex: 5"></div>
+      <div class="form-group"><label>Ciclo</label><input type="text" id="fc-ciclo" placeholder="ex: 26/27"></div>
+      <div class="form-group" id="fc-grp-vig-ini"><label>Vigência início</label><input type="date" id="fc-vig-ini"></div>
+      <div class="form-group" id="fc-grp-vig-fim"><label>Vigência fim</label><input type="date" id="fc-vig-fim"></div>
+      <div class="form-group" id="fc-grp-cota-prop"><label>Proprietário da cota</label><input type="text" id="fc-cota-prop" placeholder="Nome do proprietário"></div>
+      <div class="form-group" id="fc-grp-cota-pct"><label>Percentual da cota (%)</label><input type="number" id="fc-cota-pct" min="0" max="100" step="0.01"></div>
+      <div class="form-group"><label>Valor da cobertura (opcional)</label><input type="number" id="fc-valor" min="0" step="0.01" placeholder="R$"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="fc-obs"></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-fonte-cobertura')">Cancelar</button><button class="btn btn-primary" onclick="salvarFonteCobertura()">Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-acasalamento">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Novo acasalamento</span><button class="modal-close" onclick="closeModal('modal-acasalamento')">×</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Égua</label>
+        <select id="ac-egua" onchange="_renderSimulacaoAcasalamento()"><option value="">Selecione...</option></select>
+      </div>
+      <div class="form-group"><label>Fonte de cobertura</label>
+        <select id="ac-fonte" onchange="_acFonteChange()"><option value="">Selecione...</option></select>
+      </div>
+      <div class="form-group"><label>Tipo de cobertura</label>
+        <select id="ac-tipo">
+          <option value="Natural">Natural</option>
+          <option value="IA">IA</option>
+          <option value="IATF">IATF</option>
+          <option value="TE">TE</option>
+          <option value="PIV">PIV</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Ciclo</label><input type="text" id="ac-ciclo" readonly></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações do planejamento</label><textarea id="ac-obs" rows="2"></textarea></div>
+    </div>
+    <div id="ac-simulacao" style="margin-top:0.75rem"></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-acasalamento')">Cancelar</button><button class="btn btn-primary" onclick="salvarAcasalamento()">Salvar rascunho</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-ac-aprovar">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><span class="modal-title">Aprovar acasalamento</span><button class="modal-close" onclick="closeModal('modal-ac-aprovar')">×</button></div>
+    <input type="hidden" id="ac-aprovar-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Veterinário responsável</label>
+        <select id="ac-aprovar-vet"><option value="">Selecione...</option></select>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-ac-aprovar')">Cancelar</button><button class="btn btn-primary" onclick="_confirmarAprovacaoAcasalamento()">Aprovar</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-tentativa">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><span class="modal-title">Registrar tentativa</span><button class="modal-close" onclick="closeModal('modal-tentativa')">×</button></div>
+    <input type="hidden" id="tv-acas-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group"><label>Data</label><input type="date" id="tv-data"></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="tv-tipo">
+          <option value="Natural">Natural</option>
+          <option value="IA">IA</option>
+          <option value="IATF">IATF</option>
+          <option value="TE">TE</option>
+          <option value="PIV">PIV</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Veterinário responsável</label>
+        <select id="tv-vet"><option value="">Selecione...</option></select>
+        <div id="tv-vet-aviso" class="alert alert-b" style="font-size:11px;margin-top:4px;display:none">Nenhum usuário está marcado como veterinário reprodutor (em Usuários). Selecione entre todos os usuários abaixo.</div>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="tv-obs" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-tentativa')">Cancelar</button><button class="btn btn-primary" onclick="salvarTentativa()">Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-tentativa-resultado">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header"><span class="modal-title">Atualizar resultado</span><button class="modal-close" onclick="closeModal('modal-tentativa-resultado')">×</button></div>
+    <input type="hidden" id="tvr-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group"><label>Resultado</label>
+        <select id="tvr-resultado">
+          <option value="prenha">Prenha</option>
+          <option value="vazia">Vazia</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Data do resultado</label><input type="date" id="tvr-data"></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-tentativa-resultado')">Cancelar</button><button class="btn btn-primary" onclick="_confirmarResultadoTentativa()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- Fase 4: encerramento de gestação (parto / aborto / perda) -->
+<div class="modal-bg" id="modal-gestacao-encerrar">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header"><span class="modal-title" id="gtc-enc-titulo">Registrar parto</span><button class="modal-close" onclick="closeModal('modal-gestacao-encerrar')">×</button></div>
+    <input type="hidden" id="gtc-enc-idx" value="-1">
+    <input type="hidden" id="gtc-enc-status" value="parida">
+    <div class="form-grid">
+      <div class="form-group" id="gtc-enc-data-wrap"><label id="gtc-enc-data-label">Data do parto</label><input type="date" id="gtc-enc-data"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="gtc-enc-obs" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-gestacao-encerrar')">Cancelar</button><button class="btn btn-primary" onclick="_confirmarEncerramentoGestacao()">Salvar</button></div>
   </div>
 </div>
 
@@ -4485,7 +4663,7 @@ function toggleSidebarMobile(force){
 function switchTab(btn,tid){
   btn.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const all=['tab-vac','tab-hist-vac','tab-verm','tab-exam','tab-hist-exam','tab-pendencias','tab-ciclos','tab-matrizes','tab-reprod','tab-cob-hist','nut-lista','nut-compras','nut-templates','evt-calendario','evt-animais','evt-resultados','gest-ativas','gest-historico','gest-nascimentos','gest-agenda','est-lista','est-alertas','est-movimentos','med-lista','med-historico'];
+  const all=['tab-vac','tab-hist-vac','tab-verm','tab-exam','tab-hist-exam','tab-pendencias','tab-ciclos','tab-matrizes','tab-reprod','tab-cob-hist','nut-lista','nut-compras','nut-templates','evt-calendario','evt-animais','evt-resultados','gest-ativas','gest-historico','gest-nascimentos','gest-agenda','gest-fontes','gest-acasalamentos','gest-gestacoes','est-lista','est-alertas','est-movimentos','med-lista','med-historico'];
   all.forEach(t=>{const el=document.getElementById(t);if(el)el.style.display=t===tid?'block':'none';});
   if(tid==='tab-vac')       renderKanbanVac();
   if(tid==='tab-exam')      renderKanbanExam();
@@ -4494,6 +4672,8 @@ function switchTab(btn,tid){
   if(tid==='tab-hist-vac')  renderHistVac();
   if(tid==='tab-hist-exam') renderHistExam();
   if(tid==='med-historico') renderMedHistorico();
+  if(tid==='gest-acasalamentos') renderAcasalamentos();
+  if(tid==='gest-gestacoes') renderGestacoesNovo();
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -5905,6 +6085,12 @@ function renderEvtResultados() {
 
 // ─── GESTAÇÃO ─────────────────────────────────────────────────────────────────
 let coberturas2 = [];
+let fontesCobertura = [];
+let acasalamentos = [];
+let tentativas = [];
+// Fase 4: gestações reais (tabela `gestacoes`), criadas automaticamente quando
+// uma tentativa é confirmada como 'prenha' (ver _confirmarResultadoTentativa).
+let gestacoes = [];
 const GESTACAO_DIAS = 335;
 
 // ─── PADRILLO: seletor e busca ABCCC ─────────────────────────────────────────
@@ -6293,6 +6479,674 @@ function renderGestAgenda(){
     }).join('')+'</div>';
 }
 
+// ─── FONTES DE COBERTURA (Fase 1 — cadastro; consumo real vem nas Fases 2/3) ──
+const FC_TIPO_LABEL = {proprio:'Próprio', cota:'Cota', direito_uso:'Direito de uso'};
+const FC_STATUS_LABEL = {ativa:'Ativa', vencida:'Vencida', esgotada:'Esgotada', cancelada:'Cancelada'};
+
+function _toggleCamposFonteCobertura() {
+  const tipo = document.getElementById('fc-tipo').value;
+  const grpRm     = document.getElementById('fc-grp-rm');
+  const grpVigIni = document.getElementById('fc-grp-vig-ini');
+  const grpVigFim = document.getElementById('fc-grp-vig-fim');
+  const grpProp   = document.getElementById('fc-grp-cota-prop');
+  const grpPct    = document.getElementById('fc-grp-cota-pct');
+  grpRm.style.display = tipo === 'proprio' ? '' : 'none';
+  grpVigIni.style.display = tipo === 'proprio' ? 'none' : '';
+  grpVigFim.style.display = tipo === 'proprio' ? 'none' : '';
+  grpProp.style.display = tipo === 'cota' ? '' : 'none';
+  grpPct.style.display  = tipo === 'cota' ? '' : 'none';
+}
+
+function abrirModalFonteCobertura() {
+  document.getElementById('fc-titulo').textContent = 'Nova fonte de cobertura';
+  document.getElementById('fc-edit-idx').value = '-1';
+  document.getElementById('fc-tipo').value = 'proprio';
+  document.getElementById('fc-garanhao-nome').value = '';
+  document.getElementById('fc-garanhao-sbb').value = '';
+  document.getElementById('fc-tem-rm').checked = false;
+  document.getElementById('fc-qtd').value = '';
+  document.getElementById('fc-ciclo').value = '';
+  document.getElementById('fc-vig-ini').value = '';
+  document.getElementById('fc-vig-fim').value = '';
+  document.getElementById('fc-cota-prop').value = '';
+  document.getElementById('fc-cota-pct').value = '';
+  document.getElementById('fc-valor').value = '';
+  document.getElementById('fc-obs').value = '';
+  _toggleCamposFonteCobertura();
+  openModal('modal-fonte-cobertura');
+}
+
+function editFonteCobertura(i) {
+  const f = fontesCobertura[i];
+  if(!f) return;
+  document.getElementById('fc-titulo').textContent = 'Editar fonte de cobertura';
+  document.getElementById('fc-edit-idx').value = i;
+  document.getElementById('fc-tipo').value = f.tipo || 'proprio';
+  document.getElementById('fc-garanhao-nome').value = f.garanhao_nome || '';
+  document.getElementById('fc-garanhao-sbb').value = f.garanhao_sbb || '';
+  document.getElementById('fc-tem-rm').checked = !!f.tem_rm;
+  document.getElementById('fc-qtd').value = f.quantidade_adquirida ?? '';
+  document.getElementById('fc-ciclo').value = f.ciclo || '';
+  document.getElementById('fc-vig-ini').value = f.vigencia_inicio || '';
+  document.getElementById('fc-vig-fim').value = f.vigencia_fim || '';
+  document.getElementById('fc-cota-prop').value = f.proprietario_cota || '';
+  document.getElementById('fc-cota-pct').value = f.percentual_cota ?? '';
+  document.getElementById('fc-valor').value = f.valor_cobertura ?? '';
+  document.getElementById('fc-obs').value = f.obs || '';
+  _toggleCamposFonteCobertura();
+  openModal('modal-fonte-cobertura');
+}
+
+function salvarFonteCobertura() {
+  const tipo = document.getElementById('fc-tipo').value;
+  const garanhao_nome = document.getElementById('fc-garanhao-nome').value.trim();
+  if(!garanhao_nome) return alert('Informe o nome do garanhão.');
+  const quantidade_adquirida = parseInt(document.getElementById('fc-qtd').value || '0');
+  if(!quantidade_adquirida || quantidade_adquirida <= 0) return alert('Informe a quantidade adquirida (maior que zero).');
+  const ciclo = document.getElementById('fc-ciclo').value.trim();
+  if(!ciclo) return alert('Informe o ciclo (ex: 26/27).');
+  const vigencia_inicio = document.getElementById('fc-vig-ini').value || '';
+  if(tipo !== 'proprio' && !vigencia_inicio) return alert('Informe a vigência de início.');
+
+  const idx = parseInt(document.getElementById('fc-edit-idx').value || '-1');
+  const obj = {
+    tipo,
+    garanhao_nome,
+    garanhao_sbb: document.getElementById('fc-garanhao-sbb').value.trim() || '',
+    tem_rm: tipo === 'proprio' ? document.getElementById('fc-tem-rm').checked : false,
+    quantidade_adquirida,
+    ciclo,
+    vigencia_inicio: tipo !== 'proprio' ? vigencia_inicio : '',
+    vigencia_fim: tipo !== 'proprio' ? (document.getElementById('fc-vig-fim').value || '') : '',
+    proprietario_cota: tipo === 'cota' ? document.getElementById('fc-cota-prop').value.trim() : '',
+    percentual_cota: tipo === 'cota' ? (document.getElementById('fc-cota-pct').value || '') : '',
+    valor_cobertura: document.getElementById('fc-valor').value || '',
+    status: idx >= 0 ? (fontesCobertura[idx]?.status || 'ativa') : 'ativa',
+    obs: document.getElementById('fc-obs').value,
+  };
+  if(idx >= 0) { fontesCobertura[idx] = {...fontesCobertura[idx], ...obj}; _dbSalvarFonteCobertura(fontesCobertura[idx], idx); }
+  else { fontesCobertura.push(obj); _dbSalvarFonteCobertura(obj, fontesCobertura.length - 1); }
+  closeModal('modal-fonte-cobertura');
+  renderFontesCobertura();
+}
+
+function excluirFonteCobertura(i) {
+  const f = fontesCobertura[i];
+  if(!f) return;
+  if(!confirm('Excluir esta fonte de cobertura?\n\n' + f.garanhao_nome + ' (' + (FC_TIPO_LABEL[f.tipo]||f.tipo) + ', ciclo ' + f.ciclo + ')\n\nEsta ação não pode ser desfeita.')) return;
+  fontesCobertura.splice(i, 1);
+  _dbExcluirFonteCobertura(f.db_id);
+  renderFontesCobertura();
+}
+
+// Saldo disponível da fonte (Fase 3): consumo real = acasalamentos
+// confirmados (prenhez confirmada) vinculados a esta fonte. Um acasalamento
+// cancelado nunca chega a 'confirmado', então a devolução de saldo é
+// automática pela própria fórmula — não precisa de lógica extra.
+function _saldoFonteCobertura(f) {
+  const total = Number(f.quantidade_adquirida) || 0;
+  const usado = acasalamentos.filter(a => a.status === 'confirmado' && f.db_id && String(a.fonte_cobertura_id) === String(f.db_id)).length;
+  const disponivel = Math.max(0, total - usado);
+  const pct = total > 0 ? Math.round((disponivel / total) * 100) : 0;
+  return {total, usado, disponivel, pct};
+}
+
+function renderFontesCobertura() {
+  const el = document.getElementById('gest-fontes-content');
+  if(!el) return;
+
+  // Popular select de ciclos dinamicamente
+  const selCiclo = document.getElementById('fc-f-ciclo');
+  if(selCiclo) {
+    const atual = selCiclo.value;
+    const ciclos = [...new Set(fontesCobertura.map(f=>f.ciclo).filter(Boolean))].sort();
+    selCiclo.innerHTML = '<option value="">Todos os ciclos</option>' + ciclos.map(c=>`<option value="${c}">${c}</option>`).join('');
+    selCiclo.value = ciclos.includes(atual) ? atual : '';
+  }
+
+  const fCiclo = (document.getElementById('fc-f-ciclo')||{value:''}).value;
+  const fStatus = (document.getElementById('fc-f-status')||{value:''}).value;
+  const lista = fontesCobertura.filter(f => (!fCiclo || f.ciclo === fCiclo) && (!fStatus || f.status === fStatus));
+
+  if(lista.length === 0) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma fonte de cobertura cadastrada. Clique em "+ Nova fonte".</div>';
+    return;
+  }
+
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">' +
+    lista.map(f => {
+      const i = fontesCobertura.indexOf(f);
+      const {disponivel, total, pct} = _saldoFonteCobertura(f);
+      const statusCor = f.status === 'ativa' ? 'var(--green)' : f.status === 'esgotada' ? 'var(--red-d)' : 'var(--text3)';
+      const statusBadge = f.status === 'ativa' ? 'bg' : f.status === 'esgotada' ? 'br' : 'ba';
+      const opacidade = f.status === 'cancelada' ? 'opacity:0.55' : '';
+      return `<div class="card" style="${opacidade}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+          <div>
+            <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">
+              ${f.garanhao_nome}
+              ${f.tem_rm ? '<span class="badge ba" style="font-size:9px">RM</span>' : ''}
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">
+              ${f.garanhao_sbb ? 'SBB ' + f.garanhao_sbb + ' · ' : ''}Ciclo ${f.ciclo}
+            </div>
+          </div>
+          <span class="badge ${statusBadge}">${FC_STATUS_LABEL[f.status] || f.status}</span>
+        </div>
+        <div style="margin-bottom:6px">
+          <span class="badge bgr">${FC_TIPO_LABEL[f.tipo] || f.tipo}</span>
+          ${f.tipo === 'cota' && f.proprietario_cota ? `<span style="font-size:11px;color:var(--text2);margin-left:6px">${f.proprietario_cota}${f.percentual_cota?' ('+f.percentual_cota+'%)':''}</span>` : ''}
+        </div>
+        <div style="background:var(--bg3);border-radius:99px;height:6px;overflow:hidden;margin-top:6px">
+          <div style="height:6px;background:${statusCor};border-radius:99px;transition:width 0.3s;width:${pct}%"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">${disponivel} de ${total} disponível</div>
+        ${(f.vigencia_inicio || f.vigencia_fim) ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">Vigência: ${fd(f.vigencia_inicio)||'—'} a ${fd(f.vigencia_fim)||'—'}</div>` : ''}
+        ${f.valor_cobertura ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Valor: R$ ${Number(f.valor_cobertura).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>` : ''}
+        ${f.obs ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">Obs: ${f.obs}</div>` : ''}
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="btn btn-sm" onclick="editFonteCobertura(${i})">editar</button>
+          <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="excluirFonteCobertura(${i})">🗑</button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+// ─── ACASALAMENTOS (Fase 2 — planejamento + simulação genética básica) ────────
+// Fluxo de status: rascunho -> simulado -> aprovado -> em_curso -> confirmado
+// em_curso: disparado automaticamente ao salvar a 1ª tentativa de um
+// acasalamento 'aprovado' (Fase 3). confirmado: disparado automaticamente
+// quando uma tentativa é atualizada com resultado='prenha' (Fase 3 — isso é
+// o gatilho de decremento do saldo da fonte, calculado em _saldoFonteCobertura).
+const AC_STATUS_COLS = [
+  {status:'rascunho', label:'Rascunho'},
+  {status:'simulado',  label:'Simulado'},
+  {status:'aprovado',  label:'Aprovado'},
+  {status:'em_curso',  label:'Em Curso'},
+  {status:'confirmado',label:'Concluído'},
+];
+const AC_TIPO_LABEL = {Natural:'Natural', IA:'IA', IATF:'IATF', TE:'TE', PIV:'PIV'};
+
+function _acEguasAtivas() {
+  return animais.filter(a => a.sexo === 'Fêmea' && isNaCabanha(a));
+}
+function _acFontesAtivas() {
+  return fontesCobertura.filter(f => f.status === 'ativa' && _saldoFonteCobertura(f).disponivel > 0);
+}
+
+function abrirModalAcasalamento() {
+  const selEgua = document.getElementById('ac-egua');
+  const eguas = _acEguasAtivas();
+  selEgua.innerHTML = '<option value="">Selecione...</option>' +
+    eguas.map(a => `<option value="${a.db_id}">${a.nome}</option>`).join('');
+
+  const selFonte = document.getElementById('ac-fonte');
+  const fontes = _acFontesAtivas();
+  selFonte.innerHTML = '<option value="">Selecione...</option>' +
+    fontes.map(f => `<option value="${f.db_id}">${f.garanhao_nome} · ciclo ${f.ciclo}</option>`).join('');
+
+  document.getElementById('ac-tipo').value = 'Natural';
+  document.getElementById('ac-ciclo').value = '';
+  document.getElementById('ac-obs').value = '';
+  document.getElementById('ac-simulacao').innerHTML = '';
+  openModal('modal-acasalamento');
+}
+
+function _acFonteChange() {
+  const fId = document.getElementById('ac-fonte').value;
+  const f = fontesCobertura.find(x => String(x.db_id) === String(fId));
+  document.getElementById('ac-ciclo').value = f ? (f.ciclo || '') : '';
+  _renderSimulacaoAcasalamento();
+}
+
+// Painel de simulação: cruzamentos anteriores + alerta de consanguinidade (raso,
+// até geração 3) + saldo da fonte. NÃO inclui a análise de concentração de
+// sangue projetada completa da spec (fica para uma fase futura, se quiser).
+async function _renderSimulacaoAcasalamento() {
+  const el = document.getElementById('ac-simulacao');
+  const eguaId = document.getElementById('ac-egua').value;
+  const fonteId = document.getElementById('ac-fonte').value;
+  if(!eguaId || !fonteId) { el.innerHTML = ''; return; }
+
+  const egua = animais.find(a => String(a.db_id) === String(eguaId));
+  const fonte = fontesCobertura.find(f => String(f.db_id) === String(fonteId));
+  if(!egua || !fonte) { el.innerHTML = ''; return; }
+
+  el.innerHTML = '<div class="card" style="font-size:12px;color:var(--text3)">Simulando...</div>';
+
+  // a) Cruzamentos anteriores
+  const anteriores = coberturas2.filter(c => c.egua === egua.nome && c.garanhao === fonte.garanhao_nome);
+  const htmlAnteriores = anteriores.length
+    ? '<div style="font-size:12px;margin-bottom:6px"><b>Cruzamentos anteriores:</b><br>' +
+      anteriores.map(c => `${fd(c.data)} — ${c.resultado || 'Aguardando'}${c.cria_nome ? ' · cria: ' + c.cria_nome : ''}`).join('<br>') +
+      '</div>'
+    : '<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Nenhum cruzamento anterior entre esta égua e este garanhão.</div>';
+
+  // b) Alerta de consanguinidade (raso — compara ancestrais até geração 3)
+  let htmlConsang = '<div class="alert alert-b" style="font-size:12px">Sem dados de linhagem suficientes para verificar consanguinidade.</div>';
+  const sbbEgua = (egua.sbb || '').trim().toUpperCase();
+  const sbbGar  = (fonte.garanhao_sbb || '').trim().toUpperCase();
+  if(sbbEgua && sbbGar) {
+    try {
+      const rows = await _supa('GET', 'sangues_linhagem', null,
+        '?animal_sbb=in.("' + sbbEgua + '","' + sbbGar + '")&select=animal_sbb,ancestrais_pos');
+      const rEgua = (rows || []).find(r => r.animal_sbb === sbbEgua);
+      const rGar  = (rows || []).find(r => r.animal_sbb === sbbGar);
+      if(rEgua && rGar && rEgua.ancestrais_pos && rGar.ancestrais_pos) {
+        const nomesEgua = new Set(rEgua.ancestrais_pos.filter(x => x.gen <= 3 && x.nome).map(x => x.nome));
+        const comuns = rGar.ancestrais_pos.filter(x => x.gen <= 3 && x.nome && nomesEgua.has(x.nome));
+        if(comuns.length) {
+          const nomesComuns = [...new Set(comuns.map(x => x.nome))];
+          htmlConsang = `<div class="alert alert-r" style="font-size:12px">⚠️ Possível consanguinidade: ancestral(is) comum(ns) até a 3ª geração — ${nomesComuns.join(', ')}.</div>`;
+        } else {
+          htmlConsang = '<div class="alert alert-g" style="font-size:12px">Sem ancestrais comuns até a 3ª geração nos dados disponíveis.</div>';
+        }
+      }
+    } catch(e) { /* mantém mensagem neutra */ }
+  }
+
+  // c) Saldo da fonte (real — Fase 3: consumido = acasalamentos confirmados)
+  const {disponivel, total} = _saldoFonteCobertura(fonte);
+  const htmlSaldo = `<div style="font-size:12px;margin-top:6px"><b>Saldo da fonte:</b> ${disponivel} de ${total} disponível</div>`;
+
+  el.innerHTML = '<div class="card">' + htmlAnteriores + htmlConsang + htmlSaldo + '</div>';
+}
+
+function salvarAcasalamento() {
+  const eguaId = document.getElementById('ac-egua').value;
+  const fonteId = document.getElementById('ac-fonte').value;
+  if(!eguaId) return alert('Selecione a égua.');
+  if(!fonteId) return alert('Selecione a fonte de cobertura.');
+  const egua = animais.find(a => String(a.db_id) === String(eguaId));
+  const fonte = fontesCobertura.find(f => String(f.db_id) === String(fonteId));
+  if(!egua || !fonte) return alert('Égua ou fonte inválida.');
+
+  const obj = {
+    egua_id: egua.db_id, egua_nome: egua.nome,
+    fonte_cobertura_id: fonte.db_id, garanhao_nome: fonte.garanhao_nome,
+    tipo_cobertura: document.getElementById('ac-tipo').value,
+    ciclo: document.getElementById('ac-ciclo').value || fonte.ciclo || '',
+    obs_planejamento: document.getElementById('ac-obs').value || '',
+    veterinario_id: null, veterinario_nome: '',
+    status: 'rascunho', motivo_cancelamento: '',
+  };
+  acasalamentos.push(obj);
+  _dbSalvarAcasalamento(obj, acasalamentos.length - 1);
+  closeModal('modal-acasalamento');
+  renderAcasalamentos();
+}
+
+function acasSimular(i) {
+  const a = acasalamentos[i];
+  if(!a || a.status !== 'rascunho') return;
+  a.status = 'simulado';
+  _dbAtualizarStatusAcasalamento(a, {status: 'simulado'});
+  renderAcasalamentos();
+}
+
+let _acAprovarIdx = -1;
+function acasAprovar(i) {
+  const a = acasalamentos[i];
+  if(!a || a.status !== 'simulado') return;
+  _acAprovarIdx = i;
+  document.getElementById('ac-aprovar-idx').value = i;
+  const selVet = document.getElementById('ac-aprovar-vet');
+  const vets = USUARIOS.filter(u => (u.perfil === 'vet' || u.perfil === 'adm') && u.ativo !== false);
+  selVet.innerHTML = '<option value="">Selecione...</option>' +
+    vets.map(u => `<option value="${u.db_id}">${u.nome}</option>`).join('');
+  openModal('modal-ac-aprovar');
+}
+
+function _confirmarAprovacaoAcasalamento() {
+  const i = parseInt(document.getElementById('ac-aprovar-idx').value || '-1');
+  const a = acasalamentos[i];
+  if(!a) return;
+  const vetId = document.getElementById('ac-aprovar-vet').value;
+  const vet = USUARIOS.find(u => String(u.db_id) === String(vetId));
+  if(!vetId) return alert('Selecione o veterinário responsável.');
+  a.status = 'aprovado';
+  a.veterinario_id = vetId;
+  a.veterinario_nome = vet ? vet.nome : '';
+  a.aprovado_em = new Date().toISOString();
+  _dbAtualizarStatusAcasalamento(a, {
+    status: 'aprovado', veterinario_id: vetId, aprovado_em: a.aprovado_em, aprovado_por: usuarioAtual?.db_id || null
+  });
+  closeModal('modal-ac-aprovar');
+  renderAcasalamentos();
+}
+
+function acasCancelar(i) {
+  const a = acasalamentos[i];
+  if(!a) return;
+  const motivo = prompt('Motivo do cancelamento (obrigatório):');
+  if(!motivo || !motivo.trim()) return;
+  a.status = 'cancelado';
+  a.motivo_cancelamento = motivo.trim();
+  _dbAtualizarStatusAcasalamento(a, {status: 'cancelado', motivo_cancelamento: a.motivo_cancelamento});
+  renderAcasalamentos();
+}
+
+function _toggleCanceladosAcasalamentos() {
+  const el = document.getElementById('ac-cancelados-content');
+  const toggle = document.getElementById('ac-cancelados-toggle');
+  const showing = el.style.display !== 'none';
+  el.style.display = showing ? 'none' : '';
+  toggle.textContent = showing ? 'mostrar ▾' : 'ocultar ▴';
+}
+
+// ─── TENTATIVAS (Fase 3) ──────────────────────────────────────────────────
+function _acTentativas(a) {
+  if(!a?.db_id) return [];
+  return tentativas.filter(t => String(t.acasalamento_id) === String(a.db_id));
+}
+
+let _tvAcasIdx = -1;
+function abrirModalTentativa(i) {
+  const a = acasalamentos[i];
+  if(!a || !a.db_id) return alert('Aguarde o acasalamento terminar de salvar antes de registrar uma tentativa.');
+  _tvAcasIdx = i;
+  document.getElementById('tv-acas-idx').value = i;
+  document.getElementById('tv-data').value = '';
+  document.getElementById('tv-tipo').value = a.tipo_cobertura || 'Natural';
+  document.getElementById('tv-obs').value = '';
+
+  const selVet = document.getElementById('tv-vet');
+  const aviso = document.getElementById('tv-vet-aviso');
+  let vets = USUARIOS.filter(u => u.especialidade_reproducao && u.ativo !== false);
+  if(!vets.length) {
+    vets = USUARIOS.filter(u => u.ativo !== false);
+    aviso.style.display = '';
+  } else {
+    aviso.style.display = 'none';
+  }
+  selVet.innerHTML = '<option value="">Selecione...</option>' +
+    vets.map(u => `<option value="${u.db_id}">${u.nome}</option>`).join('');
+
+  openModal('modal-tentativa');
+}
+
+function salvarTentativa() {
+  const i = _tvAcasIdx;
+  const a = acasalamentos[i];
+  if(!a) return;
+  const data = document.getElementById('tv-data').value;
+  if(!data) return alert('Informe a data.');
+  const vetId = document.getElementById('tv-vet').value;
+  if(!vetId) return alert('Selecione o veterinário responsável.');
+  const vet = USUARIOS.find(u => String(u.db_id) === String(vetId));
+
+  const obj = {
+    acasalamento_id: a.db_id,
+    data, tipo: document.getElementById('tv-tipo').value,
+    veterinario_id: vetId, veterinario_nome: vet ? vet.nome : '',
+    resultado: 'aguardando', data_resultado: '',
+    obs: document.getElementById('tv-obs').value || '',
+  };
+  // A 1ª tentativa de um acasalamento 'aprovado' move ele para 'em_curso'.
+  const isPrimeira = a.status === 'aprovado' && _acTentativas(a).length === 0;
+
+  tentativas.push(obj);
+  _dbSalvarTentativa(obj, tentativas.length - 1);
+
+  if(isPrimeira) {
+    a.status = 'em_curso';
+    _dbAtualizarStatusAcasalamento(a, {status: 'em_curso'});
+  }
+
+  closeModal('modal-tentativa');
+  renderAcasalamentos();
+}
+
+function abrirModalResultadoTentativa(ti) {
+  const t = tentativas[ti];
+  if(!t || t.resultado !== 'aguardando') return;
+  document.getElementById('tvr-idx').value = ti;
+  document.getElementById('tvr-resultado').value = 'prenha';
+  document.getElementById('tvr-data').value = '';
+  openModal('modal-tentativa-resultado');
+}
+
+function _confirmarResultadoTentativa() {
+  const ti = parseInt(document.getElementById('tvr-idx').value || '-1');
+  const t = tentativas[ti];
+  if(!t) return;
+  const dataResultado = document.getElementById('tvr-data').value;
+  if(!dataResultado) return alert('Informe a data do resultado.');
+  const resultado = document.getElementById('tvr-resultado').value;
+
+  t.resultado = resultado;
+  t.data_resultado = dataResultado;
+  _dbAtualizarTentativa(t, {resultado, data_resultado: dataResultado});
+
+  // resultado='prenha' -> acasalamento confirma (gatilho do decremento de
+  // saldo, calculado em _saldoFonteCobertura). resultado='vazia' -> segue
+  // 'em_curso', o vet pode registrar uma nova tentativa.
+  if(resultado === 'prenha') {
+    const a = acasalamentos.find(x => String(x.db_id) === String(t.acasalamento_id));
+    if(a) {
+      a.status = 'confirmado';
+      _dbAtualizarStatusAcasalamento(a, {status: 'confirmado'});
+
+      // Fase 4: gestação nasce automaticamente aqui — nunca por botão manual.
+      // 1 gestação por acasalamento (garantido pelo UNIQUE em acasalamento_id).
+      if(!gestacoes.some(g => String(g.acasalamento_id) === String(a.db_id))) {
+        const gest = {
+          acasalamento_id: a.db_id,
+          egua_id: a.egua_id,
+          egua_nome: a.egua_nome,
+          garanhao_nome: a.garanhao_nome,
+          data_cobertura: t.data,
+          data_confirmacao: dataResultado,
+          parto_previsto: null, // calculado pelo banco (GENERATED); vem no bootstrap/POST
+          parto_real: null,
+          status: 'gestando',
+          obs: '',
+        };
+        gestacoes.push(gest);
+        _dbSalvarGestacao(gest, gestacoes.length - 1);
+      }
+    }
+  }
+
+  closeModal('modal-tentativa-resultado');
+  renderAcasalamentos();
+  renderGestacoesNovo();
+}
+
+function _acCard(a, i) {
+  const tts = _acTentativas(a);
+  const podeRegistrarTentativa = a.status === 'aprovado' || a.status === 'em_curso';
+  const TV_RESULTADO_BADGE = {aguardando: 'ba', prenha: 'bg', vazia: 'br'};
+  const TV_RESULTADO_LABEL = {aguardando: 'Aguardando', prenha: 'Prenha', vazia: 'Vazia'};
+  const htmlTentativas = tts.length ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
+      ${tts.map(t => {
+        const ti = tentativas.indexOf(t);
+        return `<div style="font-size:11px;color:var(--text2);margin-top:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+          ${fd(t.data)} · ${AC_TIPO_LABEL[t.tipo] || t.tipo} · ${t.veterinario_nome || '—'}
+          <span class="badge ${TV_RESULTADO_BADGE[t.resultado] || 'ba'}">${TV_RESULTADO_LABEL[t.resultado] || t.resultado}</span>
+          ${t.resultado === 'aguardando' ? `<button class="btn btn-sm" style="padding:1px 6px" onclick="abrirModalResultadoTentativa(${ti})">resultado</button>` : ''}
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  return `<div class="kanban-card">
+    <div class="kanban-card-nome">${a.egua_nome}</div>
+    <div class="kanban-card-info">
+      Garanhão: ${a.garanhao_nome || '—'}<br>
+      ${AC_TIPO_LABEL[a.tipo_cobertura] || a.tipo_cobertura} · Ciclo ${a.ciclo || '—'}<br>
+      Tentativas: ${tts.length}
+      ${a.veterinario_nome ? '<br>Vet: ' + a.veterinario_nome : ''}
+      ${a.status === 'cancelado' && a.motivo_cancelamento ? '<br>Motivo: ' + a.motivo_cancelamento : ''}
+    </div>
+    ${htmlTentativas}
+    <div class="kanban-card-actions">
+      ${a.status === 'rascunho' ? `<button class="btn btn-sm" onclick="acasSimular(${i})">Simular</button><button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="acasCancelar(${i})">Cancelar</button>` : ''}
+      ${a.status === 'simulado' ? `<button class="btn btn-sm" onclick="acasAprovar(${i})">Aprovar</button><button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="acasCancelar(${i})">Cancelar</button>` : ''}
+      ${podeRegistrarTentativa ? `<button class="btn btn-sm" onclick="abrirModalTentativa(${i})">+ Registrar tentativa</button>` : ''}
+      ${a.status === 'aprovado' ? `<button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="acasCancelar(${i})">Cancelar</button>` : ''}
+      ${a.status === 'em_curso' ? `<button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="acasCancelar(${i})">Cancelar</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderAcasalamentos() {
+  const el = document.getElementById('ac-kanban-content');
+  if(!el) return;
+
+  const ativos = acasalamentos.filter(a => a.status !== 'cancelado');
+  const cancelados = acasalamentos.filter(a => a.status === 'cancelado');
+
+  if(acasalamentos.length === 0) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum acasalamento planejado. Clique em "+ Novo acasalamento".</div>';
+  } else {
+    el.innerHTML = '<div class="kanban-board" style="grid-template-columns:repeat(5,1fr)">' +
+      AC_STATUS_COLS.map(col => {
+        const cards = ativos.filter(a => a.status === col.status);
+        return `<div class="kanban-col kanban-col-emdia">
+          <div class="kanban-col-header"><span>${col.label}</span><span class="kanban-count">${cards.length}</span></div>
+          <div class="kanban-cards">${cards.length ? cards.map(a => _acCard(a, acasalamentos.indexOf(a))).join('') : '<div class="kanban-empty">Nenhum</div>'}</div>
+        </div>`;
+      }).join('') + '</div>';
+  }
+
+  document.getElementById('ac-cancelados-count').textContent = cancelados.length;
+  document.getElementById('ac-cancelados-content').innerHTML = cancelados.length
+    ? '<div class="kanban-cards">' + cancelados.map(a => _acCard(a, acasalamentos.indexOf(a))).join('') + '</div>'
+    : '<div class="kanban-empty">Nenhum acasalamento cancelado.</div>';
+}
+
+// ─── GESTAÇÕES (Fase 4 — tabela `gestacoes`, coexiste com a aba antiga) ─────
+const GEST_STATUS_LABEL = {gestando: 'Gestando', parida: 'Parida', abortada: 'Abortada', perdida: 'Perdida'};
+
+function _gestTrimestre(g) {
+  const dc = pd(g.data_cobertura);
+  if(!dc) return null;
+  const dias = Math.floor((new Date() - dc) / 86400000);
+  if(dias < 0) return null;
+  if(dias <= 113) return 1;
+  if(dias <= 226) return 2;
+  return 3;
+}
+
+function _gestAlerta(g) {
+  const pp = pd(g.parto_previsto);
+  if(!pp) return '';
+  const diasRestantes = Math.floor((pp - new Date()) / 86400000);
+  if(diasRestantes < 0) return `<div class="alert alert-r" style="margin-top:6px">Parto previsto atrasado (${fd(g.parto_previsto)}).</div>`;
+  if(diasRestantes <= 30) return `<div class="alert alert-a" style="margin-top:6px">Parto previsto em ${diasRestantes} dia(s) — ${fd(g.parto_previsto)}.</div>`;
+  return '';
+}
+
+function _gestCard(g, i) {
+  const trimestre = _gestTrimestre(g);
+  const acas = acasalamentos.find(a => String(a.db_id) === String(g.acasalamento_id));
+  const tts = acas ? _acTentativas(acas) : [];
+  const htmlTimeline = `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
+      ${tts.map(t => `<div style="font-size:11px;color:var(--text2);margin-top:2px">${fd(t.data)} · tentativa (${t.resultado})</div>`).join('')}
+      <div style="font-size:11px;color:var(--text2);margin-top:2px">${fd(g.data_confirmacao)} · confirmação de prenhez</div>
+      ${g.parto_real ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${fd(g.parto_real)} · parto</div>` : ''}
+    </div>`;
+
+  return `<div class="kanban-card" id="gtc-card-${i}">
+    <div class="kanban-card-nome">${g.egua_nome || '—'}</div>
+    <div class="kanban-card-info">
+      Garanhão: ${g.garanhao_nome || '—'}<br>
+      Cobertura: ${fd(g.data_cobertura)} · Confirmação: ${fd(g.data_confirmacao)}<br>
+      ${trimestre ? `${trimestre}º trimestre · ` : ''}Parto previsto: ${fd(g.parto_previsto)}
+    </div>
+    ${_gestAlerta(g)}
+    <div id="gtc-timeline-${i}" style="display:none">${htmlTimeline}</div>
+    <div class="kanban-card-actions">
+      <button class="btn btn-sm" onclick="_toggleTimelineGestacao(${i})">Detalhes</button>
+      ${g.status === 'gestando' ? `
+        <button class="btn btn-sm" onclick="abrirModalEncerrarGestacao(${i},'parida')">Registrar parto</button>
+        <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="abrirModalEncerrarGestacao(${i},'abortada')">Registrar aborto</button>
+        <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="abrirModalEncerrarGestacao(${i},'perdida')">Registrar perda</button>
+      ` : ''}
+    </div>
+  </div>`;
+}
+
+function _toggleTimelineGestacao(i) {
+  const el = document.getElementById('gtc-timeline-' + i);
+  if(el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function renderGestacoesNovo() {
+  const el = document.getElementById('gest-gestacoes-content');
+  if(!el) return;
+  const ativas = gestacoes.filter(g => g.status === 'gestando');
+  const historico = gestacoes.filter(g => g.status !== 'gestando');
+
+  el.innerHTML = ativas.length
+    ? '<div class="kanban-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px">' +
+      ativas.map(g => _gestCard(g, gestacoes.indexOf(g))).join('') + '</div>'
+    : '<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma gestação ativa. Gestações nascem automaticamente quando uma tentativa é confirmada como "prenha" em Acasalamentos.</div>';
+
+  document.getElementById('gtc-historico-count').textContent = historico.length;
+  document.getElementById('gtc-historico-content').innerHTML = historico.length
+    ? '<div class="card" style="padding:0;overflow:hidden;overflow-x:auto"><table><thead><tr>' +
+      '<th style="padding:10px 10px 8px">Égua</th><th>Garanhão</th><th>Status</th><th>Parto previsto</th><th>Data efetiva</th><th>Obs</th>' +
+      '</tr></thead><tbody>' +
+      historico.map(g => `<tr>
+        <td style="padding:8px 10px">${g.egua_nome || '—'}</td>
+        <td>${g.garanhao_nome || '—'}</td>
+        <td><span class="badge ${g.status === 'parida' ? 'bg' : 'br'}">${GEST_STATUS_LABEL[g.status] || g.status}</span></td>
+        <td>${fd(g.parto_previsto)}</td>
+        <td>${fd(g.parto_real)}</td>
+        <td style="font-size:11px;color:var(--text2)">${g.obs || '—'}</td>
+      </tr>`).join('') + '</tbody></table></div>'
+    : '<div class="kanban-empty">Nenhuma gestação no histórico.</div>';
+}
+
+function _toggleHistoricoGestacoes() {
+  const elC = document.getElementById('gtc-historico-content');
+  const elT = document.getElementById('gtc-historico-toggle');
+  const showing = elC.style.display !== 'none';
+  elC.style.display = showing ? 'none' : '';
+  elT.textContent = showing ? 'mostrar ▾' : 'ocultar ▴';
+}
+
+let _gtcEncIdx = -1;
+function abrirModalEncerrarGestacao(i, status) {
+  const g = gestacoes[i];
+  if(!g) return;
+  _gtcEncIdx = i;
+  document.getElementById('gtc-enc-idx').value = i;
+  document.getElementById('gtc-enc-status').value = status;
+  document.getElementById('gtc-enc-obs').value = '';
+  document.getElementById('gtc-enc-data').value = '';
+  const titulos = {parida: 'Registrar parto', abortada: 'Registrar aborto', perdida: 'Registrar perda'};
+  document.getElementById('gtc-enc-titulo').textContent = titulos[status] || 'Encerrar gestação';
+  document.getElementById('gtc-enc-data-label').textContent = status === 'parida' ? 'Data do parto' : 'Data (opcional)';
+  openModal('modal-gestacao-encerrar');
+}
+
+function _confirmarEncerramentoGestacao() {
+  const i = parseInt(document.getElementById('gtc-enc-idx').value || '-1');
+  const g = gestacoes[i];
+  if(!g) return;
+  const status = document.getElementById('gtc-enc-status').value;
+  const data = document.getElementById('gtc-enc-data').value;
+  const obs = document.getElementById('gtc-enc-obs').value || '';
+
+  if(status === 'parida' && !data) return alert('Informe a data do parto.');
+
+  g.status = status;
+  g.obs = obs;
+  const patch = {status, obs: obs || null};
+  if(status === 'parida') {
+    g.parto_real = data;
+    patch.parto_real = data;
+    // Gancho pra Fase 6: aqui é onde entrará a criação automática do animal
+    // (potro/potranca) a partir da gestação parida. Não implementado nesta fase.
+  }
+  _dbAtualizarGestacao(g, patch);
+
+  closeModal('modal-gestacao-encerrar');
+  renderGestacoesNovo();
+}
+
 // ─── ESTOQUE ──────────────────────────────────────────────────────────────────
 let estoque=[];
 let movimentos=[];
@@ -6383,7 +7237,7 @@ showPage=function(id){
   _origShowPage(id);
   if(id==='nutricional'){renderNutLista();renderCompras();renderTemplatesPage();}
   if(id==='eventos'){renderEventos();renderEvtPorAnimal();renderEvtResultados();}
-  if(id==='gestacao'){popularSelectEguas();renderGestacao();renderGestAgenda();}
+  if(id==='gestacao'){popularSelectEguas();renderGestacao();renderGestAgenda();renderFontesCobertura();renderAcasalamentos();renderGestacoesNovo();}
   if(id==='estoque'){renderEstoque();renderMovimentos();}
   if(id==='medidas'){renderMedLista();}
   if(id==='saude'){renderSaude();}
@@ -6399,6 +7253,7 @@ switchTab=function(btn,tid){
   if(tid==='evt-resultados')renderEvtResultados();
   if(tid==='gest-agenda')renderGestAgenda();
   if(tid==='gest-historico'||tid==='gest-nascimentos')renderGestacao();
+  if(tid==='gest-fontes')renderFontesCobertura();
   if(tid==='est-alertas'||tid==='est-lista')renderEstoque();
   if(tid==='est-movimentos')renderMovimentos();
 };
@@ -6814,12 +7669,13 @@ async function _chamarConvidarUsuario(payload) {
 
 // Recarrega a lista de usuários da cabanha ativa a partir do banco (após convite/edição).
 async function _recarregarUsuarios() {
-  const rows = await _supa('GET','usuarios','','?select=id,login,nome,perfil,ativo,criado_em,auth_user_id&order=nome');
+  const rows = await _supa('GET','usuarios','','?select=id,login,nome,perfil,ativo,criado_em,auth_user_id,especialidade_reproducao&order=nome');
   if(!rows) return;
   USUARIOS.length = 0;
   rows.forEach(u => USUARIOS.push({
     id: u.id, db_id: u.id, login: u.login, authUserId: u.auth_user_id, nome: u.nome, perfil: u.perfil,
-    label: PERFIS_INFO[u.perfil]?.label || u.perfil, ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10)
+    label: PERFIS_INFO[u.perfil]?.label || u.perfil, ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10),
+    especialidade_reproducao: !!u.especialidade_reproducao
   }));
   _saveUsuarios();
   renderUsuarios();
@@ -7756,6 +8612,10 @@ async function _sincronizarAoLogin() {
   // Limpar arrays locais antes de carregar do banco (evitar duplicatas)
   animais.length = 0;
   coberturas2.length = 0;
+  fontesCobertura.length = 0;
+  acasalamentos.length = 0;
+  tentativas.length = 0;
+  gestacoes.length = 0;
   eventosEsp.length = 0;
   estoque.length = 0;
   movimentos.length = 0;
@@ -7856,6 +8716,91 @@ async function _sincronizarAoLogin() {
       }));
     }
 
+    // 5b. Fontes de cobertura — a RPC carregar_dados_cabanha() ainda pode não
+    // devolver esta tabela (adicionada depois dela). Se vier no bootstrap, usa;
+    // senão busca direto via REST, sem quebrar o resto do sync.
+    fontesCobertura.length = 0;
+    let dbFontes = bootstrap.fontes_cobertura;
+    if(!dbFontes) {
+      try { dbFontes = await _supa('GET', 'fontes_cobertura', null, '?order=criado_em.desc'); }
+      catch(e) { dbFontes = null; }
+    }
+    if(dbFontes) {
+      dbFontes.forEach(f => fontesCobertura.push({
+        db_id: f.id, tipo: f.tipo, garanhao_nome: f.garanhao_nome,
+        garanhao_sbb: f.garanhao_sbb || '', tem_rm: !!f.tem_rm,
+        quantidade_adquirida: f.quantidade_adquirida, ciclo: f.ciclo || '',
+        vigencia_inicio: f.vigencia_inicio || '', vigencia_fim: f.vigencia_fim || '',
+        proprietario_cota: f.proprietario_cota || '', percentual_cota: f.percentual_cota ?? '',
+        valor_cobertura: f.valor_cobertura ?? '', status: f.status || 'ativa', obs: f.obs || ''
+      }));
+    }
+
+    // 5c. Acasalamentos — mesmo padrão defensivo: tenta bootstrap.acasalamentos,
+    // senão busca via REST (não quebra o resto do sync se ainda não existir).
+    acasalamentos.length = 0;
+    let dbAcas = bootstrap.acasalamentos;
+    if(!dbAcas) {
+      try { dbAcas = await _supa('GET', 'acasalamentos', null, '?order=criado_em.desc'); }
+      catch(e) { dbAcas = null; }
+    }
+    if(dbAcas) {
+      dbAcas.forEach(a => {
+        const egua = animais.find(x => x.db_id === a.egua_id);
+        const fonte = fontesCobertura.find(x => x.db_id === a.fonte_cobertura_id);
+        const vet = USUARIOS.find(x => x.db_id === a.veterinario_id);
+        acasalamentos.push({
+          db_id: a.id, egua_id: a.egua_id, egua_nome: egua?.nome || '(égua removida)',
+          fonte_cobertura_id: a.fonte_cobertura_id, garanhao_nome: fonte?.garanhao_nome || '',
+          tipo_cobertura: a.tipo_cobertura || 'Natural', veterinario_id: a.veterinario_id || null,
+          veterinario_nome: vet?.nome || '', ciclo: a.ciclo || '', status: a.status || 'rascunho',
+          motivo_cancelamento: a.motivo_cancelamento || '', obs_planejamento: a.obs_planejamento || '',
+          aprovado_em: a.aprovado_em || null, aprovado_por: a.aprovado_por || null,
+        });
+      });
+    }
+
+    // 5d. Tentativas — mesmo padrão defensivo: bootstrap.tentativas, senão REST.
+    tentativas.length = 0;
+    let dbTent = bootstrap.tentativas;
+    if(!dbTent) {
+      try { dbTent = await _supa('GET', 'tentativas', null, '?order=data.desc'); }
+      catch(e) { dbTent = null; }
+    }
+    if(dbTent) {
+      dbTent.forEach(t => {
+        const vet = USUARIOS.find(x => x.db_id === t.veterinario_id);
+        tentativas.push({
+          db_id: t.id, acasalamento_id: t.acasalamento_id, data: t.data,
+          tipo: t.tipo || 'Natural', veterinario_id: t.veterinario_id || null,
+          veterinario_nome: vet?.nome || '', resultado: t.resultado || 'aguardando',
+          data_resultado: t.data_resultado || '', obs: t.obs || ''
+        });
+      });
+    }
+
+    // 5e. Gestações (Fase 4) — mesmo padrão defensivo: bootstrap.gestacoes, senão REST.
+    gestacoes.length = 0;
+    let dbGest = bootstrap.gestacoes;
+    if(!dbGest) {
+      try { dbGest = await _supa('GET', 'gestacoes', null, '?order=criado_em.desc'); }
+      catch(e) { dbGest = null; }
+    }
+    if(dbGest) {
+      dbGest.forEach(g => {
+        const egua = animais.find(x => x.db_id === g.egua_id);
+        const acas = acasalamentos.find(x => x.db_id === g.acasalamento_id);
+        gestacoes.push({
+          db_id: g.id, acasalamento_id: g.acasalamento_id, egua_id: g.egua_id,
+          egua_nome: egua?.nome || acas?.egua_nome || '(égua removida)',
+          garanhao_nome: acas?.garanhao_nome || '',
+          data_cobertura: g.data_cobertura, data_confirmacao: g.data_confirmacao,
+          parto_previsto: g.parto_previsto || null, parto_real: g.parto_real || null,
+          status: g.status || 'gestando', obs: g.obs || '',
+        });
+      });
+    }
+
     // 6. Medidas
     if(dbMed) {
       Object.keys(medidas).forEach(k => delete medidas[k]);
@@ -7947,7 +8892,8 @@ async function _sincronizarAoLogin() {
           senha: u.senha_hash || '***',
           nome: u.nome, perfil: u.perfil,
           label: PERFIS_INFO[u.perfil]?.label || u.perfil,
-          ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10)
+          ativo: u.ativo, criadoEm: u.criado_em?.slice(0,10),
+          especialidade_reproducao: !!u.especialidade_reproducao
         }));
         renderUsuarios();
       }
@@ -8108,6 +9054,117 @@ async function _dbSalvarCobertura(cob, idx) {
     const res = await _supa('POST','coberturas', clean);
     if(res?.[0]?.id) coberturas2[idx].db_id = res[0].id;
   }
+}
+
+// ── Fontes de cobertura ───────────────────────────────────────────────────
+async function _dbSalvarFonteCobertura(f, idx) {
+  const v = x => (x !== undefined && x !== null && x !== '') ? x : null;
+  const payload = {
+    tipo: f.tipo,
+    garanhao_nome: f.garanhao_nome,
+    garanhao_sbb: v(f.garanhao_sbb),
+    tem_rm: !!f.tem_rm,
+    quantidade_adquirida: f.quantidade_adquirida,
+    ciclo: f.ciclo,
+    vigencia_inicio: v(f.vigencia_inicio),
+    vigencia_fim: v(f.vigencia_fim),
+    proprietario_cota: v(f.proprietario_cota),
+    percentual_cota: v(f.percentual_cota),
+    valor_cobertura: v(f.valor_cobertura),
+    status: f.status || 'ativa',
+    obs: v(f.obs),
+    criado_por: usuarioAtual?.db_id || null,
+  };
+  if(f.db_id) {
+    await _supa('PATCH','fontes_cobertura', payload, '?id=eq.'+f.db_id);
+  } else {
+    const res = await _supa('POST','fontes_cobertura', payload);
+    if(res?.[0]?.id) fontesCobertura[idx].db_id = res[0].id;
+  }
+}
+
+async function _dbExcluirFonteCobertura(db_id) {
+  if(!db_id) return;
+  await _supa('DELETE', 'fontes_cobertura', null, '?id=eq.' + db_id);
+}
+
+// ── Acasalamentos ──────────────────────────────────────────────────────────
+async function _dbSalvarAcasalamento(a, idx) {
+  const v = x => (x !== undefined && x !== null && x !== '') ? x : null;
+  const payload = {
+    egua_id: a.egua_id,
+    fonte_cobertura_id: a.fonte_cobertura_id,
+    tipo_cobertura: a.tipo_cobertura,
+    veterinario_id: v(a.veterinario_id),
+    ciclo: v(a.ciclo),
+    status: a.status || 'rascunho',
+    motivo_cancelamento: v(a.motivo_cancelamento),
+    obs_planejamento: v(a.obs_planejamento),
+    aprovado_em: v(a.aprovado_em),
+    aprovado_por: v(a.aprovado_por),
+    criado_por: usuarioAtual?.db_id || null,
+  };
+  if(a.db_id) {
+    await _supa('PATCH', 'acasalamentos', payload, '?id=eq.' + a.db_id);
+  } else {
+    const res = await _supa('POST', 'acasalamentos', payload);
+    if(res?.[0]?.id) acasalamentos[idx].db_id = res[0].id;
+  }
+}
+
+async function _dbAtualizarStatusAcasalamento(a, patch) {
+  if(!a?.db_id) return;
+  await _supa('PATCH', 'acasalamentos', patch, '?id=eq.' + a.db_id);
+}
+
+// ── Tentativas (Fase 3) ──────────────────────────────────────────────────────
+async function _dbSalvarTentativa(t, idx) {
+  const v = x => (x !== undefined && x !== null && x !== '') ? x : null;
+  const payload = {
+    acasalamento_id: t.acasalamento_id,
+    data: t.data,
+    tipo: t.tipo,
+    veterinario_id: t.veterinario_id,
+    resultado: t.resultado || 'aguardando',
+    data_resultado: v(t.data_resultado),
+    obs: v(t.obs),
+    criado_por: usuarioAtual?.db_id || null,
+  };
+  if(t.db_id) {
+    await _supa('PATCH', 'tentativas', payload, '?id=eq.' + t.db_id);
+  } else {
+    const res = await _supa('POST', 'tentativas', payload);
+    if(res?.[0]?.id) tentativas[idx].db_id = res[0].id;
+  }
+}
+
+async function _dbAtualizarTentativa(t, patch) {
+  if(!t?.db_id) return;
+  await _supa('PATCH', 'tentativas', patch, '?id=eq.' + t.db_id);
+}
+
+// ── Gestações (Fase 4) ────────────────────────────────────────────────────
+// Só é chamada automaticamente (ver _confirmarResultadoTentativa) — nunca por
+// um botão de criação manual.
+async function _dbSalvarGestacao(g, idx) {
+  const payload = {
+    acasalamento_id: g.acasalamento_id,
+    egua_id: g.egua_id,
+    data_cobertura: g.data_cobertura,
+    data_confirmacao: g.data_confirmacao,
+    status: g.status || 'gestando',
+    criado_por: usuarioAtual?.db_id || null,
+  };
+  const res = await _supa('POST', 'gestacoes', payload);
+  if(res?.[0]) {
+    gestacoes[idx].db_id = res[0].id;
+    if(res[0].parto_previsto) gestacoes[idx].parto_previsto = res[0].parto_previsto;
+  }
+}
+
+async function _dbAtualizarGestacao(g, patch) {
+  if(!g?.db_id) return;
+  await _supa('PATCH', 'gestacoes', patch, '?id=eq.' + g.db_id);
 }
 
 // ── Medidas ────────────────────────────────────────────────────────────────
