@@ -622,7 +622,7 @@
   </div>
   <div class="filter-row">
     <input style="width:210px" type="text" id="busca" placeholder="Buscar por nome ou SBB..." oninput="filtrar()">
-    <select id="f-sit" onchange="filtrar()"><option value="">Todas situações</option><option value="ativo" selected>Ativos (Cabanha + Empréstimo)</option><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option></select>
+    <select id="f-sit" onchange="filtrar()"><option value="">Todas situações</option><option value="ativo" selected>Ativos (Cabanha + Empréstimo)</option><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option><option value="rascunho">Rascunhos (aguardando SBB)</option></select>
     <select id="f-sexo" onchange="filtrar()"><option value="">Todos sexos</option><option>Fêmea</option><option>Macho</option></select>
     <select id="f-ciclo" onchange="filtrar()"><option value="">Ciclos</option></select>
   </div>
@@ -673,6 +673,7 @@
     <button class="tab" onclick="switchTab(this,'tab-hist-vac')">Histórico Vacinas</button>
     <button class="tab" onclick="switchTab(this,'tab-hist-exam')">Histórico Exames</button>
     <button class="tab" onclick="switchTab(this,'tab-pendencias')">Pendências <span id="pend-count-badge"></span></button>
+    <button class="tab" onclick="switchTab(this,'tab-proto-repro')">🧬 Protocolo Reprodutivo</button>
   </div>
 
   <!-- KANBAN VACINAS -->
@@ -855,6 +856,12 @@
     </div>
     <div id="pend-lista"></div>
   </div>
+
+  <!-- Fase 5: kanban de acompanhamento de protocolo reprodutivo (etapas não concluídas
+       de protocolo_aplicado, cruzando gestacoes -> acasalamentos -> animais). -->
+  <div id="tab-proto-repro" style="display:none">
+    <div class="kanban-board" id="kanban-proto-repro-board"></div>
+  </div>
 </div>
 
 <!-- REPRODUTIVO -->
@@ -1003,6 +1010,7 @@
       <button class="btn btn-primary" onclick="abrirModalCobertura()">+ Registrar cobertura</button>
       <button class="btn btn-primary" onclick="abrirModalFonteCobertura()">+ Nova fonte</button>
       <button class="btn btn-primary" onclick="abrirModalAcasalamento()">+ Novo acasalamento</button>
+      <button class="btn btn-primary" onclick="abrirModalProtocolo()">+ Novo protocolo</button>
     </div>
   </div>
   <div class="tab-row">
@@ -1015,6 +1023,7 @@
     <!-- Fase 4: tela nova de gestações (tabela `gestacoes`), coexiste com a aba
          antiga "Gestações ativas" (tabela `coberturas`) até a Fase 7 substituir. -->
     <button class="tab" onclick="switchTab(this,'gest-gestacoes')">Gestações</button>
+    <button class="tab" onclick="switchTab(this,'gest-protocolos')">Protocolos</button>
   </div>
   <div id="gest-ativas"><div id="gest-ativas-content"></div></div>
   <div id="gest-historico" style="display:none">
@@ -1046,6 +1055,28 @@
       </select>
     </div>
     <div id="gest-fontes-content"></div>
+    <div class="card" style="margin-top:1rem;cursor:pointer" onclick="_toggleHistoricoNegociacoes()">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:700;color:var(--text2)">Histórico de negociações (<span id="ng-hist-count">0</span>)</span>
+        <span id="ng-hist-toggle" style="font-size:12px;color:var(--text3)">▾ mostrar</span>
+      </div>
+    </div>
+    <div id="ng-hist-wrap" style="display:none;margin-top:0.5rem">
+      <div class="filter-row">
+        <select id="ng-hist-f-status" onchange="renderHistoricoNegociacoes()" style="width:160px">
+          <option value="">Todos os status</option>
+          <option value="pendente">Pendente</option>
+          <option value="aceito">Aceito</option>
+          <option value="quitado">Quitado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
+        <table><thead><tr>
+          <th style="padding:10px 10px 8px">Fonte / Garanhão</th><th>Tipo</th><th>Qtd</th><th>Comprador</th><th>Valor</th><th>Status</th><th>Data</th>
+        </tr></thead><tbody id="tbody-ng-hist"></tbody></table>
+      </div>
+    </div>
   </div>
   <div id="gest-acasalamentos" style="display:none">
     <div id="ac-kanban-content"></div>
@@ -1072,6 +1103,21 @@
       </div>
       <div id="gtc-historico-content" style="display:none;margin-top:8px"></div>
     </div>
+  </div>
+  <!-- Fase 5: templates de protocolo reprodutivo (tabela `protocolos_reproducao`). -->
+  <div id="gest-protocolos" style="display:none">
+    <div class="filter-row">
+      <select id="pr-f-tipo" onchange="renderProtocolos()" style="width:180px">
+        <option value="">Todos os tipos</option>
+        <option value="Natural">Natural</option>
+        <option value="IA">IA</option>
+        <option value="IATF">IATF</option>
+        <option value="TE">TE</option>
+        <option value="PIV">PIV</option>
+        <option value="todos">Todos (genérico)</option>
+      </select>
+    </div>
+    <div id="gest-protocolos-content"></div>
   </div>
 </div>
 
@@ -2279,6 +2325,54 @@
   </div>
 </div>
 
+<!-- Fase 7: negociar cobertura (venda/doação de saldo de fonte, dentro da
+     cabanha ou para outra cabanha Mimba — cross-tenant só via RPC). -->
+<div class="modal-bg" id="modal-negociar-cobertura">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Negociar cobertura</span><button class="modal-close" onclick="closeModal('modal-negociar-cobertura')">×</button></div>
+    <input type="hidden" id="ng-fonte-idx" value="-1">
+    <input type="hidden" id="ng-comprador-tenant-id" value="">
+    <div id="ng-fonte-resumo" style="font-size:12px;color:var(--text2);margin-bottom:0.75rem"></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Tipo</label>
+        <select id="ng-tipo" onchange="_toggleCamposNegociarCobertura()">
+          <option value="venda">Venda</option>
+          <option value="doacao">Doação</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Quantidade</label><input type="number" id="ng-qtd" min="1" step="1"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Comprador</label>
+        <div style="display:flex;gap:14px;font-size:12px;font-weight:400">
+          <label style="display:flex;align-items:center;gap:6px"><input type="radio" name="ng-modo-comprador" value="externo" checked onchange="_toggleModoCompradorNegociacao()" style="width:auto"> Comprador externo</label>
+          <label style="display:flex;align-items:center;gap:6px"><input type="radio" name="ng-modo-comprador" value="mimba" onchange="_toggleModoCompradorNegociacao()" style="width:auto"> Outra cabanha Mimba</label>
+        </div>
+      </div>
+    </div>
+    <div id="ng-grupo-externo" class="form-grid" style="margin-top:0.25rem">
+      <div class="form-group"><label>Nome do comprador</label><input type="text" id="ng-comprador-nome" placeholder="Nome"></div>
+      <div class="form-group"><label>Contato (opcional)</label><input type="text" id="ng-comprador-contato" placeholder="Telefone/e-mail"></div>
+    </div>
+    <div id="ng-grupo-mimba" class="form-grid" style="display:none;margin-top:0.25rem">
+      <div class="form-group" style="grid-column:1/-1"><label>Buscar cabanha</label>
+        <input type="text" id="ng-busca-tenant" placeholder="Digite o nome da cabanha..." oninput="_buscarTenantNegociacao()" autocomplete="off">
+        <div id="ng-busca-resultados" style="margin-top:4px"></div>
+        <div id="ng-tenant-selecionado" style="font-size:12px;color:var(--green-d);margin-top:6px;font-weight:600"></div>
+      </div>
+    </div>
+    <div id="ng-grupo-valor" class="form-grid" style="margin-top:0.25rem">
+      <div class="form-group"><label>Valor total (R$)</label><input type="number" id="ng-valor" min="0" step="0.01"></div>
+      <div class="form-group"><label>Condição</label>
+        <select id="ng-condicao">
+          <option value="avista">À vista</option>
+          <option value="parcelado">Parcelado</option>
+          <option value="prazo">A prazo</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-negociar-cobertura')">Cancelar</button><button class="btn btn-primary" onclick="salvarNegociarCobertura()">Confirmar</button></div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-acasalamento">
   <div class="modal">
     <div class="modal-header"><span class="modal-title">Novo acasalamento</span><button class="modal-close" onclick="closeModal('modal-acasalamento')">×</button></div>
@@ -2370,8 +2464,97 @@
     <div class="form-grid">
       <div class="form-group" id="gtc-enc-data-wrap"><label id="gtc-enc-data-label">Data do parto</label><input type="date" id="gtc-enc-data"></div>
       <div class="form-group" style="grid-column:1/-1"><label>Observações</label><textarea id="gtc-enc-obs" rows="2"></textarea></div>
+      <div id="gtc-enc-cria-wrap" style="display:none;grid-column:1/-1">
+        <div class="form-group"><label>Nome provisório da cria</label>
+          <input type="text" id="gtc-enc-cria-nome" placeholder="Ex: Cria Fulana x Beltrano 2026"></div>
+        <div class="form-group"><label>Sexo da cria</label>
+          <select id="gtc-enc-cria-sexo"><option value="">Selecione</option><option value="Fêmea">Fêmea</option><option value="Macho">Macho</option></select></div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">Ao salvar, um animal será criado automaticamente como rascunho — complete o cadastro depois com o SBB da ABCCC.</div>
+      </div>
     </div>
     <div class="modal-footer"><button class="btn" onclick="closeModal('modal-gestacao-encerrar')">Cancelar</button><button class="btn btn-primary" onclick="_confirmarEncerramentoGestacao()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- Fase 5: template de protocolo reprodutivo -->
+<div class="modal-bg" id="modal-protocolo">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><span class="modal-title" id="pr-titulo">Novo protocolo</span><button class="modal-close" onclick="closeModal('modal-protocolo')">×</button></div>
+    <input type="hidden" id="pr-edit-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group"><label>Nome</label><input type="text" id="pr-nome" placeholder="ex: Protocolo IATF padrão"></div>
+      <div class="form-group"><label>Tipo de cobertura</label>
+        <select id="pr-tipo">
+          <option value="Natural">Natural</option>
+          <option value="IA">IA</option>
+          <option value="IATF">IATF</option>
+          <option value="TE">TE</option>
+          <option value="PIV">PIV</option>
+          <option value="todos">Todos (genérico)</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Descrição (opcional)</label><textarea id="pr-descricao" rows="2"></textarea></div>
+    </div>
+    <div style="margin-top:0.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label style="font-size:12px;font-weight:600;color:var(--text2)">Etapas</label>
+        <button class="btn btn-sm" onclick="_prAdicionarEtapaLinha()">+ Adicionar etapa</button>
+      </div>
+      <div id="pr-etapas-list"></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-protocolo')">Cancelar</button><button class="btn btn-primary" onclick="salvarProtocolo()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- Fase 5: aplicar protocolo a uma gestação -->
+<div class="modal-bg" id="modal-gest-aplicar-protocolo">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><span class="modal-title">Aplicar protocolo</span><button class="modal-close" onclick="closeModal('modal-gest-aplicar-protocolo')">×</button></div>
+    <input type="hidden" id="gap-gest-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Protocolo</label>
+        <select id="gap-protocolo"><option value="">Selecione...</option></select>
+      </div>
+    </div>
+    <div id="gap-preview" style="margin-top:0.5rem;font-size:11px;color:var(--text3)"></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-gest-aplicar-protocolo')">Cancelar</button><button class="btn btn-primary" onclick="_confirmarAplicarProtocolo()">Aplicar</button></div>
+  </div>
+</div>
+
+<!-- Fase 5: marcar etapa de protocolo aplicado como concluída -->
+<div class="modal-bg" id="modal-proto-concluir">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header"><span class="modal-title">Marcar etapa concluída</span><button class="modal-close" onclick="closeModal('modal-proto-concluir')">×</button></div>
+    <input type="hidden" id="pc-gest-idx" value="-1">
+    <input type="hidden" id="pc-etapa-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group"><label>Data de execução</label><input type="date" id="pc-data-real"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Observações (opcional)</label><textarea id="pc-obs" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-proto-concluir')">Cancelar</button><button class="btn btn-primary" onclick="_confirmarConcluirEtapa()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- Fase 5: etapa avulsa não prevista no template -->
+<div class="modal-bg" id="modal-proto-etapa-avulsa">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><span class="modal-title">Nova etapa avulsa</span><button class="modal-close" onclick="closeModal('modal-proto-etapa-avulsa')">×</button></div>
+    <input type="hidden" id="pea-gest-idx" value="-1">
+    <div class="form-grid">
+      <div class="form-group"><label>Tipo</label>
+        <select id="pea-tipo">
+          <option value="vacina">Vacina</option>
+          <option value="hormonio">Hormônio</option>
+          <option value="exame">Exame</option>
+          <option value="retorno">Retorno</option>
+          <option value="medicamento">Medicamento</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Data prevista</label><input type="date" id="pea-data"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Descrição</label><input type="text" id="pea-descricao"></div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-proto-etapa-avulsa')">Cancelar</button><button class="btn btn-primary" onclick="_confirmarEtapaAvulsa()">Adicionar</button></div>
   </div>
 </div>
 
@@ -2457,14 +2640,17 @@ function filtrar(){fB=document.getElementById('busca').value.toLowerCase();fS=do
 // ─── RENDER ANIMAIS ───────────────────────────────────────────────────────────
 function renderAnimais(){
   const lista=animais.filter(a=>{
+    const isRascunho = a.status_cadastro === 'rascunho';
     const nOk=(a.nome||'').toLowerCase().includes(fB)||(a.sbb||'').toLowerCase().includes(fB);
+    if(fS==='rascunho') return nOk&&isRascunho&&(!fSx||a.sexo===fSx)&&(!fC||a.ciclo===fC);
+    if(isRascunho) return false; // rascunhos só aparecem no filtro dedicado
     const sOk=!fS||(fS==='ativo'?isNaCabanha(a):a.situacao===fS);
     return nOk&&sOk&&(!fSx||a.sexo===fSx)&&(!fC||a.ciclo===fC);
   });
   document.getElementById('tbody-animais').innerHTML=lista.map((a,_)=>{
     const i=animais.indexOf(a);
     return`<tr>
-      <td style="padding:8px 10px;font-weight:600;max-width:170px">${a.nome}</td>
+      <td style="padding:8px 10px;font-weight:600;max-width:170px">${a.nome}${a.status_cadastro==='rascunho'?' <span class="badge ba" title="Aguardando cadastro completo via SBB">Rascunho — aguardando SBB</span>':''}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${a.rp}</td>
       <td>${sbbL(a.sbb)}</td>
       <td>${sexm(a.sexo)}</td>
@@ -3868,6 +4054,7 @@ function renderSaude(){
   const vpInput = document.getElementById('verm-produto');
   if(vpInput) vpInput.style.display='none';
   renderPendencias();
+  renderKanbanProtoRepro();
 }
 
 function _kanbanCard(a, i, modo) {
@@ -4061,7 +4248,7 @@ function verDetalhe(i){
 
 function _renderDetCorpo(i, editando) {
   const a = animais[i];
-  document.getElementById('det-titulo').textContent = a.nome + (a.sbb ? ` · SBB ${a.sbb}` : '');
+  document.getElementById('det-titulo').innerHTML = `${a.nome}${a.sbb ? ` · SBB ${a.sbb}` : ''}${a.status_cadastro==='rascunho' ? ' <span class="badge ba" title="Aguardando cadastro completo via SBB">Rascunho — aguardando SBB</span>' : ''}`;
 
   // ── IDENTIFICAÇÃO ─────────────────────────────────────────────────
   const SITS = [{v:'NA CABANHA',l:'Na Cabanha'},{v:'EMPRESTIMO',l:'Empréstimo'},{v:'VENDIDO',l:'Vendido(a)'},{v:'TRANSFERIDO',l:'Transferido/Doado'},{v:'MORTO',l:'Morto(a)'}];
@@ -4075,6 +4262,7 @@ function _renderDetCorpo(i, editando) {
         <button class="btn btn-sm" style="margin-left:auto;font-size:10px;background:var(--blue-l);color:var(--blue-d);border:none" onclick="_buscarAbccc('edit')">🔍 Buscar no ABCCC pelo SBB</button>
       </div>
       <div id="abccc-status" style="font-size:11px;color:var(--text2);margin-bottom:6px;display:none"></div>
+      <input type="hidden" id="ed-status-cadastro" value="${a.status_cadastro||'ativo'}">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div class="form-group"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Nome</label>
           <input id="ed-nome" value="${a.nome||''}" style="width:100%;font-size:12px" placeholder="Nome em maiúsculas"></div>
@@ -4269,6 +4457,7 @@ function salvarEdicaoAnimal() {
   a.mae      = (document.getElementById('ed-mae')?.value||'').toUpperCase();
   a.pai      = (document.getElementById('ed-pai')?.value||'').toUpperCase();
   a.obs      = document.getElementById('ed-obs')?.value||'';
+  a.status_cadastro = document.getElementById('ed-status-cadastro')?.value || a.status_cadastro || 'ativo';
   // Persistir no banco
   _dbSalvarAnimal(a, i);
   // Voltar para modo leitura
@@ -4336,6 +4525,10 @@ async function _buscarAbccc(ctx) {
         const selSexo = document.getElementById('ed-sexo');
         if (selSexo) selSexo.value = dados.sexo;
       }
+      // Fase 6: SBB encontrado na ABCCC para um animal ainda em rascunho (ex.: cria
+      // gerada automaticamente ao registrar parto) — vira ativo ao salvar a edição.
+      const stEl = document.getElementById('ed-status-cadastro');
+      if (stEl) stEl.value = 'ativo';
     } else {
       set('nn',      dados.nome);
       set('nrp',     dados.rp);
@@ -4367,15 +4560,20 @@ async function _buscarAbccc(ctx) {
 
 // Calcula ciclo ABCCC a partir da data de nascimento e preenche o campo alvo
 // Regra: 01/ago/ano → 31/jul/ano+1 = ciclo "AA/AA+1"
-function _autoCiclo(nasc, targetId) {
-  if (!nasc) return;
+function _calcCiclo(nasc) {
+  if (!nasc) return '';
   const d = new Date(nasc + 'T12:00:00');
-  if (isNaN(d.getTime())) return;
+  if (isNaN(d.getTime())) return '';
   const mes = d.getMonth() + 1; // 1-12
   const ano = d.getFullYear();
   const anoInicio = mes >= 8 ? ano : ano - 1;
   const s = n => String(n).slice(-2);
-  const ciclo = `${s(anoInicio)}/${s(anoInicio + 1)}`;
+  return `${s(anoInicio)}/${s(anoInicio + 1)}`;
+}
+
+function _autoCiclo(nasc, targetId) {
+  const ciclo = _calcCiclo(nasc);
+  if (!ciclo) return;
   const el = document.getElementById(targetId);
   if (el && !el.value) el.value = ciclo; // só preenche se estiver vazio
 }
@@ -4665,7 +4863,7 @@ function toggleSidebarMobile(force){
 function switchTab(btn,tid){
   btn.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  const all=['tab-vac','tab-hist-vac','tab-verm','tab-exam','tab-hist-exam','tab-pendencias','tab-ciclos','tab-matrizes','tab-reprod','tab-cob-hist','nut-lista','nut-compras','nut-templates','evt-calendario','evt-animais','evt-resultados','gest-ativas','gest-historico','gest-nascimentos','gest-agenda','gest-fontes','gest-acasalamentos','gest-gestacoes','est-lista','est-alertas','est-movimentos','med-lista','med-historico'];
+  const all=['tab-vac','tab-hist-vac','tab-verm','tab-exam','tab-hist-exam','tab-pendencias','tab-proto-repro','tab-ciclos','tab-matrizes','tab-reprod','tab-cob-hist','nut-lista','nut-compras','nut-templates','evt-calendario','evt-animais','evt-resultados','gest-ativas','gest-historico','gest-nascimentos','gest-agenda','gest-fontes','gest-acasalamentos','gest-gestacoes','gest-protocolos','est-lista','est-alertas','est-movimentos','med-lista','med-historico'];
   // Escopar à página atual: essa lista reúne ids de TODAS as páginas — sem escopo,
   // trocar de aba em qualquer página força display:none em ids de mesma "família"
   // de outras páginas (ex.: mexer em Saúde escondia tab-ciclos do Reprodutivo e
@@ -4681,6 +4879,8 @@ function switchTab(btn,tid){
   if(tid==='med-historico') renderMedHistorico();
   if(tid==='gest-acasalamentos') renderAcasalamentos();
   if(tid==='gest-gestacoes') renderGestacoesNovo();
+  if(tid==='gest-protocolos') renderProtocolos();
+  if(tid==='tab-proto-repro') renderKanbanProtoRepro();
 }
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -5689,11 +5889,17 @@ function renderPendencias() {
     html += abertas.map(p=>{
       const i = pendencias.indexOf(p);
       const nivelCls = p.nivel==='erro'?'br':'ba';
-      const tipoIcon = p.tipo==='vacina'?'💉':'🔬';
+      const isNegociacao = p.tipo === 'negociacao_cobertura';
+      const tipoIcon = isNegociacao ? '🤝' : (p.tipo==='vacina'?'💉':'🔬');
+      const tipoLabelTxt = isNegociacao ? 'Negociação de cobertura' : (p.tipo==='vacina'?'Vacina':'Exame sanitário');
+      const acoes = isNegociacao
+        ? `<button class="btn btn-sm" style="color:var(--green-d);border-color:var(--green)" onclick="aceitarNegociacaoCobertura(${i})">✓ Aceitar</button>
+           <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="recusarNegociacaoCobertura(${i})">✕ Recusar</button>`
+        : `<button class="btn btn-sm" style="color:var(--green-d);border-color:var(--green)" onclick="resolverPendencia(${i})">✓ Resolvida</button>`;
       return `<div class="pend-card">
         <div class="pend-header">
           <div style="flex:1">
-            <div class="pend-title">${tipoIcon} ${p.animal} — ${p.tipo==='vacina'?'Vacina':'Exame sanitário'}</div>
+            <div class="pend-title">${tipoIcon} ${p.animal} — ${tipoLabelTxt}</div>
             <div class="pend-sub">${p.descricao}</div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px">
               Evento: <strong>${p.evento}</strong> · Data do evento: ${fd(p.dataEvento)} · Gerada em: ${fd(p.geradaEm)}
@@ -5701,7 +5907,7 @@ function renderPendencias() {
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
             <span class="badge ${nivelCls}">${p.nivel==='erro'?'Crítica':'Atenção'}</span>
-            <button class="btn btn-sm" style="color:var(--green-d);border-color:var(--green)" onclick="resolverPendencia(${i})">✓ Resolvida</button>
+            ${acoes}
           </div>
         </div>
       </div>`;
@@ -6093,12 +6299,22 @@ function renderEvtResultados() {
 // ─── GESTAÇÃO ─────────────────────────────────────────────────────────────────
 let coberturas2 = [];
 let fontesCobertura = [];
+// Fase 7: negociações de saldo de fonte (venda/doação, dentro da cabanha ou
+// para outra cabanha Mimba). Cross-tenant só via RPC — nunca _supa() direto
+// contra o schema de outra cabanha.
+let coberturasNegociadas = [];
+const NG_STATUS_LABEL = {pendente:'Pendente', aceito:'Aceito', quitado:'Quitado', cancelado:'Cancelado'};
 let acasalamentos = [];
 let tentativas = [];
 // Fase 4: gestações reais (tabela `gestacoes`), criadas automaticamente quando
 // uma tentativa é confirmada como 'prenha' (ver _confirmarResultadoTentativa).
 let gestacoes = [];
 const GESTACAO_DIAS = 335;
+// Fase 5: protocolos reprodutivos — templates reutilizáveis (protocolosReproducao)
+// e instâncias aplicadas a uma gestação específica (protocolosAplicados, 1:1 com gestacoes).
+let protocolosReproducao = [];
+let protocolosAplicados = [];
+const PROTO_TIPO_ETAPA_LABEL = {vacina:'Vacina', hormonio:'Hormônio', exame:'Exame', retorno:'Retorno', medicamento:'Medicamento', outro:'Outro'};
 
 // ─── PADRILLO: seletor e busca ABCCC ─────────────────────────────────────────
 function abrirModalCobertura() {
@@ -6593,7 +6809,12 @@ function excluirFonteCobertura(i) {
 function _saldoFonteCobertura(f) {
   const total = Number(f.quantidade_adquirida) || 0;
   const usado = acasalamentos.filter(a => a.status === 'confirmado' && f.db_id && String(a.fonte_cobertura_id) === String(f.db_id)).length;
-  const disponivel = Math.max(0, total - usado);
+  // Fase 7: negociações já consumadas (aceito/quitado) também descontam do
+  // saldo — 'pendente' ainda não foi consumado, 'cancelado' nunca aconteceu.
+  const negociado = coberturasNegociadas
+    .filter(n => f.db_id && String(n.fonte_cobertura_id) === String(f.db_id) && ['aceito','quitado'].includes(n.status))
+    .reduce((sum, n) => sum + (Number(n.quantidade) || 0), 0);
+  const disponivel = Math.max(0, total - usado - negociado);
   const pct = total > 0 ? Math.round((disponivel / total) * 100) : 0;
   return {total, usado, disponivel, pct};
 }
@@ -6651,12 +6872,262 @@ function renderFontesCobertura() {
         ${(f.vigencia_inicio || f.vigencia_fim) ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">Vigência: ${fd(f.vigencia_inicio)||'—'} a ${fd(f.vigencia_fim)||'—'}</div>` : ''}
         ${f.valor_cobertura ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">Valor: R$ ${Number(f.valor_cobertura).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>` : ''}
         ${f.obs ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">Obs: ${f.obs}</div>` : ''}
-        <div style="display:flex;gap:6px;margin-top:10px">
+        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+          ${(f.status === 'ativa' && disponivel > 0) ? `<button class="btn btn-sm" style="color:var(--green-d);border-color:var(--green)" onclick="abrirModalNegociarCobertura(${i})">Negociar</button>` : ''}
           <button class="btn btn-sm" onclick="editFonteCobertura(${i})">editar</button>
           <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="excluirFonteCobertura(${i})">🗑</button>
         </div>
       </div>`;
     }).join('') + '</div>';
+}
+
+// ─── NEGOCIAÇÃO DE COBERTURA (Fase 7) ──────────────────────────────────────────
+// Regra crítica: qualquer ação envolvendo OUTRA cabanha (venda/doação pra outro
+// tenant Mimba, aceitar/recusar oferta) tem que passar pelas RPCs
+// negociar_cobertura_mimba / aceitar_negociacao_cobertura /
+// recusar_negociacao_cobertura — nunca _supa() direto contra outro schema.
+function abrirModalNegociarCobertura(i) {
+  const f = fontesCobertura[i];
+  if(!f) return;
+  document.getElementById('ng-fonte-idx').value = i;
+  document.getElementById('ng-comprador-tenant-id').value = '';
+  const {disponivel} = _saldoFonteCobertura(f);
+  document.getElementById('ng-fonte-resumo').innerHTML =
+    `<b>${f.garanhao_nome}</b> · ciclo ${f.ciclo || '—'} · saldo disponível: <b>${disponivel}</b>`;
+  document.getElementById('ng-tipo').value = 'venda';
+  document.getElementById('ng-qtd').value = '';
+  document.getElementById('ng-qtd').max = disponivel;
+  document.getElementById('ng-comprador-nome').value = '';
+  document.getElementById('ng-comprador-contato').value = '';
+  document.getElementById('ng-valor').value = '';
+  document.getElementById('ng-condicao').value = 'avista';
+  document.getElementById('ng-busca-tenant').value = '';
+  document.getElementById('ng-busca-resultados').innerHTML = '';
+  document.getElementById('ng-tenant-selecionado').textContent = '';
+  document.querySelector('input[name="ng-modo-comprador"][value="externo"]').checked = true;
+  _toggleModoCompradorNegociacao();
+  _toggleCamposNegociarCobertura();
+  openModal('modal-negociar-cobertura');
+}
+
+function _toggleCamposNegociarCobertura() {
+  const venda = document.getElementById('ng-tipo').value === 'venda';
+  document.getElementById('ng-grupo-valor').style.display = venda ? '' : 'none';
+}
+
+function _toggleModoCompradorNegociacao() {
+  const modo = document.querySelector('input[name="ng-modo-comprador"]:checked')?.value || 'externo';
+  document.getElementById('ng-grupo-externo').style.display = modo === 'externo' ? '' : 'none';
+  document.getElementById('ng-grupo-mimba').style.display = modo === 'mimba' ? '' : 'none';
+  document.getElementById('ng-comprador-tenant-id').value = '';
+  document.getElementById('ng-tenant-selecionado').textContent = '';
+}
+
+// Busca de cabanha compradora — só via RPC buscar_tenant_para_negociacao
+// (não expõe email/telefone, só id+nome). Debounce ~300ms.
+let _ngBuscaTimer = null;
+function _buscarTenantNegociacao() {
+  clearTimeout(_ngBuscaTimer);
+  document.getElementById('ng-comprador-tenant-id').value = '';
+  document.getElementById('ng-tenant-selecionado').textContent = '';
+  const termo = document.getElementById('ng-busca-tenant').value.trim();
+  const el = document.getElementById('ng-busca-resultados');
+  if(termo.length < 2) { el.innerHTML = ''; return; }
+  _ngBuscaTimer = setTimeout(async () => {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Buscando...</div>';
+    const res = await _rpc('buscar_tenant_para_negociacao', { p_busca: termo });
+    if(!res || res.length === 0) { el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Nenhuma cabanha encontrada.</div>'; return; }
+    el.innerHTML = res.map(t => `<div class="btn btn-sm" style="display:block;text-align:left;margin-top:4px;cursor:pointer" onclick="_selecionarTenantNegociacao('${t.id}','${(t.nome_exibicao||'').replace(/'/g,"\\'")}')">${t.nome_exibicao}</div>`).join('');
+  }, 300);
+}
+function _selecionarTenantNegociacao(id, nome) {
+  document.getElementById('ng-comprador-tenant-id').value = id;
+  document.getElementById('ng-tenant-selecionado').textContent = '✓ ' + nome;
+  document.getElementById('ng-busca-resultados').innerHTML = '';
+  document.getElementById('ng-busca-tenant').value = nome;
+}
+
+async function salvarNegociarCobertura() {
+  const idx = Number(document.getElementById('ng-fonte-idx').value);
+  const f = fontesCobertura[idx];
+  if(!f) return;
+  const {disponivel} = _saldoFonteCobertura(f);
+  const tipo = document.getElementById('ng-tipo').value;
+  const qtd = Number(document.getElementById('ng-qtd').value);
+  if(!qtd || qtd < 1) return alert('Informe a quantidade.');
+  if(qtd > disponivel) return alert('Quantidade maior que o saldo disponível (' + disponivel + ').');
+
+  const modo = document.querySelector('input[name="ng-modo-comprador"]:checked')?.value || 'externo';
+
+  if(modo === 'mimba') {
+    const compradorTenantId = document.getElementById('ng-comprador-tenant-id').value;
+    if(!compradorTenantId) return alert('Busque e selecione a cabanha compradora.');
+    const valor = tipo === 'venda' ? Number(document.getElementById('ng-valor').value) || 0 : null;
+    const condicao = tipo === 'venda' ? document.getElementById('ng-condicao').value : null;
+    if(tipo === 'venda' && !valor) return alert('Informe o valor total da venda.');
+    const vendedorTenantId = TENANT_INFO?.tenant_id || TENANT_INFO?.id;
+    const res = await _rpc('negociar_cobertura_mimba', {
+      p_vendedor_tenant_id: vendedorTenantId,
+      p_fonte_cobertura_id: f.db_id,
+      p_comprador_tenant_id: compradorTenantId,
+      p_quantidade: qtd, p_tipo: tipo,
+      p_valor_total: valor, p_condicao: condicao,
+    });
+    if(!res) return alert('Não foi possível enviar a oferta. Tente novamente.');
+    alert('Oferta enviada, aguardando aceite.');
+  } else {
+    const compradorNome = document.getElementById('ng-comprador-nome').value.trim();
+    if(!compradorNome) return alert('Informe o nome do comprador.');
+    const valor = tipo === 'venda' ? Number(document.getElementById('ng-valor').value) || 0 : null;
+    const condicao = tipo === 'venda' ? document.getElementById('ng-condicao').value : null;
+    if(tipo === 'venda' && !valor) return alert('Informe o valor total da venda.');
+    const payload = {
+      fonte_cobertura_id: f.db_id, tipo, quantidade: qtd,
+      comprador_nome: compradorNome,
+      comprador_contato: document.getElementById('ng-comprador-contato').value.trim() || null,
+      valor_total: valor, condicao,
+      status: 'aceito',
+      criado_por: usuarioAtual?.db_id || null,
+    };
+    const res = await _supa('POST', 'coberturas_negociadas', payload);
+    const novoId = res?.[0]?.id;
+    if(tipo === 'venda' && valor > 0) {
+      const lanc = {
+        tipo: 'Receita', cat: 'Venda de cobertura',
+        desc: 'Venda de cobertura — ' + f.garanhao_nome + ' (' + compradorNome + ')',
+        valor, data: new Date().toISOString().slice(0,10), animal: '',
+      };
+      lancamentos.push(lanc);
+      await _dbSalvarLancamento(lanc, lancamentos.length - 1);
+      if(novoId && lanc.db_id) await _supa('PATCH', 'coberturas_negociadas', {lancamento_id: lanc.db_id}, '?id=eq.' + novoId);
+    }
+  }
+
+  closeModal('modal-negociar-cobertura');
+  await _recarregarCoberturasNegociadas();
+  renderFontesCobertura();
+  renderHistoricoNegociacoes();
+}
+
+async function _recarregarCoberturasNegociadas() {
+  try {
+    const dbNeg = await _supa('GET', 'coberturas_negociadas', null, '?order=criado_em.desc');
+    coberturasNegociadas.length = 0;
+    (dbNeg || []).forEach(n => {
+      const fonte = fontesCobertura.find(x => x.db_id === n.fonte_cobertura_id);
+      coberturasNegociadas.push({
+        db_id: n.id, fonte_cobertura_id: n.fonte_cobertura_id,
+        garanhao_nome: fonte?.garanhao_nome || '',
+        tipo: n.tipo, quantidade: Number(n.quantidade) || 0,
+        comprador_tenant_id: n.comprador_tenant_id || null,
+        comprador_nome: n.comprador_nome || '',
+        comprador_contato: n.comprador_contato || '',
+        valor_total: n.valor_total ?? null, condicao: n.condicao || '',
+        parcelas: n.parcelas || null, lancamento_id: n.lancamento_id || null,
+        status: n.status || 'pendente', criado_em: n.criado_em || '',
+      });
+    });
+  } catch(e) { console.warn('Erro ao recarregar coberturas_negociadas', e); }
+}
+
+// Aceitar/recusar oferta recebida de outra cabanha — vem de uma pendência
+// tipo 'negociacao_cobertura', evento no formato "negociacao:<vendedorId>:<negociacaoId>".
+function _parseEventoNegociacao(evento) {
+  const partes = String(evento || '').split(':');
+  if(partes.length < 3 || partes[0] !== 'negociacao') return null;
+  return { vendedorTenantId: partes[1], negociacaoId: partes[2] };
+}
+
+async function aceitarNegociacaoCobertura(i) {
+  const p = pendencias[i];
+  const dados = _parseEventoNegociacao(p?.evento);
+  if(!dados) return alert('Pendência inválida.');
+  const compradorTenantId = TENANT_INFO?.tenant_id || TENANT_INFO?.id;
+  const res = await _rpc('aceitar_negociacao_cobertura', {
+    p_comprador_tenant_id: compradorTenantId,
+    p_vendedor_tenant_id: dados.vendedorTenantId,
+    p_negociacao_id: dados.negociacaoId,
+  });
+  if(!res) return alert('Não foi possível aceitar a oferta. Tente novamente.');
+  await _marcarPendenciaResolvida(i);
+  await _recarregarFontesCobertura();
+  renderFontesCobertura();
+}
+
+async function recusarNegociacaoCobertura(i) {
+  const p = pendencias[i];
+  const dados = _parseEventoNegociacao(p?.evento);
+  if(!dados) return alert('Pendência inválida.');
+  const compradorTenantId = TENANT_INFO?.tenant_id || TENANT_INFO?.id;
+  const res = await _rpc('recusar_negociacao_cobertura', {
+    p_comprador_tenant_id: compradorTenantId,
+    p_vendedor_tenant_id: dados.vendedorTenantId,
+    p_negociacao_id: dados.negociacaoId,
+  });
+  if(!res) return alert('Não foi possível recusar a oferta. Tente novamente.');
+  await _marcarPendenciaResolvida(i);
+}
+
+async function _marcarPendenciaResolvida(i) {
+  const p = pendencias[i];
+  if(!p) return;
+  p.resolvida = true;
+  p.resolvidaEm = new Date().toISOString().slice(0,10);
+  if(p.db_id) await _dbResolverPendencia(p);
+  atualizarBadgePendencias();
+  renderPendencias();
+}
+
+async function _recarregarFontesCobertura() {
+  try {
+    const dbFontes = await _supa('GET', 'fontes_cobertura', null, '?order=criado_em.desc');
+    fontesCobertura.length = 0;
+    (dbFontes || []).forEach(f => fontesCobertura.push({
+      db_id: f.id, tipo: f.tipo, garanhao_nome: f.garanhao_nome,
+      garanhao_sbb: f.garanhao_sbb || '', tem_rm: !!f.tem_rm,
+      quantidade_adquirida: f.quantidade_adquirida, ciclo: f.ciclo || '',
+      vigencia_inicio: f.vigencia_inicio || '', vigencia_fim: f.vigencia_fim || '',
+      proprietario_cota: f.proprietario_cota || '', percentual_cota: f.percentual_cota ?? '',
+      valor_cobertura: f.valor_cobertura ?? '', status: f.status || 'ativa', obs: f.obs || ''
+    }));
+  } catch(e) { console.warn('Erro ao recarregar fontes_cobertura', e); }
+}
+
+function _toggleHistoricoNegociacoes() {
+  const wrap = document.getElementById('ng-hist-wrap');
+  const toggle = document.getElementById('ng-hist-toggle');
+  const abrir = wrap.style.display === 'none';
+  wrap.style.display = abrir ? '' : 'none';
+  toggle.textContent = abrir ? '▴ ocultar' : '▾ mostrar';
+  if(abrir) renderHistoricoNegociacoes();
+}
+
+function renderHistoricoNegociacoes() {
+  const countEl = document.getElementById('ng-hist-count');
+  if(countEl) countEl.textContent = coberturasNegociadas.length;
+  const tbody = document.getElementById('tbody-ng-hist');
+  if(!tbody) return;
+  const fStatus = (document.getElementById('ng-hist-f-status')||{value:''}).value;
+  const lista = coberturasNegociadas.filter(n => !fStatus || n.status === fStatus);
+  if(lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:1.5rem">Nenhuma negociação registrada.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(n => {
+    const comprador = n.comprador_tenant_id
+      ? '🐴 Cabanha Mimba' + (n.comprador_tenant_id ? ' (' + String(n.comprador_tenant_id).slice(0,8) + '…)' : '')
+      : (n.comprador_nome || '—');
+    const statusBadge = n.status === 'aceito' || n.status === 'quitado' ? 'bg' : n.status === 'cancelado' ? 'br' : 'ba';
+    return `<tr>
+      <td style="padding:8px 10px">${n.garanhao_nome || '—'}</td>
+      <td>${n.tipo === 'venda' ? 'Venda' : 'Doação'}</td>
+      <td>${n.quantidade}</td>
+      <td>${comprador}</td>
+      <td>${n.valor_total ? 'R$ ' + Number(n.valor_total).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}</td>
+      <td><span class="badge ${statusBadge}">${NG_STATUS_LABEL[n.status] || n.status}</span></td>
+      <td>${fd(n.criado_em?.slice ? n.criado_em.slice(0,10) : n.criado_em) || '—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ─── ACASALAMENTOS (Fase 2 — planejamento + simulação genética básica) ────────
@@ -7044,14 +7515,48 @@ function _gestAlerta(g) {
   return '';
 }
 
+// Fase 5: acha o protocolo_aplicado desta gestação (1:1, via UNIQUE gestacao_id).
+function _gestProtocoloAplicado(g) {
+  if(!g?.db_id) return null;
+  return protocolosAplicados.find(pa => String(pa.gestacao_id) === String(g.db_id)) || null;
+}
+
+function _etapaStatus(et) {
+  if(et.concluida) return {cls: 'bg', label: 'Concluída'};
+  const dias = da(et.data_prevista);
+  if(dias !== null && dias < 0) return {cls: 'br', label: 'Atrasada'};
+  return {cls: 'ba', label: 'Pendente'};
+}
+
 function _gestCard(g, i) {
   const trimestre = _gestTrimestre(g);
   const acas = acasalamentos.find(a => String(a.db_id) === String(g.acasalamento_id));
   const tts = acas ? _acTentativas(acas) : [];
+  const pa = _gestProtocoloAplicado(g);
+  const paIdx = pa ? protocolosAplicados.indexOf(pa) : -1;
+
+  // Timeline: tentativas + confirmação + parto + etapas do protocolo aplicado, em ordem cronológica.
+  const itens = [];
+  tts.forEach(t => itens.push({data: t.data, html: `${fd(t.data)} · tentativa (${t.resultado})`}));
+  itens.push({data: g.data_confirmacao, html: `${fd(g.data_confirmacao)} · confirmação de prenhez`});
+  if(g.parto_real) itens.push({data: g.parto_real, html: `${fd(g.parto_real)} · parto`});
+  if(pa) {
+    (pa.etapas || []).forEach((et, ei) => {
+      const st = _etapaStatus(et);
+      itens.push({
+        data: et.data_prevista,
+        html: `${fd(et.data_prevista)} · ${PROTO_TIPO_ETAPA_LABEL[et.tipo] || et.tipo} — ${et.descricao || ''}
+          <span class="badge ${st.cls}" style="margin-left:4px">${st.label}</span>
+          ${et.data_real ? ` <span style="color:var(--text3)">(realizado ${fd(et.data_real)})</span>` : ''}
+          ${!et.concluida ? `<button class="btn btn-sm" style="padding:1px 6px;margin-left:4px" onclick="abrirModalConcluirEtapa(${i},${ei})">Marcar concluída</button>` : ''}`
+      });
+    });
+  }
+  itens.sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+
   const htmlTimeline = `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border)">
-      ${tts.map(t => `<div style="font-size:11px;color:var(--text2);margin-top:2px">${fd(t.data)} · tentativa (${t.resultado})</div>`).join('')}
-      <div style="font-size:11px;color:var(--text2);margin-top:2px">${fd(g.data_confirmacao)} · confirmação de prenhez</div>
-      ${g.parto_real ? `<div style="font-size:11px;color:var(--text2);margin-top:2px">${fd(g.parto_real)} · parto</div>` : ''}
+      ${itens.map(it => `<div style="font-size:11px;color:var(--text2);margin-top:4px">${it.html}</div>`).join('')}
+      ${pa ? `<button class="btn btn-sm" style="margin-top:6px" onclick="abrirModalEtapaAvulsa(${i})">+ Etapa avulsa</button>` : ''}
     </div>`;
 
   return `<div class="kanban-card" id="gtc-card-${i}">
@@ -7060,11 +7565,13 @@ function _gestCard(g, i) {
       Garanhão: ${g.garanhao_nome || '—'}<br>
       Cobertura: ${fd(g.data_cobertura)} · Confirmação: ${fd(g.data_confirmacao)}<br>
       ${trimestre ? `${trimestre}º trimestre · ` : ''}Parto previsto: ${fd(g.parto_previsto)}
+      ${pa ? '<br><span style="font-size:10px;color:var(--text3)">Protocolo aplicado</span>' : ''}
     </div>
     ${_gestAlerta(g)}
     <div id="gtc-timeline-${i}" style="display:none">${htmlTimeline}</div>
     <div class="kanban-card-actions">
       <button class="btn btn-sm" onclick="_toggleTimelineGestacao(${i})">Detalhes</button>
+      ${g.status === 'gestando' && !g.protocolo_aplicado_id ? `<button class="btn btn-sm" onclick="abrirModalAplicarProtocolo(${i})">Aplicar protocolo</button>` : ''}
       ${g.status === 'gestando' ? `
         <button class="btn btn-sm" onclick="abrirModalEncerrarGestacao(${i},'parida')">Registrar parto</button>
         <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="abrirModalEncerrarGestacao(${i},'abortada')">Registrar aborto</button>
@@ -7123,6 +7630,9 @@ function abrirModalEncerrarGestacao(i, status) {
   document.getElementById('gtc-enc-status').value = status;
   document.getElementById('gtc-enc-obs').value = '';
   document.getElementById('gtc-enc-data').value = '';
+  document.getElementById('gtc-enc-cria-nome').value = '';
+  document.getElementById('gtc-enc-cria-sexo').value = '';
+  document.getElementById('gtc-enc-cria-wrap').style.display = status === 'parida' ? '' : 'none';
   const titulos = {parida: 'Registrar parto', abortada: 'Registrar aborto', perdida: 'Registrar perda'};
   document.getElementById('gtc-enc-titulo').textContent = titulos[status] || 'Encerrar gestação';
   document.getElementById('gtc-enc-data-label').textContent = status === 'parida' ? 'Data do parto' : 'Data (opcional)';
@@ -7139,19 +7649,327 @@ function _confirmarEncerramentoGestacao() {
 
   if(status === 'parida' && !data) return alert('Informe a data do parto.');
 
+  let criaNome = '', criaSexo = '';
+  if(status === 'parida') {
+    criaNome = (document.getElementById('gtc-enc-cria-nome').value || '').trim();
+    criaSexo = document.getElementById('gtc-enc-cria-sexo').value || '';
+    if(!criaNome) return alert('Informe o nome provisório da cria.');
+    if(!criaSexo) return alert('Informe o sexo da cria.');
+  }
+
   g.status = status;
   g.obs = obs;
   const patch = {status, obs: obs || null};
   if(status === 'parida') {
     g.parto_real = data;
     patch.parto_real = data;
-    // Gancho pra Fase 6: aqui é onde entrará a criação automática do animal
-    // (potro/potranca) a partir da gestação parida. Não implementado nesta fase.
   }
   _dbAtualizarGestacao(g, patch);
 
+  if(status === 'parida') {
+    _criarAnimalDeParto(g, criaNome, criaSexo, data);
+  }
+
   closeModal('modal-gestacao-encerrar');
   renderGestacoesNovo();
+}
+
+// Fase 6: cria automaticamente o animal (potro/potranca) a partir de uma
+// gestação parida. Reaproveita _dbSalvarAnimal (mesmo padrão de salvarAnimal()).
+function _criarAnimalDeParto(g, nome, sexo, dataParto) {
+  const acas = acasalamentos.find(a => String(a.db_id) === String(g.acasalamento_id));
+  const fonte = acas ? fontesCobertura.find(f => String(f.db_id) === String(acas.fonte_cobertura_id)) : null;
+  const pai = fonte?.garanhao_sbb || '';
+
+  const egua = animais.find(a => String(a.db_id) === String(g.egua_id));
+  const mae = egua ? (egua.sbb || egua.nome || '') : '';
+
+  const novo = {
+    nome: nome.toUpperCase(), rp: '', sbb: '', sexo,
+    nasc: dataParto, ciclo: _calcCiclo(dataParto),
+    mae, pai, situacao: 'NA CABANHA', estagio: '',
+    obs: '', pelagem: '', ult_vac: '', prox_vac: '', ult_verm: '', val_exame: '',
+    status_cadastro: 'rascunho'
+  };
+  animais.push(novo);
+  _dbSalvarAnimal(animais[animais.length - 1], animais.length - 1);
+  populaCiclos(); renderDashboard(); renderAnimais();
+}
+
+// ─── PROTOCOLOS REPRODUTIVOS (Fase 5) ──────────────────────────────────────
+// Templates reutilizáveis (protocolosReproducao) + instâncias aplicadas a uma
+// gestação (protocolosAplicados, cópia independente — editar a instância nunca
+// altera o template original).
+
+function _prAdicionarEtapaLinha(etapa) {
+  const wrap = document.getElementById('pr-etapas-list');
+  const row = document.createElement('div');
+  row.className = 'pr-etapa-row';
+  row.style.cssText = 'display:grid;grid-template-columns:90px 130px 1fr 90px 26px;gap:6px;align-items:center;margin-bottom:6px';
+  row.innerHTML = `
+    <input type="number" class="pr-et-dia" placeholder="Dia" value="${etapa?.dia_relativo ?? ''}" style="width:100%">
+    <select class="pr-et-tipo" style="width:100%">
+      ${Object.keys(PROTO_TIPO_ETAPA_LABEL).map(k => `<option value="${k}" ${etapa?.tipo === k ? 'selected' : ''}>${PROTO_TIPO_ETAPA_LABEL[k]}</option>`).join('')}
+    </select>
+    <input type="text" class="pr-et-desc" placeholder="Descrição" value="${etapa?.descricao || ''}" style="width:100%">
+    <label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400">
+      <input type="checkbox" class="pr-et-obrig" style="width:auto" ${etapa?.obrigatorio !== false ? 'checked' : ''}> obrig.
+    </label>
+    <button class="btn btn-sm" style="padding:2px 6px;color:var(--red-d);border-color:var(--red-d)" onclick="this.closest('.pr-etapa-row').remove()">×</button>
+  `;
+  wrap.appendChild(row);
+}
+
+function abrirModalProtocolo(idx) {
+  document.getElementById('pr-edit-idx').value = idx ?? -1;
+  document.getElementById('pr-etapas-list').innerHTML = '';
+  if(idx !== undefined && idx !== null && idx >= 0) {
+    const p = protocolosReproducao[idx];
+    document.getElementById('pr-titulo').textContent = 'Editar protocolo';
+    document.getElementById('pr-nome').value = p.nome || '';
+    document.getElementById('pr-tipo').value = p.tipo_cobertura || 'todos';
+    document.getElementById('pr-descricao').value = p.descricao || '';
+    (p.etapas || []).forEach(et => _prAdicionarEtapaLinha(et));
+  } else {
+    document.getElementById('pr-titulo').textContent = 'Novo protocolo';
+    document.getElementById('pr-nome').value = '';
+    document.getElementById('pr-tipo').value = 'todos';
+    document.getElementById('pr-descricao').value = '';
+    _prAdicionarEtapaLinha();
+  }
+  openModal('modal-protocolo');
+}
+
+function salvarProtocolo() {
+  const idx = parseInt(document.getElementById('pr-edit-idx').value || '-1');
+  const nome = document.getElementById('pr-nome').value.trim();
+  if(!nome) return alert('Informe o nome do protocolo.');
+
+  const etapas = Array.from(document.querySelectorAll('#pr-etapas-list .pr-etapa-row')).map(row => ({
+    dia_relativo: parseInt(row.querySelector('.pr-et-dia').value || '0'),
+    tipo: row.querySelector('.pr-et-tipo').value,
+    descricao: row.querySelector('.pr-et-desc').value.trim(),
+    obrigatorio: row.querySelector('.pr-et-obrig').checked,
+    obs: '',
+  })).filter(et => et.descricao);
+
+  if(!etapas.length) return alert('Adicione ao menos uma etapa com descrição.');
+
+  const obj = {
+    nome, descricao: document.getElementById('pr-descricao').value.trim(),
+    tipo_cobertura: document.getElementById('pr-tipo').value, etapas, ativo: true,
+  };
+
+  if(idx >= 0) {
+    protocolosReproducao[idx] = {...protocolosReproducao[idx], ...obj};
+    _dbSalvarProtocolo(protocolosReproducao[idx], idx);
+  } else {
+    protocolosReproducao.push(obj);
+    _dbSalvarProtocolo(obj, protocolosReproducao.length - 1);
+  }
+
+  closeModal('modal-protocolo');
+  renderProtocolos();
+}
+
+function desativarProtocolo(idx) {
+  const p = protocolosReproducao[idx];
+  if(!p) return;
+  if(!confirm(`Desativar o protocolo "${p.nome}"? Ele deixa de aparecer para novas aplicações, mas gestações que já usam essa cópia não são afetadas.`)) return;
+  p.ativo = false;
+  _dbDesativarProtocolo(p);
+  protocolosReproducao.splice(idx, 1);
+  renderProtocolos();
+}
+
+function renderProtocolos() {
+  const el = document.getElementById('gest-protocolos-content');
+  if(!el) return;
+  const fTipo = document.getElementById('pr-f-tipo')?.value || '';
+  const lista = protocolosReproducao.filter(p => !fTipo || p.tipo_cobertura === fTipo);
+
+  el.innerHTML = lista.length
+    ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">' +
+      lista.map(p => {
+        const i = protocolosReproducao.indexOf(p);
+        return `<div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div style="font-weight:700;font-size:13px">${p.nome}</div>
+            <span class="badge ba">${AC_TIPO_LABEL[p.tipo_cobertura] || 'Todos'}</span>
+          </div>
+          ${p.descricao ? `<div style="font-size:11px;color:var(--text2);margin-top:4px">${p.descricao}</div>` : ''}
+          <div style="font-size:11px;color:var(--text3);margin-top:6px">${(p.etapas || []).length} etapa(s)</div>
+          <div style="margin-top:6px;font-size:11px;color:var(--text2)">
+            ${(p.etapas || []).slice(0, 4).map(et => `Dia ${et.dia_relativo >= 0 ? '+' : ''}${et.dia_relativo} · ${PROTO_TIPO_ETAPA_LABEL[et.tipo] || et.tipo} — ${et.descricao}`).join('<br>')}
+            ${(p.etapas || []).length > 4 ? '<br>…' : ''}
+          </div>
+          <div class="kanban-card-actions" style="margin-top:8px">
+            <button class="btn btn-sm" onclick="abrirModalProtocolo(${i})">Editar</button>
+            <button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="desativarProtocolo(${i})">Desativar</button>
+          </div>
+        </div>`;
+      }).join('') + '</div>'
+    : '<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum protocolo cadastrado. Clique em "+ Novo protocolo".</div>';
+}
+
+// ── Aplicar protocolo a uma gestação ────────────────────────────────────────
+function abrirModalAplicarProtocolo(gi) {
+  const g = gestacoes[gi];
+  if(!g) return;
+  document.getElementById('gap-gest-idx').value = gi;
+  const acas = acasalamentos.find(a => String(a.db_id) === String(g.acasalamento_id));
+  const tipo = acas?.tipo_cobertura;
+  const compativeis = protocolosReproducao.filter(p => p.tipo_cobertura === 'todos' || p.tipo_cobertura === tipo);
+  const sel = document.getElementById('gap-protocolo');
+  sel.innerHTML = '<option value="">Selecione...</option>' +
+    compativeis.map(p => `<option value="${protocolosReproducao.indexOf(p)}">${p.nome}</option>`).join('');
+  sel.onchange = () => {
+    const p = protocolosReproducao[parseInt(sel.value)];
+    document.getElementById('gap-preview').innerHTML = p
+      ? (p.etapas || []).map(et => `Dia ${et.dia_relativo >= 0 ? '+' : ''}${et.dia_relativo} · ${PROTO_TIPO_ETAPA_LABEL[et.tipo] || et.tipo} — ${et.descricao}`).join('<br>')
+      : '';
+  };
+  document.getElementById('gap-preview').innerHTML = '';
+  if(!compativeis.length) alert('Nenhum protocolo compatível com o tipo de cobertura desta gestação. Cadastre um em "Protocolos".');
+  openModal('modal-gest-aplicar-protocolo');
+}
+
+function _confirmarAplicarProtocolo() {
+  const gi = parseInt(document.getElementById('gap-gest-idx').value || '-1');
+  const g = gestacoes[gi];
+  if(!g) return;
+  const pIdx = parseInt(document.getElementById('gap-protocolo').value);
+  const p = protocolosReproducao[pIdx];
+  if(!p) return alert('Selecione um protocolo.');
+
+  const d0 = pd(g.data_confirmacao);
+  const etapas = (p.etapas || []).map(et => {
+    const dataPrevista = d0 ? new Date(d0.getTime() + (et.dia_relativo || 0) * 864e5).toISOString().slice(0, 10) : null;
+    return {
+      dia_relativo: et.dia_relativo, tipo: et.tipo, descricao: et.descricao,
+      obrigatorio: et.obrigatorio !== false, obs: et.obs || '',
+      data_prevista: dataPrevista, concluida: false, data_real: null, obs_execucao: null,
+    };
+  });
+
+  const obj = {protocolo_id: p.db_id, gestacao_id: g.db_id, d0: g.data_confirmacao, etapas};
+  protocolosAplicados.push(obj);
+  const paIdx = protocolosAplicados.length - 1;
+  _dbSalvarProtocoloAplicado(obj, paIdx).then(() => {
+    g.protocolo_aplicado_id = obj.db_id;
+    _dbAtualizarGestacao(g, {protocolo_aplicado_id: obj.db_id});
+  });
+
+  closeModal('modal-gest-aplicar-protocolo');
+  renderGestacoesNovo();
+}
+
+// ── Marcar etapa concluída ──────────────────────────────────────────────────
+function abrirModalConcluirEtapa(gi, etapaIdx) {
+  document.getElementById('pc-gest-idx').value = gi;
+  document.getElementById('pc-etapa-idx').value = etapaIdx;
+  document.getElementById('pc-data-real').value = HOJE.toISOString().slice(0, 10);
+  document.getElementById('pc-obs').value = '';
+  openModal('modal-proto-concluir');
+}
+
+function _confirmarConcluirEtapa() {
+  const gi = parseInt(document.getElementById('pc-gest-idx').value || '-1');
+  const etapaIdx = parseInt(document.getElementById('pc-etapa-idx').value || '-1');
+  const g = gestacoes[gi];
+  const pa = g ? _gestProtocoloAplicado(g) : null;
+  if(!pa || !pa.etapas?.[etapaIdx]) return;
+
+  const dataReal = document.getElementById('pc-data-real').value;
+  if(!dataReal) return alert('Informe a data de execução.');
+
+  pa.etapas[etapaIdx].concluida = true;
+  pa.etapas[etapaIdx].data_real = dataReal;
+  pa.etapas[etapaIdx].obs_execucao = document.getElementById('pc-obs').value || null;
+  _dbAtualizarProtocoloAplicado(pa, pa.etapas);
+
+  closeModal('modal-proto-concluir');
+  renderGestacoesNovo();
+  renderKanbanProtoRepro();
+}
+
+// ── Etapa avulsa (não prevista no template) ────────────────────────────────
+function abrirModalEtapaAvulsa(gi) {
+  document.getElementById('pea-gest-idx').value = gi;
+  document.getElementById('pea-tipo').value = 'outro';
+  document.getElementById('pea-data').value = '';
+  document.getElementById('pea-descricao').value = '';
+  openModal('modal-proto-etapa-avulsa');
+}
+
+function _confirmarEtapaAvulsa() {
+  const gi = parseInt(document.getElementById('pea-gest-idx').value || '-1');
+  const g = gestacoes[gi];
+  const pa = g ? _gestProtocoloAplicado(g) : null;
+  if(!pa) return;
+
+  const data = document.getElementById('pea-data').value;
+  const descricao = document.getElementById('pea-descricao').value.trim();
+  if(!data || !descricao) return alert('Informe data e descrição.');
+
+  pa.etapas.push({
+    dia_relativo: null, tipo: document.getElementById('pea-tipo').value,
+    descricao, obrigatorio: false, obs: '',
+    data_prevista: data, concluida: false, data_real: null, obs_execucao: null,
+  });
+  _dbAtualizarProtocoloAplicado(pa, pa.etapas);
+
+  closeModal('modal-proto-etapa-avulsa');
+  renderGestacoesNovo();
+  renderKanbanProtoRepro();
+}
+
+// ── Kanban "Protocolo Reprodutivo" (page-saude) ─────────────────────────────
+// Só etapas pendentes de gestações ativas ('gestando') — etapas concluídas saem
+// para o histórico da própria timeline da gestação (spec 9.4).
+function renderKanbanProtoRepro() {
+  const el = document.getElementById('kanban-proto-repro-board');
+  if(!el) return;
+
+  const emdia = [], atencao = [], vencido = [];
+  gestacoes.filter(g => g.status === 'gestando').forEach(g => {
+    const pa = _gestProtocoloAplicado(g);
+    if(!pa) return;
+    (pa.etapas || []).forEach((et, ei) => {
+      if(et.concluida) return;
+      const dias = da(et.data_prevista);
+      const gi = gestacoes.indexOf(g);
+      const card = `<div class="kanban-card">
+        <div class="kanban-card-nome">${g.egua_nome || '—'}</div>
+        <div class="kanban-card-info">
+          ${PROTO_TIPO_ETAPA_LABEL[et.tipo] || et.tipo} — ${et.descricao || ''}<br>
+          Previsto: ${fd(et.data_prevista)}
+        </div>
+        <div class="kanban-card-actions">
+          <button class="btn btn-sm" onclick="abrirModalConcluirEtapa(${gi},${ei})">Marcar concluída</button>
+          <button class="btn btn-sm" onclick="showPage('gestacao');setTimeout(()=>{const t=document.querySelector('#page-gestacao .tab-row .tab:nth-child(7)');if(t)switchTab(t,'gest-gestacoes');_toggleTimelineGestacao(${gi})},100)">Ver gestação</button>
+        </div>
+      </div>`;
+      if(dias === null) return;
+      if(dias < 0) vencido.push(card);
+      else if(dias <= 7) atencao.push(card);
+      else emdia.push(card);
+    });
+  });
+
+  el.innerHTML = `
+    <div class="kanban-col kanban-col-emdia">
+      <div class="kanban-col-header"><span>🟢 Em dia</span><span class="kanban-count">${emdia.length}</span></div>
+      <div class="kanban-cards">${emdia.length ? emdia.join('') : '<div class="kanban-empty">Nenhuma</div>'}</div>
+    </div>
+    <div class="kanban-col kanban-col-avencer">
+      <div class="kanban-col-header"><span>🟡 Atenção (≤7 dias)</span><span class="kanban-count">${atencao.length}</span></div>
+      <div class="kanban-cards">${atencao.length ? atencao.join('') : '<div class="kanban-empty">Nenhuma</div>'}</div>
+    </div>
+    <div class="kanban-col kanban-col-vencida">
+      <div class="kanban-col-header"><span>🔴 Vencido</span><span class="kanban-count">${vencido.length}</span></div>
+      <div class="kanban-cards">${vencido.length ? vencido.join('') : '<div class="kanban-empty">Nenhuma ✓</div>'}</div>
+    </div>`;
 }
 
 // ─── ESTOQUE ──────────────────────────────────────────────────────────────────
@@ -7244,7 +8062,7 @@ showPage=function(id){
   _origShowPage(id);
   if(id==='nutricional'){renderNutLista();renderCompras();renderTemplatesPage();}
   if(id==='eventos'){renderEventos();renderEvtPorAnimal();renderEvtResultados();}
-  if(id==='gestacao'){popularSelectEguas();renderGestacao();renderGestAgenda();renderFontesCobertura();renderAcasalamentos();renderGestacoesNovo();}
+  if(id==='gestacao'){popularSelectEguas();renderGestacao();renderGestAgenda();renderFontesCobertura();renderAcasalamentos();renderGestacoesNovo();renderProtocolos();}
   if(id==='estoque'){renderEstoque();renderMovimentos();}
   if(id==='medidas'){renderMedLista();}
   if(id==='saude'){renderSaude();}
@@ -8651,6 +9469,7 @@ async function _sincronizarAoLogin() {
         situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||'',
         obs: a.obs||'', sexo: a.sexo||'', pelagem: a.pelagem||'',
         ult_vac: '', prox_vac: a.prox_vac||'', ult_verm:'', val_exame: a.val_exame||'',
+        status_cadastro: a.status_cadastro || 'ativo',
         ativo: a.ativo
       }));
     }
@@ -8743,6 +9562,30 @@ async function _sincronizarAoLogin() {
       }));
     }
 
+    // 5b2. Negociações de cobertura (Fase 7) — mesmo padrão defensivo.
+    coberturasNegociadas.length = 0;
+    let dbNeg = bootstrap.coberturas_negociadas;
+    if(!dbNeg) {
+      try { dbNeg = await _supa('GET', 'coberturas_negociadas', null, '?order=criado_em.desc'); }
+      catch(e) { dbNeg = null; }
+    }
+    if(dbNeg) {
+      dbNeg.forEach(n => {
+        const fonte = fontesCobertura.find(x => x.db_id === n.fonte_cobertura_id);
+        coberturasNegociadas.push({
+          db_id: n.id, fonte_cobertura_id: n.fonte_cobertura_id,
+          garanhao_nome: fonte?.garanhao_nome || '',
+          tipo: n.tipo, quantidade: Number(n.quantidade) || 0,
+          comprador_tenant_id: n.comprador_tenant_id || null,
+          comprador_nome: n.comprador_nome || '',
+          comprador_contato: n.comprador_contato || '',
+          valor_total: n.valor_total ?? null, condicao: n.condicao || '',
+          parcelas: n.parcelas || null, lancamento_id: n.lancamento_id || null,
+          status: n.status || 'pendente', criado_em: n.criado_em || '',
+        });
+      });
+    }
+
     // 5c. Acasalamentos — mesmo padrão defensivo: tenta bootstrap.acasalamentos,
     // senão busca via REST (não quebra o resto do sync se ainda não existir).
     acasalamentos.length = 0;
@@ -8804,6 +9647,42 @@ async function _sincronizarAoLogin() {
           data_cobertura: g.data_cobertura, data_confirmacao: g.data_confirmacao,
           parto_previsto: g.parto_previsto || null, parto_real: g.parto_real || null,
           status: g.status || 'gestando', obs: g.obs || '',
+          protocolo_aplicado_id: g.protocolo_aplicado_id || null,
+        });
+      });
+    }
+
+    // 5f. Protocolos reprodutivos (Fase 5) — templates ativos. Mesmo padrão defensivo:
+    // bootstrap.protocolos_reproducao, senão REST.
+    protocolosReproducao.length = 0;
+    let dbProt = bootstrap.protocolos_reproducao;
+    if(!dbProt) {
+      try { dbProt = await _supa('GET', 'protocolos_reproducao', null, '?ativo=eq.true&order=nome.asc'); }
+      catch(e) { dbProt = null; }
+    }
+    if(dbProt) {
+      dbProt.forEach(p => {
+        protocolosReproducao.push({
+          db_id: p.id, nome: p.nome, descricao: p.descricao || '',
+          tipo_cobertura: p.tipo_cobertura || 'todos', etapas: p.etapas || [],
+          ativo: p.ativo !== false, criado_por: p.criado_por || null,
+        });
+      });
+    }
+
+    // 5g. Protocolos aplicados (Fase 5) — instâncias vinculadas a gestações.
+    // Mesmo padrão defensivo: bootstrap.protocolo_aplicado, senão REST.
+    protocolosAplicados.length = 0;
+    let dbProtAp = bootstrap.protocolo_aplicado;
+    if(!dbProtAp) {
+      try { dbProtAp = await _supa('GET', 'protocolo_aplicado', null, '?order=criado_em.desc'); }
+      catch(e) { dbProtAp = null; }
+    }
+    if(dbProtAp) {
+      dbProtAp.forEach(pa => {
+        protocolosAplicados.push({
+          db_id: pa.id, protocolo_id: pa.protocolo_id, gestacao_id: pa.gestacao_id,
+          d0: pa.d0, etapas: pa.etapas || [],
         });
       });
     }
@@ -8942,6 +9821,7 @@ async function _dbSalvarAnimal(a, idx) {
     situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||null,
     obs: a.obs||null, prox_vac: a.prox_vac||null,
     val_exame: a.val_exame||null,
+    status_cadastro: a.status_cadastro || 'ativo',
     criado_por: usuarioAtual?.db_id || null
   };
   if(a.db_id) {
@@ -9172,6 +10052,43 @@ async function _dbSalvarGestacao(g, idx) {
 async function _dbAtualizarGestacao(g, patch) {
   if(!g?.db_id) return;
   await _supa('PATCH', 'gestacoes', patch, '?id=eq.' + g.db_id);
+}
+
+// ── Protocolos reprodutivos (Fase 5) ──────────────────────────────────────
+async function _dbSalvarProtocolo(p, idx) {
+  const payload = {
+    nome: p.nome, descricao: p.descricao || null,
+    tipo_cobertura: p.tipo_cobertura || 'todos', etapas: p.etapas || [],
+    ativo: p.ativo !== false, criado_por: usuarioAtual?.db_id || null,
+  };
+  if(p.db_id) {
+    await _supa('PATCH', 'protocolos_reproducao', payload, '?id=eq.' + p.db_id);
+  } else {
+    const res = await _supa('POST', 'protocolos_reproducao', payload);
+    if(res?.[0]?.id) protocolosReproducao[idx].db_id = res[0].id;
+  }
+}
+
+async function _dbDesativarProtocolo(p) {
+  if(!p?.db_id) return;
+  await _supa('PATCH', 'protocolos_reproducao', {ativo: false}, '?id=eq.' + p.db_id);
+}
+
+async function _dbSalvarProtocoloAplicado(pa, idx) {
+  const payload = {
+    protocolo_id: pa.protocolo_id, gestacao_id: pa.gestacao_id,
+    d0: pa.d0, etapas: pa.etapas || [],
+    criado_por: usuarioAtual?.db_id || null,
+  };
+  const res = await _supa('POST', 'protocolo_aplicado', payload);
+  if(res?.[0]?.id) protocolosAplicados[idx].db_id = res[0].id;
+}
+
+// Reescreve o array `etapas` inteiro (marcar concluída / adicionar etapa avulsa /
+// ajustar data_prevista sempre passam por aqui — a cópia é independente do template).
+async function _dbAtualizarProtocoloAplicado(pa, etapas) {
+  if(!pa?.db_id) return;
+  await _supa('PATCH', 'protocolo_aplicado', {etapas}, '?id=eq.' + pa.db_id);
 }
 
 // ── Medidas ────────────────────────────────────────────────────────────────

@@ -10,6 +10,16 @@
 - Mudanças em RLS/auth passam pelo `revisor-isolamento` antes de mergear.
 - Tenants existentes hoje: `cab_cabanha_pedro_teste`, `cab_cabanha_santa_enoema`, `cab_mae_de_deus`, `cab_qa_isolamento`, `cab_qa_segunda`.
 
+## ⚠️ Armadilha nova descoberta (Fase 7) — anon ganha EXECUTE automático em função nova
+Mesma raiz da armadilha da Fase 1, mas para **funções**: `pg_default_acl` do schema `public` tem uma entrada
+`defaclobjtype='f'` que concede `EXECUTE` a `anon`/`authenticated`/`service_role` automaticamente em toda função
+nova criada por `postgres`. Toda função nova (mesmo `SECURITY DEFINER` com `tem_acesso_tenant` na primeira linha)
+precisa de `revoke execute on function public.<fn>(<assinatura>) from anon, public;` explícito, senão ela some do
+padrão das funções mais sensíveis do projeto (que já tinham isso revogado) e fica exposta a chamadas anônimas —
+mesmo que a lógica interna acabe barrando, é defesa em profundidade que vale a pena manter. Note também que
+`CREATE OR REPLACE FUNCTION` pode reintroduzir o grant a `anon` mesmo numa função que já tinha sido corrigida —
+sempre reconferir `information_schema.routine_privileges` depois de qualquer `CREATE OR REPLACE`.
+
 ## ⚠️ Armadilha nova descoberta (Fase 1) — anon ganha grant automático em tabela nova
 O schema `public` tem `ALTER DEFAULT PRIVILEGES` do Supabase que concede `anon`/`authenticated` automaticamente
 em **toda tabela nova** criada por `postgres`/`supabase_admin` — mesmo com RLS habilitada, isso deixa `anon`
@@ -91,31 +101,84 @@ modelo novo (`fontes_cobertura` + `acasalamentos` + `tentativas` + `gestacoes` +
   comentado no código.
 - Dependências: Fase 3.
 
-## Fase 5 — Protocolos + kanban de saúde reprodutivo
-- [ ] Tabela `protocolos_reproducao` (templates) + `protocolo_aplicado` (instância por gestação, D0 = confirmação)
-- [ ] Estrutura de etapas em JSONB (`dia_relativo`, `tipo`, `descricao`, `obrigatorio`, `obs`)
-- [ ] Aba nova no dashboard de Saúde: kanban "Protocolo Reprodutivo" (Em dia/Atenção 7d/Vencido) — mesmo padrão visual de vacinas/exames
-- [ ] Inclusão na verificação sanitária automática de eventos ABCCC
+## Fase 5 — Protocolos + kanban de saúde reprodutivo ✅
+- [x] Tabela `protocolos_reproducao` (templates) + `protocolo_aplicado` (instância por gestação, D0 = confirmação,
+  UNIQUE por gestação, FK real de `gestacoes.protocolo_aplicado_id`). Template + 5 schemas `cab_*` + RPCs atualizadas.
+  Isolamento verificado (8/7 colunas em todos os schemas, sem grant a `anon`).
+- [x] Estrutura de etapas em JSONB (`dia_relativo`, `tipo`, `descricao`, `obrigatorio`, `obs`) — editor dinâmico de
+  etapas na tela "Protocolos" (nova 8ª aba em Gestação). Ao aplicar um template a uma gestação, `protocolo_aplicado`
+  guarda cópia independente das etapas com `data_prevista` calculada (`d0 + dia_relativo`) + `concluida`/`data_real`/
+  `obs_execucao` — editável sem alterar o template original. Etapas avulsas (não previstas no template) suportadas.
+- [x] Aba nova em Saúde: kanban "Protocolo Reprodutivo" (Em dia/Atenção ≤7d/Vencido), mesmo padrão visual dos kanbans
+  de vacina/exame. Só considera gestações ativas (`status='gestando'`); etapas concluídas saem para o histórico na
+  timeline da própria gestação (Fase 4).
+- ⚠️ **Não implementado (propositalmente)**: inclusão na "verificação sanitária automática de eventos ABCCC" — não
+  existe hoje nenhum mecanismo equivalente no app (nem para vacinas/exames), não havia onde plugar. Cortado, igual
+  fizemos com a concentração de sangue projetada na Fase 2.
 - Dependências: Fase 4, módulo Saúde existente.
 
-## Fase 6 — Cria automática no parto
-- [ ] Ao registrar parto: cria animal com `status_cadastro = 'rascunho'` (nova coluna em `animais`)
-- [ ] Campos herdados: pai (garanhão da fonte), mãe (SBB da égua), ciclo calculado pela data
-- [ ] Ao informar SBB real: rascunho → ativo, busca automática ABCCC
+## Fase 6 — Cria automática no parto ✅
+- [x] Ao registrar parto: cria animal com `status_cadastro = 'rascunho'` (coluna nova em `animais`, template + 5
+  schemas `cab_*`, herdada automaticamente por tenants novos via clonagem — sem mudança de RPC necessária, já vem
+  em `select *`). "Registrar parto" (Fase 4) agora pede nome provisório + sexo antes de criar.
+- [x] Campos herdados: pai (via gestação → acasalamento → fonte de cobertura → `garanhao_sbb`, vazio se a fonte não
+  tiver SBB cadastrado — não trava o fluxo), mãe (SBB da égua, com fallback pro nome dela se não tiver SBB), ciclo
+  calculado automaticamente da data do parto (`_calcCiclo`, extraído do `_autoCiclo` já existente).
+- [x] Rascunhos saem das listagens padrão de Animais (badge amarelo "Rascunho — aguardando SBB" + filtro dedicado
+  "Rascunhos (aguardando SBB)" no select de situação).
+- [x] Ao informar SBB real na edição do animal: busca automática ABCCC (reaproveita `_buscarAbccc('edit')` já
+  existente) e, se encontrado, `status_cadastro` vira `'ativo'` — só persiste no salvar explícito da edição, não no
+  blur do campo.
 - Dependências: Fase 4, módulo Animais.
 
-## Fase 7 — Negociação de coberturas + financeiro
-- [ ] Tabela `coberturas_negociadas` (venda/doação, comprador externo ou outro tenant Mimba)
-- [ ] Fluxo comprador externo → lançamento de receita automático
-- [ ] Fluxo comprador Mimba → notificação cross-tenant, aceite cria fonte automaticamente no tenant comprador
-- [ ] Fluxo cadastro manual pelo comprador (sem depender do vendedor ser usuário Mimba)
+## Fase 7 — Negociação de coberturas + financeiro ✅
+- [x] Tabela `coberturas_negociadas` (venda/doação, comprador externo ou outro tenant Mimba). Template + 5 schemas
+  `cab_*` + RPCs de provisionamento/bootstrap atualizadas. Isolamento verificado (15 colunas em todos os schemas,
+  sem grant a `anon`).
+- [x] Fluxo comprador externo → insert direto no próprio schema (`status='aceito'` imediato, sem espera de terceiro)
+  + lançamento de receita automático (reaproveita `_dbSalvarLancamento`) se for venda com valor.
+- [x] Fluxo comprador Mimba → **3 RPCs `SECURITY DEFINER` novas**, únicas escritas cross-schema do projeto até agora:
+  `negociar_cobertura_mimba` (cria oferta pendente + notifica via `pendencias` no schema do comprador),
+  `aceitar_negociacao_cobertura` (cria a `fontes_cobertura` automaticamente no schema do comprador + marca aceito no
+  schema do vendedor + lançamento de receita se venda), `recusar_negociacao_cobertura` (marca cancelado). Mais uma
+  RPC auxiliar `buscar_tenant_para_negociacao` (busca só id+nome de outras cabanhas, nunca dados sensíveis).
+  **Revisão de isolamento formal feita e APROVADA** pelo `revisor-isolamento` (2 rodadas — a 1ª pediu correção de
+  race condition de aceite duplo e do grant residual a `anon`/`PUBLIC`, ambos corrigidos e reconfirmados antes da
+  aprovação final). Frontend usa exclusivamente essas RPCs para qualquer coisa cross-tenant — nenhum `_supa()` direto
+  contra outro schema, confirmado por grep e leitura de código.
+- [x] Fluxo cadastro manual pelo comprador (sem depender do vendedor ser usuário Mimba) — já funcionava desde a
+  Fase 1 ("+ Nova fonte" na tela de Fontes de Cobertura), zero código novo necessário.
+- [x] Saldo real (`_saldoFonteCobertura`, Fase 3) atualizado para descontar também negociações com status
+  `aceito`/`quitado` daquela fonte.
 - Dependências: Fase 1, módulo Financeiro (`lancamentos`), multi-tenant (`tenants`).
-- ⚠️ Cross-tenant — **exige revisão obrigatória do `revisor-isolamento`** antes de mergear (spec seção 7 envolve leitura/escrita entre schemas de cabanhas diferentes via control-plane).
 
-## Fase 8 — Job de encerramento de ciclo (automação)
-- [ ] Edge Function agendada (cron, 1º de agosto): vence fontes com saldo > 0, cancela acasalamentos `em_curso`,
-      recria fontes de garanhão próprio pro ciclo novo, expira cota/direito de uso vencidos
+## Fase 8 — Job de encerramento de ciclo (automação) ✅
+- [x] Implementado como **função Postgres agendada via `pg_cron`** (não Edge Function — mais simples/confiável, evita
+  HTTP/auth extra; a spec permitia as duas opções). Extensão `pg_cron` habilitada. Job `encerramento-ciclo-reproducao`
+  agendado pra `0 3 1 8 *` (03:00 de todo 1º de agosto, todo ano — cron recorre naturalmente).
+- [x] `public.encerrar_ciclo_reproducao()`, `SECURITY DEFINER`, **não exposta a `authenticated`/`anon`** (só roda via
+  cron, como owner do banco) — itera todos os tenants provisionados e, por schema: (1) vence fontes `proprio` com
+  saldo > 0 (mesma fórmula de saldo real das Fases 3/7, replicada em SQL); (2) cancela `acasalamentos` `em_curso` com
+  `motivo_cancelamento='Encerramento de ciclo'`; (3) recria uma fonte `proprio` por garanhão distinto pro ciclo novo
+  (limite 120 ou 150 conforme `tem_rm`), idempotente — não duplica se o job rodar de novo pro mesmo ciclo; (4) vence
+  `cota`/`direito_uso` com `vigencia_fim` expirada.
+- [x] Log de execução por tenant em `public.webhook_log` (reaproveitada, sem tabela nova — `evento =
+  'encerramento_ciclo_reproducao'`, `payload` com as contagens).
+- [x] Validado com uma simulação **somente leitura** (sem invocar a função de verdade, pra não mexer em dados reais
+  de cabanhas como a Mãe de Deus antes da data real de corte): confirmado que hoje (28/07) o cálculo de ciclo ainda
+  dá "25/26" — a função não teria efeito nenhum se rodasse agora, e só passa a calcular "26/27" a partir de 1º/08,
+  quando o cron efetivamente dispara.
 - Dependências: todas as fases anteriores.
+
+---
+
+## 🎉 Módulo completo — Fases 1-8 implementadas
+Todas as 8 fases da spec do sócio estão no banco (isolamento revisado em cada uma, revisão formal obrigatória na
+Fase 7 por ser cross-tenant) e no `index.html`. Itens cortados deliberadamente (documentados fase a fase, não
+esquecidos): concentração de sangue projetada completa (Fase 2), verificação sanitária automática de eventos
+ABCCC (Fase 5) — ambos por falta de base/infra existente pra plugar, não por decisão de escopo arbitrária.
+Pendente pra depois: migração de dados definitiva de `coberturas`→ módulo novo com descontinuação da tela antiga
+(hoje coexistem), testar o job da Fase 8 de verdade num schema descartável antes de 1º/08/2026.
 
 ---
 
