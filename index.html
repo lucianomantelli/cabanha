@@ -1256,7 +1256,7 @@
     </div>
 
     <div id="conta-tab-cabanha" style="overflow-y:auto;flex:1">
-      <div class="form-grid" style="max-width:520px">
+      <div class="form-grid" style="max-width:520px;margin:0 auto">
         <div class="form-group" style="grid-column:1/-1;display:flex;align-items:center;gap:18px">
           <img id="conta-logo-preview" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;background:var(--bg3);display:none">
           <div id="conta-logo-placeholder" style="width:84px;height:84px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--text3)">🏠</div>
@@ -4386,14 +4386,16 @@ function renderReprodutivo(){
   document.getElementById('ciclos-content').innerHTML=Object.entries(ciclos).sort().map(([c,lista])=>`
     <div class="card">
       <div class="card-title">Ciclo ${c} · <span style="color:var(--text2);font-weight:400">${lista.length} animal${lista.length>1?'is':''}</span></div>
-      <table><thead><tr><th>Nome</th><th>Nascimento</th><th>Sexo</th><th>Pelagem</th><th>Mãe</th><th>Pai</th><th>Situação</th></tr></thead>
+      <table style="table-layout:fixed;width:100%">
+      <colgroup><col style="width:20%"><col style="width:12%"><col style="width:9%"><col style="width:13%"><col style="width:15%"><col style="width:15%"><col style="width:16%"></colgroup>
+      <thead><tr><th>Nome</th><th>Nascimento</th><th>Sexo</th><th>Pelagem</th><th>Mãe</th><th>Pai</th><th>Situação</th></tr></thead>
       <tbody>${lista.map(a=>`<tr>
-        <td style="padding:7px 10px;font-weight:600">${a.nome}</td>
+        <td style="padding:7px 10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.nome}">${a.nome}</td>
         <td style="font-size:11px">${fd(a.nasc)}</td>
         <td>${sexm(a.sexo)}</td>
-        <td style="font-size:11px">${a.pelagem||'—'}</td>
-        <td style="font-size:11px;color:var(--text2)">${a.mae||'—'}</td>
-        <td style="font-size:11px;color:var(--text2)">${a.pai||'—'}</td>
+        <td style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.pelagem||''}">${a.pelagem||'—'}</td>
+        <td style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.mae||''}">${a.mae||'—'}</td>
+        <td style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${a.pai||''}">${a.pai||'—'}</td>
         <td>${sitb(a.situacao)}</td>
       </tr>`).join('')}</tbody></table>
     </div>`).join('');
@@ -4664,7 +4666,12 @@ function switchTab(btn,tid){
   btn.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
   const all=['tab-vac','tab-hist-vac','tab-verm','tab-exam','tab-hist-exam','tab-pendencias','tab-ciclos','tab-matrizes','tab-reprod','tab-cob-hist','nut-lista','nut-compras','nut-templates','evt-calendario','evt-animais','evt-resultados','gest-ativas','gest-historico','gest-nascimentos','gest-agenda','gest-fontes','gest-acasalamentos','gest-gestacoes','est-lista','est-alertas','est-movimentos','med-lista','med-historico'];
-  all.forEach(t=>{const el=document.getElementById(t);if(el)el.style.display=t===tid?'block':'none';});
+  // Escopar à página atual: essa lista reúne ids de TODAS as páginas — sem escopo,
+  // trocar de aba em qualquer página força display:none em ids de mesma "família"
+  // de outras páginas (ex.: mexer em Saúde escondia tab-ciclos do Reprodutivo e
+  // med-lista de Medidas até o usuário voltar e reabrir a aba própria daquela página).
+  const scope = btn.closest('.page') || document;
+  all.forEach(t=>{const el=scope.querySelector('#'+t);if(el)el.style.display=t===tid?'block':'none';});
   if(tid==='tab-vac')       renderKanbanVac();
   if(tid==='tab-exam')      renderKanbanExam();
   if(tid==='tab-verm')      { renderVermAnimais(); renderVermStatusPlantel(); }
@@ -6381,7 +6388,7 @@ function renderGestacao(){
     const tri=diasGest<112?'1º trimestre':diasGest<224?'2º trimestre':'3º trimestre';
     const triC=diasGest<112?'bb':diasGest<224?'ba':'br';
     const corB=diasGest<112?'#378ADD':diasGest<224?'#EF9F27':'#E24B4A';
-    const sbbTag = c.sbb_padrillo ? `<a class="sbb-link" href="#" onclick="abrirAbccc(c.sbb_padrillo);return false;" target="_blank">${c.sbb_padrillo} ↗</a>` : '';
+    const sbbTag = c.sbb_padrillo ? `<a class="sbb-link" href="#" onclick="abrirAbccc('${c.sbb_padrillo}');return false;" target="_blank">${c.sbb_padrillo} ↗</a>` : '';
     return`<div class="gest-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;gap:8px">
         <div>
@@ -7450,7 +7457,7 @@ function dashDrill(tipo, filtro){
       rows=comSBB.length?'<div class="drill-grid">'+comSBB.map(a=>{const i=animais.indexOf(a);
         return`<div class="drill-row" onclick="verDetalhe(${i})">
           <div class="drill-nome">${a.nome}</div>
-          <a class="sbb-link" href="#" onclick="abrirAbccc(a.sbb);return false;" target="_blank" style="font-size:10px;font-family:var(--mono)" onclick="event.stopPropagation()">${a.sbb} ↗</a>
+          <a class="sbb-link" href="#" onclick="event.stopPropagation();abrirAbccc('${a.sbb}');return false;" target="_blank" style="font-size:10px;font-family:var(--mono)">${a.sbb} ↗</a>
           <span class="badge bgr drill-badge">${a.situacao||'—'}</span>
         </div>`;}).join('')+'</div>':'<div class="drill-empty">Nenhum animal com SBB.</div>';
       break;}
@@ -9371,14 +9378,22 @@ async function _tentarRetomarSessao() {
 
   AUTH_TOKEN = token;
   try {
+    // A retomada só guarda o token — sem isto, AUTH_USER fica null e o nome/avatar
+    // do usuário na sidebar quebram após reload (a busca do usuário local depende de AUTH_USER.id).
+    const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${token}` }
+    });
+    AUTH_USER = uRes.ok ? await uRes.json().catch(()=>null) : null;
+    if(!AUTH_USER) { AUTH_TOKEN = null; _limparSessaoSalva(); return _cancelarRetomada(); }
+
     const cabs = await _rpc('minhas_cabanhas', {});
-    if(!cabs || cabs.length === 0) { AUTH_TOKEN = null; _limparSessaoSalva(); return _cancelarRetomada(); }
+    if(!cabs || cabs.length === 0) { AUTH_TOKEN = null; AUTH_USER = null; _limparSessaoSalva(); return _cancelarRetomada(); }
     document.getElementById('login-restaurando').style.display = 'none';
     if(cabs.length === 1) { await _entrarCabanha(cabs[0]); }
     else { document.getElementById('login-box-main').style.display = ''; _mostrarSeletor(cabs); }
     return true;
   } catch(e) {
-    AUTH_TOKEN = null; _limparSessaoSalva(); return _cancelarRetomada();
+    AUTH_TOKEN = null; AUTH_USER = null; _limparSessaoSalva(); return _cancelarRetomada();
   }
 }
 function _cancelarRetomada() {
