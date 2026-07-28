@@ -75,13 +75,18 @@
 
 ## Sem prioridade explícita (ordem em que foram citados — ficam para depois dos 6 acima)
 
-- [ ] **Tela de Animais (V1) — modernizar usando a tela de Gestações (V2) como referência de padrão.**
+- [x] **Tela de Animais (V1) — modernizar usando a tela de Gestações (V2) como referência de padrão.**
+  Linha de métricas no topo (ativos/fêmeas/machos/rascunhos, mesmo padrão `.metrics` do Financeiro) + estado vazio
+  quando o filtro não retorna nada. Tabela mantida (formato certo pra lista grande, não virou cards).
 - [x] **Remover o recurso "salvar e carregar dados"** do menu lateral inferior esquerdo — resquício
   da versão antiga de importação por planilha, não é mais usado. *(Feito junto da Prioridade 2.)*
-- [ ] **Tela de Animais — edição sem confirmação e editável direto na "planilha"** (mistura
-  modo leitura e edição ao mesmo tempo). Ideal: visualização em modo leitura + botão "editar" que
-  abre um pop-up/tela de edição com confirmação — no mesmo padrão do fluxo "criar novo animal"
-  que já existe e funciona bem.
+- [x] **Tela de Animais — edição sem confirmação e editável direto na "planilha" — concluído.** Causa raiz: colunas
+  Situação/Estágio eram `<select onchange=...>` gravando direto no banco a cada troca, sem confirmação. Viraram
+  badges somente-leitura (reaproveitando `sitb()`/`estb()`); editar agora exige clicar em "✏️" na linha, que abre a
+  página de detalhe já em modo edição (reaproveita o fluxo Editar→Salvar/Cancelar que já existia desde a
+  Prioridade 5, sem inventar um segundo padrão). De quebra, corrigido um bug cosmético achado no caminho: o mapa de
+  cor do badge de situação (`sitb()`) usava chaves desatualizadas (`MORTO(A)`/`DOADO(A)`) que nunca batiam com o
+  enum real (`MORTO`/`TRANSFERIDO`/`VENDIDO`), caindo sempre no cinza — corrigido.
 - [x] **Bug de Gestação/Medidas não carregar na primeira visita — concluído.** Causa raiz
   reproduzida antes de corrigir: era uma corrida com o sync do login — se o usuário navegava pra
   Gestação/Medidas enquanto `_sincronizarAoLogin()` ainda estava em voo, a página renderizava com

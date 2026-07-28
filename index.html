@@ -620,12 +620,19 @@
       <button class="btn btn-primary" onclick="openModal('modal-novo')">+ Novo animal</button>
     </div>
   </div>
+  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <div class="metric"><div class="metric-label">Ativos na cabanha</div><div class="metric-value" id="an-m-ativos">0</div></div>
+    <div class="metric"><div class="metric-label">Fêmeas</div><div class="metric-value" id="an-m-femeas">0</div></div>
+    <div class="metric"><div class="metric-label">Machos</div><div class="metric-value" id="an-m-machos">0</div></div>
+    <div class="metric"><div class="metric-label">Rascunhos</div><div class="metric-value" id="an-m-rascunhos">0</div></div>
+  </div>
   <div class="filter-row">
     <input style="width:210px" type="text" id="busca" placeholder="Buscar por nome ou SBB..." oninput="filtrar()">
     <select id="f-sit" onchange="filtrar()"><option value="">Todas situações</option><option value="ativo" selected>Ativos (Cabanha + Empréstimo)</option><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option><option value="rascunho">Rascunhos (aguardando SBB)</option></select>
     <select id="f-sexo" onchange="filtrar()"><option value="">Todos sexos</option><option>Fêmea</option><option>Macho</option></select>
     <select id="f-ciclo" onchange="filtrar()"><option value="">Ciclos</option></select>
   </div>
+  <div id="animais-empty" style="display:none;text-align:center;padding:2rem;color:var(--text3);font-size:13px">Nenhum animal encontrado com os filtros atuais.</div>
   <div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
     <table>
       <thead><tr>
@@ -2590,7 +2597,7 @@ function fd(s){const d=pd(s);if(!d)return'—';return d.toLocaleDateString('pt-B
 function da(s){const d=pd(s);if(!d)return null;return Math.round((d-HOJE)/864e5);}
 function svac(p){const d=da(p);if(d===null)return{l:'Sem dados',c:'bgr'};if(d<0)return{l:`Vencida (${Math.abs(d)}d)`,c:'br'};if(d<=30)return{l:`${d}d para vencer`,c:'br'};if(d<=60)return{l:`${d}d p/ vencer`,c:'ba'};return{l:'Em dia',c:'bg'};}
 function sexm(s){if(!s)return'<span class="badge bgr">—</span>';return s==='Fêmea'?`<span class="badge bpk">${s}</span>`:`<span class="badge bb">${s}</span>`;}
-function sitb(s){if(!s)return'<span class="badge bgr">—</span>';const m={'NA CABANHA':'bg','MORTO(A)':'br','DOADO(A)':'ba','EMPRESTIMO':'bp'};return`<span class="badge ${m[s]||'bgr'}">${s}</span>`;}
+function sitb(s){if(!s)return'<span class="badge bgr">—</span>';const m={'NA CABANHA':'bg','MORTO':'br','TRANSFERIDO':'ba','VENDIDO':'bp','EMPRESTIMO':'bp'};return`<span class="badge ${m[s]||'bgr'}">${s}</span>`;}
 function estb(e){if(!e||e==='-')return'—';const m={'PISTA MORFOLOGIA':'bb','PISTA FUNCIONAL':'bp','CAMPO':'bg','LAÇO':'ba','ARREIO CABANHA':'bpk','DOMA':'ba','CRIA':'bt'};return`<span class="badge ${m[e]||'bgr'}">${e}</span>`;}
 function sbbL(s){
   if(!s||s==='-') return '—';
@@ -2657,35 +2664,34 @@ function renderAnimais(){
       <td style="font-size:11px">${a.pelagem||'<span style="color:var(--text3)">—</span>'}</td>
       <td>${a.ciclo?`<span class="badge bgr">${a.ciclo}</span>`:'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${fd(a.nasc)}</td>
-      <td>
-        <select style="font-size:11px;padding:2px 4px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-family:var(--font);cursor:pointer"
-          onchange="alterarSituacao(${i},this.value)">
-          ${[{v:'NA CABANHA',l:'Na Cabanha'},{v:'EMPRESTIMO',l:'Empréstimo'},{v:'VENDIDO',l:'Vendido(a)'},{v:'TRANSFERIDO',l:'Transferido/Doado'},{v:'MORTO',l:'Morto(a)'}].map(o=>`<option value="${o.v}"${a.situacao===o.v?' selected':''}>${o.l}</option>`).join('')}
-        </select>
-      </td>
-      <td>
-        <select style="font-size:11px;padding:2px 4px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-family:var(--font);cursor:pointer"
-          onchange="alterarEstagio(${i},this.value)">
-          <option value="${a.estagio||'-'}">${a.estagio||'—'}</option>
-          ${['CAMPO','PISTA MORFOLOGIA','PISTA FUNCIONAL','ARREIO CABANHA','LAÇO','DOMA','CRIA'].filter(e=>e!==(a.estagio||'-')).map(e=>`<option value="${e}">${e}</option>`).join('')}
-        </select>
-      </td>
-      <td><button class="btn btn-sm" onclick="verDetalhe(${i})">ver</button></td>
+      <td>${sitb(a.situacao)}</td>
+      <td>${estb(a.estagio)}</td>
+      <td style="display:flex;gap:6px"><button class="btn btn-sm" onclick="verDetalhe(${i})">ver</button><button class="btn btn-sm" title="Editar" onclick="verDetalheEditando(${i})">✏️</button></td>
     </tr>`;
   }).join('');
+  const vazio = lista.length===0;
+  const cardTabela = document.getElementById('tbody-animais').closest('.card');
+  const emptyEl = document.getElementById('animais-empty');
+  if(cardTabela) cardTabela.style.display = vazio ? 'none' : '';
+  if(emptyEl) emptyEl.style.display = vazio ? '' : 'none';
+  _atualizarMetricasAnimais();
 }
 
-function alterarSituacao(i, val) {
-  animais[i].situacao = val;
-  _dbSalvarAnimal(animais[i], i);
-  renderDashboard();
-  atualizarBadgePendencias();
+function _atualizarMetricasAnimais(){
+  const ativos = animais.filter(a=>a.status_cadastro!=='rascunho'&&isNaCabanha(a));
+  const femeas = ativos.filter(a=>a.sexo==='Fêmea').length;
+  const machos = ativos.filter(a=>a.sexo==='Macho').length;
+  const rascunhos = animais.filter(a=>a.status_cadastro==='rascunho').length;
+  const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+  set('an-m-ativos', ativos.length);
+  set('an-m-femeas', femeas);
+  set('an-m-machos', machos);
+  set('an-m-rascunhos', rascunhos);
 }
 
-function alterarEstagio(i, val) {
-  animais[i].estagio = val || '-';
-  _dbSalvarAnimal(animais[i], i);
-  renderDashboard();
+function verDetalheEditando(i){
+  verDetalhe(i);
+  alternarEdicaoAnimal();
 }
 
 // ─── DETALHE ──────────────────────────────────────────────────────────────────

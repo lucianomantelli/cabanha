@@ -1,5 +1,11 @@
 # Roadmap — Módulo de Reprodução Equina v2.0
 
+> ✅ **CONCLUÍDO** (2026-07-28) — Fases 1-8 implementadas, commitadas e publicadas em `staging`. Mantido aqui como
+> registro histórico das decisões/armadilhas de banco encontradas, não como pendência ativa. Itens cortados
+> deliberadamente (documentados fase a fase): concentração de sangue projetada completa (Fase 2), verificação
+> sanitária automática de eventos ABCCC (Fase 5). Pendente pra depois: migração definitiva de `coberturas` → módulo
+> novo com descontinuação da tela antiga (hoje coexistem), testar o job da Fase 8 de verdade antes de 1º/08/2026.
+
 > Origem: spec funcional/técnica do sócio (`spec-reproducao-mimba-v2.docx`, MimbaTech, julho 2026).
 > Este documento quebra a spec em fases executáveis, na ordem sugerida pela própria spec (seção 11).
 > Cada fase é um refactor/extensão do módulo reprodutivo atual (tabela `coberturas` simples → modelo completo).
@@ -35,13 +41,15 @@ modelo novo (`fontes_cobertura` + `acasalamentos` + `tentativas` + `gestacoes` +
 
 ---
 
-## Fase 1 — Fontes de Cobertura (base) 🔴 em andamento
+## Fase 1 — Fontes de Cobertura (base) ✅
 - [x] Tabela `fontes_cobertura` (tipo, garanhão, saldo, ciclo, vigência, status) — seção 2.3 da spec.
   Criada no template `public` + replicada nos 5 schemas `cab_*` existentes + RPC `provisionar_schema_cabanha`
   atualizada pra tenants novos. Isolamento revisado (`revisor-isolamento` + verificação manual de
   `pg_policies`/grants/RPC): policies corretas por schema, sem grant a `anon` (bug do default privilege do
   Supabase corrigido — ver armadilha abaixo).
-- [ ] Enum/regras de saldo: `quantidade_adquirida − confirmadas − negociadas` (calculado on-the-fly ou view — decidir na Fase 2/3 junto com acasalamentos/tentativas, que são quem consome o saldo)
+- [x] Enum/regras de saldo: `quantidade_adquirida − confirmadas − negociadas` — decisão tomada na Fase 3 (client-side,
+  a partir dos arrays já sincronizados, sem coluna nova) e estendida na Fase 7 pra descontar negociações também.
+  Ver `_saldoFonteCobertura()`.
 - [x] Migração de dados: linhas existentes em `coberturas` viram fontes "próprio" retroativas (1 unidade cada, ciclo 25/26,
   obs marcando a origem/id original). Rodada em todos os schemas — só `cab_mae_de_deus` (4) e `cab_cabanha_pedro_teste` (2)
   tinham dados; migration idempotente (não duplica se rodar de novo).
