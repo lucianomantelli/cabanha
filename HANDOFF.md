@@ -92,7 +92,14 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
 - **Secret com `$`/especial via CLI → aspas simples**, ou use o painel.
 - `verify_jwt` **false** em webhook/funções públicas; **true** só na `convidar-usuario` (chamada direto pelo navegador do usuário logado).
 - `perfil` é enum `adm/vet/cab`. `sangues_linhagem.total_anc` é gerada. `tenants`: email_admin/asaas_customer_id não únicos.
-- MCP do Supabase é **read-only** → writes vão pelo SQL Editor (eu gero o SQL, você aplica).
+- MCP do Supabase agora tem **acesso completo** (não é mais read-only) — writes via `apply_migration`/`execute_sql` direto.
+- **`tenants.ambiente_teste`** (bool, novo): segrega cabanhas de teste do staging/produção — `minhas_cabanhas()` devolve
+  o campo, `index.html` filtra client-side (`AMBIENTE_STAGING = location.hostname==='mimba-hml.pages.dev'`). Não é
+  barreira de segurança de verdade (mesmo banco/anon key nos dois ambientes) — é trava de UX. `true` hoje:
+  `qa_isolamento`, `qa_segunda`, `cabanha_pedro_teste`. Marcar tenants novos de teste manualmente.
+- Schema `public` tem `ALTER DEFAULT PRIVILEGES` do Supabase que concede `anon`/`PUBLIC` automaticamente em toda
+  **tabela e função** nova criada por `postgres` — sempre `revoke ... from anon, public` explícito depois de criar
+  (mordido 2x no módulo de Reprodução — ver `docs/roadmap-reproducao-equina.md`).
 - Named-property shadowing do HTML: um `<input name="submit">` sobrescreve `form.submit()` — use `HTMLFormElement.prototype.submit.call(form)` (mordido no fix do link ABCCC).
 - CORS preflight custa caro em request→request diferente de endpoint: prefira 1 RPC que devolve tudo a N chamadas REST separadas quando fizer sync de dados.
 

@@ -10220,8 +10220,9 @@ async function fazerLogin() {
     AUTH_USER  = authData.user || null;
     _salvarSessao(authData);
     _lembrarEmail(email);
-    // 2) Buscar as cabanhas do usuário
-    const cabs = await _rpc('minhas_cabanhas', {});
+    // 2) Buscar as cabanhas do usuário — filtradas por ambiente (staging só mostra
+    // cabanhas de teste; produção nunca mostra cabanha de teste)
+    const cabs = _filtrarCabsPorAmbiente(await _rpc('minhas_cabanhas', {}));
     if(!cabs || cabs.length===0) { _err('Seu acesso não está vinculado a nenhuma cabanha.'); AUTH_TOKEN=null; AUTH_USER=null; _limparSessaoSalva(); if(btn){btn.disabled=false;btn.textContent='Entrar';} return; }
     if(cabs.length===1) { await _entrarCabanha(cabs[0]); }
     else { _mostrarSeletor(cabs); if(btn){btn.disabled=false;btn.textContent='Entrar';} }
@@ -10248,6 +10249,16 @@ function _carregarEmailLembrado() {
     const email = localStorage.getItem(EMAIL_LEMBRADO_KEY);
     if(email) document.getElementById('login-user').value = email;
   } catch(e){}
+}
+
+// ── Segrega cabanhas de teste (ambiente_teste=true) do staging/produção. Não é uma
+// barreira de segurança de verdade (mesmo banco/anon key nos dois ambientes — a RLS
+// continua sendo o que protege os dados) — é uma trava de UX pra evitar mexer sem
+// querer em dado real testando na staging, ou logar em cabanha de teste em produção.
+const AMBIENTE_STAGING = location.hostname === 'mimba-hml.pages.dev';
+function _filtrarCabsPorAmbiente(cabs) {
+  if (!Array.isArray(cabs)) return cabs;
+  return cabs.filter(c => !!c.ambiente_teste === AMBIENTE_STAGING);
 }
 
 // ── Persistir sessão entre recarregamentos (access_token vive só em memória;
@@ -10303,7 +10314,7 @@ async function _tentarRetomarSessao() {
     AUTH_USER = uRes.ok ? await uRes.json().catch(()=>null) : null;
     if(!AUTH_USER) { AUTH_TOKEN = null; _limparSessaoSalva(); return _cancelarRetomada(); }
 
-    const cabs = await _rpc('minhas_cabanhas', {});
+    const cabs = _filtrarCabsPorAmbiente(await _rpc('minhas_cabanhas', {}));
     if(!cabs || cabs.length === 0) { AUTH_TOKEN = null; AUTH_USER = null; _limparSessaoSalva(); return _cancelarRetomada(); }
     document.getElementById('login-restaurando').style.display = 'none';
     if(cabs.length === 1) { await _entrarCabanha(cabs[0]); }
@@ -10693,7 +10704,7 @@ async function definirSenhaRecovery(){
     if(!r.ok){ _reset(); return _e(d.msg||d.error_description||'Não foi possível definir a senha. O link pode ter expirado — solicite um novo acesso.'); }
     // Sessão do recovery já é válida: entra direto (mesmo caminho pós-login)
     AUTH_TOKEN=_recoveryToken; AUTH_USER=d||null;
-    const cabs=await _rpc('minhas_cabanhas',{});
+    const cabs=_filtrarCabsPorAmbiente(await _rpc('minhas_cabanhas',{}));
     if(!cabs || cabs.length===0){ _reset(); return _e('Senha definida, mas seu acesso não está vinculado a nenhuma cabanha.'); }
     if(cabs.length===1){ await _entrarCabanha(cabs[0]); }
     else {
