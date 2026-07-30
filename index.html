@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mimba — Gestão Crioulos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,7 +55,8 @@
   body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; }
   .sidebar {
     width: 230px; background: var(--bg2); border-right: 0.5px solid var(--border);
-    padding: 1.25rem 1rem; position: fixed; top: 0; left: 0; height: 100vh;
+    padding: 1.25rem 1rem; position: fixed; top: 0; left: 0; height: 100vh; height: 100dvh;
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
     overflow-y: auto; display: flex; flex-direction: column; gap: 4px; z-index: 10;
   }
   .logo { margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 0.5px solid var(--border); }
@@ -68,7 +69,7 @@
   .nav-btn:hover { background:var(--bg3); color:var(--text); }
   .nav-btn.active { background:var(--green-l); color:var(--green-d); font-weight:600; }
   .nav-icon { font-size:15px; width:20px; text-align:center; }
-  .main { margin-left:230px; padding:1.75rem; min-height:100vh; }
+  .main { margin-left:230px; padding:1.75rem; min-height:100vh; min-height:100dvh; }
   .page { display:none; }
   .page.active { display:block; }
   .page-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.25rem; flex-wrap:wrap; gap:8px; }
@@ -274,7 +275,13 @@
   .med-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.4px; margin-top:5px; }
   .med-padrão { font-size:9px; color:var(--text3); margin-top:2px; }
   /* Menu mobile: botão hamburger fixo, escondido em desktop. */
-  #mobile-menu-btn { display:none; position:fixed; top:12px; left:12px; z-index:30; width:38px; height:38px; align-items:center; justify-content:center; background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius); color:var(--text); cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  #mobile-menu-btn {
+    display:none; position:fixed;
+    top: calc(12px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left));
+    z-index:30; width:38px; height:38px; align-items:center; justify-content:center;
+    background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius);
+    color:var(--text); cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+  }
   #sidebar-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9; }
   @media (max-width: 768px) {
     /* Sidebar vira painel suspenso (drawer): some por padrão, sem disputar

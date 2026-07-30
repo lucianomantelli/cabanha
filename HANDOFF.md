@@ -93,6 +93,13 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
 - `verify_jwt` **false** em webhook/funções públicas; **true** só na `convidar-usuario` (chamada direto pelo navegador do usuário logado).
 - `perfil` é enum `adm/vet/cab`. `sangues_linhagem.total_anc` é gerada. `tenants`: email_admin/asaas_customer_id não únicos.
 - MCP do Supabase agora tem **acesso completo** (não é mais read-only) — writes via `apply_migration`/`execute_sql` direto.
+- **`convidar-usuario` (edge function, v3)**: dois bugs de reconvite corrigidos — (1) `revogar_acesso_usuario` só
+  marca `tenant_memberships.ativo=false`, nunca apaga a linha, então reconvidar batia em 409 até a função aprender a
+  reativar em vez de bloquear; (2) `identidadeNova` (decide qual e-mail mandar) usava só "acabei de criar a
+  identidade agora?" — se o convite anterior expirou sem a pessoa nunca ter feito login, a identidade já existia
+  mas sem senha nenhuma, e ela recebia "use a senha que você já tem" (que nunca existiu). Agora checa
+  `last_sign_in_at IS NULL` via Admin API antes de decidir. `vincular_usuario_cabanha` (RPC) também virou idempotente
+  (upsert por `login`) pro caso de reconvidar alguém só suspenso (não excluído — a linha local `usuarios` continua lá).
 - **`tenants.ambiente_teste`** (bool, novo): segrega cabanhas de teste do staging/produção — `minhas_cabanhas()` devolve
   o campo, `index.html` filtra client-side (`AMBIENTE_STAGING = location.hostname==='mimba-hml.pages.dev'`). Não é
   barreira de segurança de verdade (mesmo banco/anon key nos dois ambientes) — é trava de UX. `true` hoje:
