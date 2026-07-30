@@ -116,6 +116,17 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
   `POST /auth/v1/verify` com `{email, token: codigo, type:'recovery'}` e funil pro mesmo fluxo de definir senha.
   Campo de código sem `maxlength` (o `email_otp` pode ter mais de 6 dígitos). Mensagens de erro sempre em português
   agora (antes repassava o texto cru do Supabase, ex. "Token has expired or is invalid").
+  **Atalho no e-mail (v6/v7)**: botão "Ir para a Mimba" aponta pra `APP_URL/?acesso=codigo` — não autentica nada
+  sozinho (só um parâmetro de UI), então visitável à vontade por qualquer scanner sem gastar o código. O app detecta
+  o parâmetro no boot (`_checkAcessoCodigo`) e já abre o painel "Tenho um código" pronto pra colar.
+  **"Convite pendente" (RPC `usuarios_pendentes_tenant`)**: a Tela de Conta → Usuários agora mostra um badge âmbar
+  "Convite pendente" pra quem foi convidado mas nunca completou o primeiro login (`auth.users.last_sign_in_at is
+  null`) — só admin ativo do próprio tenant pode chamar a RPC. Badge carrega ao abrir a aba (`_carregarStatusPendente`),
+  não bloqueia a renderização inicial.
+  ⚠️ **Pendente de ação manual sua**: reduzir a validade do código/link — hoje é o padrão do projeto no Supabase
+  (não consegui confirmar o valor exato nem mudar via ferramentas disponíveis, é config de projeto só no Dashboard).
+  Ajustar em **Authentication → Sign In / Providers → Email → Email OTP Expiration** (segundos; máximo permitido é
+  `86400` = 1 dia, que é o valor que você pediu).
 - **`tenants.ambiente_teste`** (bool, novo): segrega cabanhas de teste do staging/produção — `minhas_cabanhas()` devolve
   o campo, `index.html` filtra client-side (`AMBIENTE_STAGING = location.hostname==='mimba-hml.pages.dev'`). Não é
   barreira de segurança de verdade (mesmo banco/anon key nos dois ambientes) — é trava de UX. `true` hoje:

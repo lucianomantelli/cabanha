@@ -8441,11 +8441,16 @@ function renderUsuarios() {
     const pi = PERFIS_INFO[u.perfil] || PERFIS_INFO.cab;
     const ativo = u.ativo !== false;
     const isMe = usuarioAtual?.id === u.id;
+    // "Convite pendente": foi convidado mas nunca fez login de verdade (ver
+    // _carregarStatusPendente — undefined enquanto a RPC não voltou, não mostra nada errado).
+    const statusBadge = !ativo ? '<span class="badge br">Suspenso</span>'
+      : u.pendenteConvite ? '<span class="badge ba" title="Convidado, mas ainda não fez o primeiro login">Convite pendente</span>'
+      : '<span class="badge bg">Ativo</span>';
     return `<tr style="${!ativo?'opacity:0.55':''}">
       <td style="padding:8px 14px;font-weight:600">${u.nome}${isMe?' <span style="font-size:10px;color:var(--green-d)">(você)</span>':''}</td>
       <td style="font-family:var(--mono);font-size:12px">${u.login}</td>
       <td><span class="badge" style="background:${pi.bg};color:${pi.cor}">${pi.label}</span></td>
-      <td><span class="badge ${ativo?'bg':'br'}">${ativo?'Ativo':'Suspenso'}</span></td>
+      <td>${statusBadge}</td>
       <td style="font-size:11px;color:var(--text3)">${u.criadoEm||'—'}</td>
       ${!isAdmViewer ? '' : `<td style="white-space:nowrap">
         <button class="btn btn-sm" onclick="abrirModalUsuario(${i})" title="Editar">✏️</button>
@@ -8617,6 +8622,7 @@ function abrirTelaConta() {
   document.getElementById('conta-tab-cabanha').style.display = '';
   document.getElementById('conta-tab-usuarios').style.display = 'none';
   renderUsuarios();
+  _carregarStatusPendente();
   _aplicarPermissoes();
   openModal('modal-conta');
 }
@@ -8626,7 +8632,23 @@ function switchContaTab(btn, tabId) {
   btn.classList.add('active');
   document.getElementById('conta-tab-cabanha').style.display  = tabId === 'conta-tab-cabanha'  ? '' : 'none';
   document.getElementById('conta-tab-usuarios').style.display = tabId === 'conta-tab-usuarios' ? '' : 'none';
-  if(tabId === 'conta-tab-usuarios') renderUsuarios();
+  if(tabId === 'conta-tab-usuarios') { renderUsuarios(); _carregarStatusPendente(); }
+}
+
+// "Convite pendente": a pessoa foi convidada mas nunca fez login de verdade (nunca
+// definiu senha) — sinal vem de auth.users.last_sign_in_at, que o client não lê direto
+// (schema protegido), por isso a RPC usuarios_pendentes_tenant. Chamado ao abrir a aba
+// Usuários; não bloqueia a renderização inicial, só atualiza o badge quando volta.
+async function _carregarStatusPendente() {
+  if(!TENANT_INFO?.tenant_id) return;
+  try {
+    const rows = await _rpc('usuarios_pendentes_tenant', { p_tenant_id: TENANT_INFO.tenant_id });
+    if(!Array.isArray(rows)) return;
+    const pendentesPorId = {};
+    rows.forEach(r => { pendentesPorId[r.auth_user_id] = r.pendente; });
+    USUARIOS.forEach(u => { if(u.authUserId) u.pendenteConvite = !!pendentesPorId[u.authUserId]; });
+    renderUsuarios();
+  } catch(e) { /* silencioso — badge de pendente é informativo, não crítico */ }
 }
 
 function _onLogoFileSelect(e) {
@@ -10822,6 +10844,19 @@ async function definirSenhaRecovery(){
   }catch(e){ _reset(); _e('Falha ao conectar. Tente novamente.'); }
 }
 
+// Atalho do e-mail de convite/acesso ("Ir para a Mimba" → ?acesso=codigo): não autentica
+// nada sozinho (só um parâmetro de UI), então é seguro qualquer scanner de e-mail visitar —
+// só abre o painel "Tenho um código" já pronto pra colar o código, sem precisar caçar o link.
+function _checkAcessoCodigo(){
+  try {
+    const params = new URLSearchParams(location.search);
+    if(params.get('acesso') === 'codigo'){
+      history.replaceState(null,'',location.pathname);
+      _toggleCodigoAcesso();
+    }
+  } catch(e){}
+}
+
 populaCiclos();
 // Não renderizar automaticamente — aguardar login (email + senha via Supabase Auth)
 _loadUsuarios();
@@ -10829,6 +10864,7 @@ _loadUsuarios();
 // sessão salva (recarregar a página não derruba mais o acesso); por fim,
 // pré-preenche o e-mail lembrado na tela de login normal.
 if(!_checkRecovery()){
+  _checkAcessoCodigo();
   _tentarRetomarSessao().then(retomou => { if(!retomou) _carregarEmailLembrado(); });
 }
 
