@@ -438,38 +438,43 @@
       <div class="login-logo-title">Mimba</div>
       <div class="login-logo-sub">Gestão Crioulos · A inteligência da sua cabanha</div>
     </div>
-    <div class="login-field">
-      <label>Email</label>
-      <input type="email" id="login-user" placeholder="seu@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()">
-    </div>
-    <div class="login-field">
-      <label>Senha</label>
-      <div style="position:relative">
-        <input type="password" id="login-senha" placeholder="Sua senha" autocomplete="current-password" style="width:100%;padding-right:38px" onkeydown="if(event.key==='Enter')fazerLogin()">
-        <button type="button" onclick="_toggleLoginSenha()" title="Mostrar/ocultar senha" aria-label="Mostrar/ocultar senha"
-          style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;display:flex">
-          <svg id="login-senha-icon-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          <svg id="login-senha-icon-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.9 18.9 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-        </button>
+    <div id="login-campos-normais">
+      <div class="login-field">
+        <label>Email</label>
+        <input type="email" id="login-user" placeholder="seu@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()">
+      </div>
+      <div class="login-field">
+        <label>Senha</label>
+        <div style="position:relative">
+          <input type="password" id="login-senha" placeholder="Sua senha" autocomplete="current-password" style="width:100%;padding-right:38px" onkeydown="if(event.key==='Enter')fazerLogin()">
+          <button type="button" onclick="_toggleLoginSenha()" title="Mostrar/ocultar senha" aria-label="Mostrar/ocultar senha"
+            style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;display:flex">
+            <svg id="login-senha-icon-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg id="login-senha-icon-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.9 18.9 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="login-btn" onclick="fazerLogin()">Entrar</button>
+      <div class="login-error" id="login-error" style="display:none"></div>
+      <div id="login-seletor" style="display:none;margin-top:10px"></div>
+      <div style="margin-top:10px;text-align:center">
+        <a href="#" onclick="_toggleCodigoAcesso();return false;" style="font-size:12px;color:var(--text2)">Tenho um código de acesso</a>
       </div>
     </div>
-    <button class="login-btn" onclick="fazerLogin()">Entrar</button>
-    <div class="login-error" id="login-error" style="display:none"></div>
-    <div id="login-seletor" style="display:none;margin-top:10px"></div>
-    <div style="margin-top:10px;text-align:center">
-      <a href="#" onclick="_toggleCodigoAcesso();return false;" style="font-size:12px;color:var(--text2)">Tenho um código de acesso</a>
-    </div>
-    <div id="login-codigo-box" style="display:none;margin-top:8px">
+    <div id="login-codigo-box" style="display:none">
       <div class="login-field">
         <label>Email</label>
         <input type="email" id="cod-email" placeholder="seu@email.com" autocomplete="email">
       </div>
       <div class="login-field">
-        <label>Código de 6 dígitos (recebido por e-mail)</label>
-        <input type="text" id="cod-codigo" placeholder="000000" inputmode="numeric" maxlength="6" style="letter-spacing:4px;font-size:18px;text-align:center" onkeydown="if(event.key==='Enter')confirmarCodigoAcesso()">
+        <label>Código recebido por e-mail</label>
+        <input type="text" id="cod-codigo" placeholder="Cole ou digite o código" inputmode="numeric" style="letter-spacing:3px;font-size:18px;text-align:center" onkeydown="if(event.key==='Enter')confirmarCodigoAcesso()">
       </div>
       <button class="login-btn" onclick="confirmarCodigoAcesso()">Confirmar código</button>
       <div class="login-error" id="cod-error" style="display:none"></div>
+      <div style="margin-top:10px;text-align:center">
+        <a href="#" onclick="_toggleCodigoAcesso();return false;" style="font-size:12px;color:var(--text2)">← Voltar para login normal</a>
+      </div>
     </div>
   </div>
   <div class="login-box" id="login-restaurando" style="display:none;text-align:center">
@@ -10742,10 +10747,12 @@ function _checkRecovery(){
 // link, só que sem a etapa de "visitar uma URL") e funil pro mesmo fluxo de definir senha.
 function _toggleCodigoAcesso(){
   const box=document.getElementById('login-codigo-box');
-  if(!box) return;
-  const abrir = box.style.display==='none';
-  box.style.display = abrir?'':'none';
-  if(abrir){
+  const normal=document.getElementById('login-campos-normais');
+  if(!box || !normal) return;
+  const abrirCodigo = box.style.display==='none';
+  box.style.display = abrirCodigo?'':'none';
+  normal.style.display = abrirCodigo?'none':'';
+  if(abrirCodigo){
     const em=document.getElementById('login-user')?.value||'';
     const emC=document.getElementById('cod-email'); if(emC && em && !emC.value) emC.value=em;
     setTimeout(()=>document.getElementById('cod-codigo')?.focus(),50);
