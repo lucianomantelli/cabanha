@@ -10776,7 +10776,9 @@ async function confirmarCodigoAcesso(){
       body: JSON.stringify({ email, token:codigo, type:'recovery' })
     });
     const d=await r.json().catch(()=>({}));
-    if(!r.ok || !d.access_token){ _reset(); return _e(d.msg||d.error_description||'Código inválido ou expirado. Confira e tente de novo, ou peça um novo convite.'); }
+    // Mensagem sempre em português — o Supabase devolve o erro em inglês (ex.: "Token
+    // has expired or is invalid"), destoante do resto do app.
+    if(!r.ok || !d.access_token){ _reset(); return _e('Código inválido ou expirado. Confira se digitou certo, ou peça um novo convite/acesso.'); }
     // Mesma sessão que o link de recovery entregaria — funil pra tela de definir senha
     _recoveryToken=d.access_token; AUTH_USER=d.user||null;
     document.getElementById('login-box-main').style.display='none';
@@ -10805,7 +10807,8 @@ async function definirSenhaRecovery(){
       body: JSON.stringify({ password:n1 })
     });
     const d=await r.json().catch(()=>({}));
-    if(!r.ok){ _reset(); return _e(d.msg||d.error_description||'Não foi possível definir a senha. O link pode ter expirado — solicite um novo acesso.'); }
+    // Mensagem sempre em português — o Supabase devolve o erro em inglês.
+    if(!r.ok){ _reset(); return _e('Não foi possível definir a senha. O link/código pode ter expirado — solicite um novo acesso.'); }
     // Sessão do recovery já é válida: entra direto (mesmo caminho pós-login)
     AUTH_TOKEN=_recoveryToken; AUTH_USER=d||null;
     const cabs=_filtrarCabsPorAmbiente(await _rpc('minhas_cabanhas',{}));

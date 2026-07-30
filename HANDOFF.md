@@ -103,11 +103,19 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
 - **Link de "definir senha" "expira" em minutos pra e-mail corporativo (v4/v5)**: causa raiz confirmada nos logs do
   Auth — o link, de uso único, era gasto por um gateway de segurança da empresa do destinatário (Safe Links/Proofpoint
   etc., comum em domínio corporativo) que visita todo link recebido por e-mail automaticamente pra escanear, antes da
-  pessoa clicar de verdade. Corrigido incluindo também um **código de 6 dígitos** (`email_otp`, devolvido junto pela
-  API `admin/generate_link`) no mesmo e-mail (`convidar-usuario` v4, `enviar-acesso` v5) — o código só é gasto quando
-  alguém digita manualmente, não é "clicável" então scanner nenhum consegue consumir sozinho. Tela de login ganhou
-  "Tenho um código de acesso" (`_toggleCodigoAcesso`/`confirmarCodigoAcesso`) que chama `POST /auth/v1/verify` com
-  `{email, token: codigo, type:'recovery'}` e funil pro mesmo fluxo de definir senha do link.
+  pessoa clicar de verdade.
+  ⚠️ **Tentativa 1 (v4/v5) não resolveu de verdade**: mandar o link E o código juntos "como alternativa" não dá
+  redundância nenhuma — descobrimos (via logs do Auth) que **os dois compartilham o mesmo token por baixo**: usar
+  qualquer um dos dois (inclusive um scanner só *visitando* o link) invalida o outro imediatamente. Um teste real
+  confirmou: link visitado com sucesso às 17:05, código gerado junto tentado às 17:12 → "token expirado", porque já
+  tinha sido gasto pelo link 7 min antes.
+  ✅ **Fix de verdade (v5/v6)**: e-mail de identidade nova agora manda **só o código**, sem link clicável nenhum (o
+  botão do e-mail vira um link comum pra home do app, sem poder de autenticar sozinho — visitável à vontade por
+  qualquer scanner sem custar nada). Tela de login: "Tenho um código de acesso" (`_toggleCodigoAcesso`/
+  `confirmarCodigoAcesso`) troca o formulário inteiro (esconde email/senha/Entrar) em vez de empilhar — chama
+  `POST /auth/v1/verify` com `{email, token: codigo, type:'recovery'}` e funil pro mesmo fluxo de definir senha.
+  Campo de código sem `maxlength` (o `email_otp` pode ter mais de 6 dígitos). Mensagens de erro sempre em português
+  agora (antes repassava o texto cru do Supabase, ex. "Token has expired or is invalid").
 - **`tenants.ambiente_teste`** (bool, novo): segrega cabanhas de teste do staging/produção — `minhas_cabanhas()` devolve
   o campo, `index.html` filtra client-side (`AMBIENTE_STAGING = location.hostname==='mimba-hml.pages.dev'`). Não é
   barreira de segurança de verdade (mesmo banco/anon key nos dois ambientes) — é trava de UX. `true` hoje:
