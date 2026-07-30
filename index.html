@@ -456,6 +456,21 @@
     <button class="login-btn" onclick="fazerLogin()">Entrar</button>
     <div class="login-error" id="login-error" style="display:none"></div>
     <div id="login-seletor" style="display:none;margin-top:10px"></div>
+    <div style="margin-top:10px;text-align:center">
+      <a href="#" onclick="_toggleCodigoAcesso();return false;" style="font-size:12px;color:var(--text2)">Tenho um código de acesso</a>
+    </div>
+    <div id="login-codigo-box" style="display:none;margin-top:8px">
+      <div class="login-field">
+        <label>Email</label>
+        <input type="email" id="cod-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+      <div class="login-field">
+        <label>Código de 6 dígitos (recebido por e-mail)</label>
+        <input type="text" id="cod-codigo" placeholder="000000" inputmode="numeric" maxlength="6" style="letter-spacing:4px;font-size:18px;text-align:center" onkeydown="if(event.key==='Enter')confirmarCodigoAcesso()">
+      </div>
+      <button class="login-btn" onclick="confirmarCodigoAcesso()">Confirmar código</button>
+      <div class="login-error" id="cod-error" style="display:none"></div>
+    </div>
   </div>
   <div class="login-box" id="login-restaurando" style="display:none;text-align:center">
     <div class="login-logo">
@@ -10718,6 +10733,51 @@ function _checkRecovery(){
   }
   return false;
 }
+
+// ── "Tenho um código" — alternativa ao link de recovery para quem tem e-mail
+// corporativo com gateway de segurança que "visita" o link sozinho e o consome antes
+// da pessoa clicar (link aparece "expirado" já na primeira tentativa real). O código
+// de 6 dígitos (email_otp, mandado junto no mesmo e-mail) só é gasto quando alguém
+// efetivamente o digita aqui — verifica via POST /auth/v1/verify (mesmo mecanismo do
+// link, só que sem a etapa de "visitar uma URL") e funil pro mesmo fluxo de definir senha.
+function _toggleCodigoAcesso(){
+  const box=document.getElementById('login-codigo-box');
+  if(!box) return;
+  const abrir = box.style.display==='none';
+  box.style.display = abrir?'':'none';
+  if(abrir){
+    const em=document.getElementById('login-user')?.value||'';
+    const emC=document.getElementById('cod-email'); if(emC && em && !emC.value) emC.value=em;
+    setTimeout(()=>document.getElementById('cod-codigo')?.focus(),50);
+  }
+}
+async function confirmarCodigoAcesso(){
+  const err=document.getElementById('cod-error');
+  const _e=(m)=>{ if(err){ err.textContent=m; err.style.display='block'; } };
+  if(err) err.style.display='none';
+  const email=(document.getElementById('cod-email')?.value||'').trim();
+  const codigo=(document.getElementById('cod-codigo')?.value||'').trim();
+  if(!email) return _e('Informe o e-mail.');
+  if(!codigo || codigo.length<6) return _e('Informe o código de 6 dígitos recebido por e-mail.');
+  const btn=document.querySelector('#login-codigo-box .login-btn');
+  const _reset=()=>{ if(btn){ btn.disabled=false; btn.textContent='Confirmar código'; } };
+  if(btn){ btn.disabled=true; btn.textContent='Verificando...'; }
+  try{
+    const r=await fetch(`${SUPABASE_URL}/auth/v1/verify`,{
+      method:'POST',
+      headers:{ 'apikey':SUPABASE_KEY, 'Content-Type':'application/json' },
+      body: JSON.stringify({ email, token:codigo, type:'recovery' })
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || !d.access_token){ _reset(); return _e(d.msg||d.error_description||'Código inválido ou expirado. Confira e tente de novo, ou peça um novo convite.'); }
+    // Mesma sessão que o link de recovery entregaria — funil pra tela de definir senha
+    _recoveryToken=d.access_token; AUTH_USER=d.user||null;
+    document.getElementById('login-box-main').style.display='none';
+    document.getElementById('definir-senha-box').style.display='';
+    setTimeout(()=>{ const el=document.getElementById('ds-nova'); if(el) el.focus(); },50);
+  }catch(e){ _reset(); _e('Falha ao conectar. Tente novamente.'); }
+}
+
 async function definirSenhaRecovery(){
   const err=document.getElementById('ds-error');
   const _e=(m)=>{ if(err){ err.textContent=m; err.style.display='block'; setTimeout(()=>err.style.display='none',6000);} };

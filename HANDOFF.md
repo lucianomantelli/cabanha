@@ -100,6 +100,14 @@ Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isola
   mas sem senha nenhuma, e ela recebia "use a senha que você já tem" (que nunca existiu). Agora checa
   `last_sign_in_at IS NULL` via Admin API antes de decidir. `vincular_usuario_cabanha` (RPC) também virou idempotente
   (upsert por `login`) pro caso de reconvidar alguém só suspenso (não excluído — a linha local `usuarios` continua lá).
+- **Link de "definir senha" "expira" em minutos pra e-mail corporativo (v4/v5)**: causa raiz confirmada nos logs do
+  Auth — o link, de uso único, era gasto por um gateway de segurança da empresa do destinatário (Safe Links/Proofpoint
+  etc., comum em domínio corporativo) que visita todo link recebido por e-mail automaticamente pra escanear, antes da
+  pessoa clicar de verdade. Corrigido incluindo também um **código de 6 dígitos** (`email_otp`, devolvido junto pela
+  API `admin/generate_link`) no mesmo e-mail (`convidar-usuario` v4, `enviar-acesso` v5) — o código só é gasto quando
+  alguém digita manualmente, não é "clicável" então scanner nenhum consegue consumir sozinho. Tela de login ganhou
+  "Tenho um código de acesso" (`_toggleCodigoAcesso`/`confirmarCodigoAcesso`) que chama `POST /auth/v1/verify` com
+  `{email, token: codigo, type:'recovery'}` e funil pro mesmo fluxo de definir senha do link.
 - **`tenants.ambiente_teste`** (bool, novo): segrega cabanhas de teste do staging/produção — `minhas_cabanhas()` devolve
   o campo, `index.html` filtra client-side (`AMBIENTE_STAGING = location.hostname==='mimba-hml.pages.dev'`). Não é
   barreira de segurança de verdade (mesmo banco/anon key nos dois ambientes) — é trava de UX. `true` hoje:
