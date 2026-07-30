@@ -94,7 +94,11 @@
   página que o usuário estava vendo. Corrigido de forma abrangente: ao terminar o sync, re-renderiza
   a página que estiver ativa no momento (não só Gestação/Medidas — a mesma corrida podia afetar
   qualquer página visitada nesse intervalo).
-- [ ] **Aba de Medidas — layout ainda precisa de melhoria visual** (item visual separado, não feito).
+- [x] **Aba de Medidas — layout modernizado.** Valores de medida (cernelha/tórax/canela) viraram badges/pills
+  coloridos com ícone (reaproveitando a mesma paleta `.badge` verde/vermelho/âmbar do resto do app, em vez de só
+  cor de texto crua) nas duas sub-abas (cards "Últimas medidas" e tabela "Histórico completo"). Adicionada linha de
+  métricas no topo (ativos com medição / dentro do padrão / com medida abaixo / sem medição), mesmo padrão das
+  telas mais novas. Só visual — nenhuma mudança de lógica de carregar/salvar.
 - [x] **Link do SBB para a ABCCC concluído:** o link já existia (Matrizes e Animais), mas nunca
   funcionava de verdade — tentava injetar o SBB no DOM da popup via polling, bloqueado por
   cross-origin (restrição do navegador). Corrigido para montar um POST na própria página e

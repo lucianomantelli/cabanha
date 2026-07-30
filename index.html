@@ -260,14 +260,19 @@
   /* MEDIDAS */
   .med-card { background:var(--bg3); border-radius:var(--radius); padding:10px 12px; margin-bottom:8px; }
   .med-card-date { font-size:10px; color:var(--text3); margin-bottom:6px; }
-  .med-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-  .med-item { text-align:center; }
+  .med-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(90px,1fr)); gap:12px; }
+  .med-item { text-align:center; background:var(--bg); border-radius:var(--radius); padding:10px 6px; }
+  .med-icon { font-size:16px; margin-bottom:4px; }
   .med-val { font-size:15px; font-weight:700; color:var(--text); }
-  .med-label { font-size:9px; color:var(--text3); text-transform:uppercase; letter-spacing:0.4px; margin-top:2px; }
+  .med-val-pill { display:inline-block; font-size:14px; font-weight:700; padding:4px 12px; border-radius:99px; background:var(--bg3); color:var(--text); }
   .med-status-ok  { color:var(--green-d); }
   .med-status-low { color:var(--red-d); }
   .med-status-hi  { color:var(--amber-d); }
-  .med-padrão { font-size:9px; color:var(--text3); margin-top:1px; }
+  .med-val-pill.med-status-ok  { background:var(--green-l); color:var(--green-d); }
+  .med-val-pill.med-status-low { background:var(--red-l);   color:var(--red-d); }
+  .med-val-pill.med-status-hi  { background:var(--amber-l); color:var(--amber-d); }
+  .med-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.4px; margin-top:5px; }
+  .med-padrão { font-size:9px; color:var(--text3); margin-top:2px; }
   /* Menu mobile: botão hamburger fixo, escondido em desktop. */
   #mobile-menu-btn { display:none; position:fixed; top:12px; left:12px; z-index:30; width:38px; height:38px; align-items:center; justify-content:center; background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius); color:var(--text); cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
   #sidebar-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9; }
@@ -1179,6 +1184,12 @@
     Machos — cernelha 1,40–1,50m · tórax ≥1,68m · canela ≥0,18m &nbsp;|&nbsp;
     Fêmeas — cernelha 1,38–1,48m · tórax ≥1,70m · canela ≥0,175m &nbsp;|&nbsp;
     Instrumento: hipômetro (cernelha) · fita métrica (tórax e canela) · balança (peso)
+  </div>
+  <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+    <div class="metric"><div class="metric-label">Ativos com medição</div><div class="metric-value" id="med-m-total">0</div></div>
+    <div class="metric"><div class="metric-label">Dentro do padrão ABCCC</div><div class="metric-value" style="color:var(--green-d)" id="med-m-ok">0</div></div>
+    <div class="metric"><div class="metric-label">Com medida abaixo do padrão</div><div class="metric-value" style="color:var(--red-d)" id="med-m-baixo">0</div></div>
+    <div class="metric"><div class="metric-label">Sem nenhuma medição</div><div class="metric-value" id="med-m-sem">0</div></div>
   </div>
   <div class="tab-row">
     <button class="tab active" onclick="switchTab(this,'med-lista')">Últimas medidas por animal</button>
@@ -3459,12 +3470,23 @@ function checaMedida(val, min, max) {
 function renderMedLista() {
   const el=document.getElementById('med-lista-content'); if(!el) return;
   const ativos=animais.filter(a=>isAtivo(a));
-  if(!ativos.length){el.innerHTML='<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum animal ativo.</div>';return;}
+  if(!ativos.length){el.innerHTML='<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhum animal ativo.</div>';
+    ['med-m-total','med-m-ok','med-m-baixo','med-m-sem'].forEach(id=>{const e=document.getElementById(id); if(e) e.textContent='0';});
+    return;}
+  let mTotal=0,mOk=0,mBaixo=0,mSem=0;
   el.innerHTML=ativos.map(a=>{
     const i=animais.indexOf(a);
     const hist=getMedidas(i);
     const ult=hist.length?hist.reduce((b,c)=>c.data>b.data?c:b):null;
     const pad=a.sexo?.toLowerCase().includes('macho')?PADRÃO_ABCCC.macho:PADRÃO_ABCCC.femea;
+    if(!ult){ mSem++; }
+    else{
+      mTotal++;
+      const stC=checaMedida(ult.cernelha,pad.cernelha_min,pad.cernelha_max);
+      const stT=checaMedida(ult.torax,pad.torax_min,null);
+      const stCan=checaMedida(ult.canela,pad.canela_min,null);
+      if([stC,stT,stCan].includes('med-status-low')) mBaixo++; else mOk++;
+    }
     return `<div class="card" style="margin-bottom:0.75rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem">
         <div><div style="font-weight:700;font-size:13px">${a.nome}</div>
@@ -3472,15 +3494,17 @@ function renderMedLista() {
         <button class="btn btn-sm" onclick="abrirModalMedida(${i})">+ Medir</button>
       </div>
       ${ult?`<div class="med-grid">
-        ${ult.cernelha?`<div class="med-item"><div class="med-val ${checaMedida(ult.cernelha,pad.cernelha_min,pad.cernelha_max)}">${ult.cernelha}m</div><div class="med-label">Cernelha</div><div class="med-padrão">${pad.cernelha_min}–${pad.cernelha_max}m</div></div>`:''}
-        ${ult.torax?`<div class="med-item"><div class="med-val ${checaMedida(ult.torax,pad.torax_min,null)}">${ult.torax}m</div><div class="med-label">Tórax</div><div class="med-padrão">≥${pad.torax_min}m</div></div>`:''}
-        ${ult.canela?`<div class="med-item"><div class="med-val ${checaMedida(ult.canela,pad.canela_min,null)}">${ult.canela}m</div><div class="med-label">Canela</div><div class="med-padrão">≥${pad.canela_min}m</div></div>`:''}
-        ${ult.peso?`<div class="med-item"><div class="med-val">${ult.peso}kg</div><div class="med-label">Peso</div><div class="med-padrão">&nbsp;</div></div>`:''}
-        ${ult.escore?`<div class="med-item"><div class="med-val">${ult.escore}/9</div><div class="med-label">Escore</div><div class="med-padrão">ideal: 4–6</div></div>`:''}
-      </div><div style="font-size:10px;color:var(--text3);margin-top:4px">Última: ${fd(ult.data)} · ${ult.contexto||'Rotina'}</div>`
+        ${ult.cernelha?`<div class="med-item"><div class="med-icon">📏</div><div class="med-val-pill ${checaMedida(ult.cernelha,pad.cernelha_min,pad.cernelha_max)}">${ult.cernelha}m</div><div class="med-label">Cernelha</div><div class="med-padrão">${pad.cernelha_min}–${pad.cernelha_max}m</div></div>`:''}
+        ${ult.torax?`<div class="med-item"><div class="med-icon">📐</div><div class="med-val-pill ${checaMedida(ult.torax,pad.torax_min,null)}">${ult.torax}m</div><div class="med-label">Tórax</div><div class="med-padrão">≥${pad.torax_min}m</div></div>`:''}
+        ${ult.canela?`<div class="med-item"><div class="med-icon">🦵</div><div class="med-val-pill ${checaMedida(ult.canela,pad.canela_min,null)}">${ult.canela}m</div><div class="med-label">Canela</div><div class="med-padrão">≥${pad.canela_min}m</div></div>`:''}
+        ${ult.peso?`<div class="med-item"><div class="med-icon">⚖️</div><div class="med-val-pill">${ult.peso}kg</div><div class="med-label">Peso</div><div class="med-padrão">&nbsp;</div></div>`:''}
+        ${ult.escore?`<div class="med-item"><div class="med-icon">📊</div><div class="med-val-pill">${ult.escore}/9</div><div class="med-label">Escore</div><div class="med-padrão">ideal: 4–6</div></div>`:''}
+      </div><div style="font-size:10px;color:var(--text3);margin-top:8px">Última: ${fd(ult.data)} · ${ult.contexto||'Rotina'}</div>`
       :'<div class="nut-empty">Nenhuma medição registrada.</div>'}
     </div>`;
   }).join('');
+  const setM=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  setM('med-m-total',mTotal); setM('med-m-ok',mOk); setM('med-m-baixo',mBaixo); setM('med-m-sem',mSem);
 }
 
 function renderMedHistorico() {
@@ -3503,9 +3527,9 @@ function renderMedHistorico() {
       <td style="padding:6px 10px;font-weight:600">${r.nomeAnimal}</td>
       <td style="font-size:12px">${fd(r.data)}</td>
       <td><span class="badge bgr">${r.contexto||'Rotina'}</span></td>
-      <td class="${stC}" style="font-weight:${stC?'700':'400'}">${r.cernelha?r.cernelha+'m':'—'}</td>
-      <td class="${stT}" style="font-weight:${stT?'700':'400'}">${r.torax?r.torax+'m':'—'}</td>
-      <td class="${stCan}" style="font-weight:${stCan?'700':'400'}">${r.canela?r.canela+'m':'—'}</td>
+      <td>${r.cernelha?`<span class="med-val-pill ${stC}">${r.cernelha}m</span>`:'—'}</td>
+      <td>${r.torax?`<span class="med-val-pill ${stT}">${r.torax}m</span>`:'—'}</td>
+      <td>${r.canela?`<span class="med-val-pill ${stCan}">${r.canela}m</span>`:'—'}</td>
       <td>${r.peso?r.peso+'kg':'—'}</td>
       <td>${r.escore?r.escore+'/9':'—'}</td>
       <td style="font-size:11px;color:var(--text2)">${r.resp||'—'}</td>
