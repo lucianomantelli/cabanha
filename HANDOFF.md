@@ -1,4 +1,4 @@
-# Handoff — Mimba · checkpoint 2026-07-27 (pós-maratona pré-apresentação)
+# Handoff — Mimba · checkpoint 2026-08-02
 
 > Documento de retomada. Condensa o que já foi construído e o que falta. **Não contém segredos.**
 
@@ -7,66 +7,102 @@
 - **Landing:** sessão em `projetos/mimba-landing` (repo `mimba-app/mimba-landing`, clonado). O `index.html` é um bundle gerado; as páginas `/assinar` e `/obrigado` são hand-authored (editáveis à vontade).
 
 ## 🔴 O MAIS IMPORTANTE PRA SABER AGORA
-Toda a maratona de correções desta sessão (ver `ROADMAP.md`) está **só na branch `staging`**, publicada em **`https://mimba-hml.pages.dev/`** via Cloudflare Pages — **nada disso está em produção** (`app.mimba.com.br`, branch `main`) ainda. A `main` só tem o que foi feito antes da `staging` existir (dashboard/toast fix + e-mail de acesso). **Antes da apresentação, decidir: promover `staging` → `main`?** (`git checkout main && git merge staging` + skill `deploy`, depois de testar tudo na URL de staging).
+Toda a maratona de correções desde a apresentação (ver `ROADMAP.md` + seções abaixo) está **só na branch `staging`**, publicada em **`https://mimba-hml.pages.dev/`** via Cloudflare Pages — **nada disso está em produção** (`app.mimba.com.br`, branch `main`) ainda. A `main` só tem o que foi feito antes da `staging` existir. **Decisão pendente há várias sessões: promover `staging` → `main`?** (`git checkout main && git merge staging` + skill `deploy`, depois de testar tudo na URL de staging).
 
-## 🎨 Redesign visual da casca (2026-08-02) — pendente de validação com o sócio
+Isso já mordeu na prática: quando o Thiago (sócio, admin da Cabanha Santa Adelina — cliente real) precisou de um reenvio de convite, o botão que resolve isso só existe na `staging`, e a `staging` só mostra cabanhas com `ambiente_teste=true` — foi preciso marcar a cabanha dele como teste temporariamente pra usar o fluxo. **Enquanto a promoção não acontece, todo suporte a cliente real por esse tipo de fluxo depende desse contorno.**
+
+## 🎨 Redesign visual da casca (2026-08-02)
 Pedido do sócio: a sidebar/navegação estava com "cara de vibe coding" (emoji cru como ícone de menu, marca ausente
 quando a cabanha não tem logo própria cadastrada). Feito:
-- **Sidebar**: menu lateral trocou todos os 12 ícones de navegação (emoji: 🐴🌾🏆🤰📦📏🧬 + símbolos ⊞✚♡$) por um
-  conjunto único de ícones SVG geométricos (mesmo padrão `stroke=currentColor, stroke-width=2` já usado na engrenagem/
-  logout que já existiam). Adicionado indicador de aba ativa (barra verde à esquerda). Marca "Mimba" (Playfair serif)
-  agora **sempre visível** no topo da sidebar com um monograma "M" (verde, canto arredondado) — antes, cabanha sem
-  logo própria cadastrada não mostrava marca nenhuma, só o nome da cabanha.
-- **Corpo das páginas**: uma auditoria (subagente Explore) mapeou ~230 ocorrências de emoji funcional (ícone de botão,
-  título de seção, badge, kanban) fora da sidebar. Duas passadas de limpeza (subagentes `engenheiro-frontend`,
-  sequenciais — mesmo arquivo, não dava pra paralelizar) resolveram a esmagadora maioria: semáforo 🔴🟡🟢 (removido,
-  já tinha classe de cor `.badge`), pares condicionais 💉🔬/📄🖼️/📷🎬 (centralizados em funções `_iconX()` reutilizáveis),
-  botões repetidos ✏️💾✕🔍📋 (ícones SVG), ~150 emojis de seção (🐴🌾🏆🤰🏠👤 etc.) em `.ficha-section-title`/badges/alertas,
-  cores hex duplicando `var(--blue-l)` etc., padding de tabela inconsistente entre telas de listagem parecidas.
-  **Ficou de fora de propósito** (baixo risco/baixo impacto): ✅✓⚠ em toasts de status transitório (padrão de UX comum,
-  não é "vibe coding"), ♂♀ em contexto de sexo/reprodução (símbolo científico padrão, não emoji decorativo), e uma
-  cauda longa de ~15 emojis de uso único e baixíssima frequência.
-- **Não testado ainda**: só validei visualmente via screenshot local (servidor estático temporário) simulando login —
-  **não testei o fluxo real de login em staging**. Testar em `mimba-hml.pages.dev` antes de considerar pronto pra
-  validar com o sócio.
+- **Sidebar**: os 12 ícones de navegação (emoji: 🐴🌾🏆🤰📦📏🧬 + símbolos ⊞✚♡$) viraram um conjunto único de ícones
+  SVG geométricos (`stroke=currentColor, stroke-width=2`, mesmo padrão da engrenagem/logout que já existiam).
+  Indicador de aba ativa (barra verde à esquerda). Marca "Mimba" (Playfair serif) agora **sempre visível** no topo
+  da sidebar com um monograma "M" de fallback — antes, cabanha sem logo própria não mostrava marca nenhuma.
+- **Corpo das páginas**: auditoria (subagente Explore) mapeou ~230 ocorrências de emoji funcional fora da sidebar.
+  Duas passadas de limpeza (`engenheiro-frontend`, sequenciais) resolveram a maioria: semáforo 🔴🟡🟢 (já tinha
+  classe `.badge`), pares condicionais 💉🔬/📄🖼️/📷🎬 (centralizados em `_iconX()` reutilizáveis), botões repetidos
+  ✏️💾✕🔍📋, ~150 emojis de seção em títulos/badges/alertas. Ficou de fora de propósito: ✅✓⚠ em toasts (UX padrão),
+  ♂♀ em contexto reprodutivo (símbolo científico), cauda longa de uso único.
+- **Status:** validado visualmente (servidor estático local + injeção de sessão fake). **Ainda não confirmado que o
+  sócio revisou/aprovou** — era o objetivo original do pedido, retomar quando ele der retorno.
 
-## ✅ ROADMAP — Prioridades 1 a 6 + vários itens extra: CONCLUÍDOS (nesta sessão, 2026-07-27)
-Ver `ROADMAP.md` para o detalhe de cada um. Resumo rápido do que mudou no app (`index.html`, tudo na `staging`):
-1. **Dashboard lento** → causa real era 12 requisições REST cada uma pagando preflight CORS; virou 1 RPC (`carregar_dados_cabanha`). Skeleton animado enquanto carrega.
-2. **Tela de Conta** → card no rodapé da sidebar (estilo shadcn/ui, ícones SVG), editar nome/logo da cabanha, gestão de usuários unificada, **convite de usuário agora cria identidade real no Auth** (antes só gravava linha local, login não funcionava).
-3. **Importar animais por lista de SBB** → cola lista ou `.txt`/`.csv`, busca em lote na ABCCC (3 em paralelo), insere tudo num POST só.
-4. **Eventos não carregavam** → resolvido de bônus pela RPC do item 1 (PostgREST não via o relacionamento `eventos`↔`eventos_animais` nesse schema).
-5. **Modal de detalhe do animal quebrado** → virou página cheia; corrigido bug de layout (texto colado) e um bug separado de nomes de campo (`participantes`/`animais`) que deixava a seção Eventos do detalhe sempre vazia.
-6. **Responsividade mobile** → trava de `overflow-x` na raiz + `.tab-row` rolável + menu vira painel suspenso (antes era barra fixa de ícones).
-7. **Login**: lembrar e-mail, mostrar/ocultar senha, **sessão sobrevive a recarregar a página** (access_token/refresh_token em localStorage, renova sozinho).
-8. **Link SBB → ABCCC**: já existia mas nunca funcionava de verdade (tentava contornar cross-origin, impossível); corrigido pra fazer o POST direto contra o formulário real da ABCCC.
-9. **Bug de Gestação/Medidas vazios na 1ª visita**: corrida com o sync do login — corrigido de forma abrangente (qualquer página ativa no momento em que o sync termina é re-renderizada).
+## 🐛 Convite de usuário — ciclo completo de correções (fins de julho → 2026-08-02)
+Começou como um bug simples ("reconvidei e disse que já existia") e virou uma revisão de ponta a ponta do fluxo de
+primeiro acesso. Estado final, `convidar-usuario` (edge function) na **v7**:
 
-### ⚠️ Pendente de confirmação — aplicado no banco, mas não reconfirmado nesta sessão
-Dois artefatos da Tela de Conta (item 2 acima) foram **entregues** (SQL + edge function) mas eu não tenho confirmação explícita de que foram aplicados/deployados — **verificar antes de considerar esse item 100% funcional em qualquer ambiente**:
-- Migration `migration-tela-conta.sql` (RPCs `atualizar_tenant`, `vincular_usuario_cabanha`, `revogar_acesso_usuario` + fix de grant em `vincular_admin_cabanha`).
-- Edge function `convidar-usuario` (verify_jwt=**ON**, diferente das outras — é chamada direto pelo navegador do admin logado).
-- A migration `migration-carregar-dados-cabanha.sql` (RPC do item 1) **essa sim foi confirmada aplicada e testada ao vivo**.
+1. **v3** — dois bugs de reconvite: `revogar_acesso_usuario` só marca `ativo=false` (nunca apaga a linha), então
+   reconvidar batia em 409 até a função aprender a reativar em vez de bloquear; `identidadeNova` (decide o texto do
+   e-mail) agora checa `last_sign_in_at IS NULL` via Admin API, não só "acabei de criar agora". `vincular_usuario_cabanha`
+   (RPC) virou idempotente (upsert por `login`).
+2. **v4/v5 (tentativa 1, insuficiente)** — e-mail corporativo "consumia" o link de definir senha antes da pessoa
+   clicar (gateway de segurança tipo Safe Links visita todo link automaticamente). Mandar link + código juntos
+   "como alternativa" pareceu resolver, mas **não resolvia**: confirmado nos logs do Auth que os dois compartilham
+   o mesmo token por baixo — usar (ou só visitar) qualquer um invalida o outro.
+3. **v5/v6 (fix de verdade)** — e-mail de identidade nova manda **só o código de 6 dígitos**, sem link clicável
+   (o botão vira link comum pra home, sem poder de autenticar — visitável à vontade por qualquer scanner).
+   Tela de login ganhou "Tenho um código de acesso" (`_toggleCodigoAcesso`/`confirmarCodigoAcesso`), que troca o
+   formulário inteiro em vez de empilhar. Mensagens de erro sempre em português. Atalho `APP_URL/?acesso=codigo`
+   no botão do e-mail abre esse painel automaticamente (`_checkAcessoCodigo`). Badge "Convite pendente" na Tela de
+   Conta → Usuários (RPC `usuarios_pendentes_tenant`) mostra quem foi convidado mas nunca completou o 1º login.
+4. **v7 (2026-08-02, gatilho: incidente real do Thiago)** — faltava uma forma de **reenviar** um código pra quem
+   ficou pendente (código antigo expirado) sem precisar suspender/excluir e recriar do zero. Botão novo (ícone de
+   sino) ao lado do badge "Convite pendente" chama `reenviarConviteUsuario()`, que reusa `convidar-usuario` — a
+   função agora distingue membership ativa **com** identidade que já logou de verdade (bloqueia, 409) de membership
+   ativa **mas** identidade pendente (`identidadeNova=true`, nunca logou) — trata como reenvio, sem duplicar
+   membership/linha local.
+5. **Pendente de ação manual sua**: validade do código/link ainda é o padrão do projeto no Supabase — mudar em
+   **Authentication → Sign In / Providers → Email → Email OTP Expiration** (máximo `86400` = 1 dia).
+
+**Caso real resolvido com isso:** Thiago (Cabanha Santa Adelina) recebeu convite em 31/07, nunca completou o login
+(código expirou). Usado o botão de reenvio (via staging, com a cabanha marcada `ambiente_teste=true` temporariamente
+pelo Pedro) — ele conseguiu acessar em 2026-08-02. Acesso temporário do Pedro àquela cabanha já foi removido.
+⚠️ **A cabanha Santa Adelina continua marcada `ambiente_teste=true`** no banco (o Pedro marcou direto) — como é uma
+cliente real, isso a esconde da produção quando a `staging` for promovida. Confirmar com o Pedro se deve voltar
+pra `false` antes da promoção.
+
+## 📱 Mobile — dois ciclos de correção
+- **Prioridade 6 do ROADMAP** (ver abaixo): overflow-x travado na raiz, `.tab-row` rolável, menu lateral virou
+  painel suspenso (drawer) com hamburger fixo.
+- **Ciclo 2 (pós-Prioridade 6)**: card inferior esquerdo (conta logada/sair/engrenagem) ficava cortado sem scroll,
+  e o botão de abrir o menu ficava oculto atrás da barra do navegador (depois "pulava"). Corrigido com
+  `100dvh`/`env(safe-area-inset-*)` na sidebar, `.main` e no botão de menu + `viewport-fit=cover` no meta viewport.
+
+## ✅ ROADMAP — Prioridades 1 a 6 + extras: CONCLUÍDOS
+Ver `ROADMAP.md` para o detalhe de cada um — dashboard lento (RPC única em vez de 12 requests), Tela de Conta
+centralizada, importação de animais por SBB em lote, eventos não carregavam, modal de detalhe do animal, mobile,
+login com sessão persistente, link SBB→ABCCC, Tela de Animais e Medidas modernizadas, gestação/medidas com corrida
+de sync corrigida.
+
+## 🐴 Módulo de Reprodução Equina v2 — CONCLUÍDO (8 fases)
+Ver `docs/reproducao-equina-CONCLUIDO.md` (renomeado do roadmap original, todas as fases marcadas). Fontes,
+acasalamentos, tentativas, gestações, cria automática, negociação cross-tenant, encerramento de ciclo.
+
+## 🌍 Segregação de ambiente (staging vs. produção) — construído
+`tenants.ambiente_teste` (bool, default `false`): `minhas_cabanhas()` devolve o campo, `index.html` filtra
+client-side (`AMBIENTE_STAGING = location.hostname==='mimba-hml.pages.dev'`) — staging só mostra `ambiente_teste=true`,
+produção só mostra `ambiente_teste=false`. **Não é barreira de segurança** (mesmo banco/anon key nos dois
+ambientes) — é trava de UX pra não misturar teste com dado real sem querer.
+⚠️ **Efeito colateral descoberto nesta sessão**: esse filtro também esconde cabanhas reais de quem está testando via
+staging — inclusive de você. Se precisar acessar uma cabanha de cliente real a partir da staging (ex.: pra usar uma
+feature que só existe lá, como o botão de reenvio do item acima), marque `ambiente_teste=true` nela temporariamente
+e **lembre de reverter depois**. `true` hoje: `qa_isolamento`, `qa_segunda`, `cabanha_pedro_teste`, e
+**`cabanha_santa_adelina` (temporário, revisar antes de promover `staging`→`main`)**.
 
 ### Achado de segurança registrado, não corrigido (decisão deliberada)
-A RLS de **todas** as tabelas de tenant (não só `usuarios`) libera INSERT/UPDATE/DELETE pra qualquer perfil ativo do tenant, não só admin — um cabanheiro logado podia, via API direta, se autopromover a admin. Pré-existente a esta sessão, sistêmico (toda tabela, todo schema). **Não mexido de propósito** — 2 dias antes de uma apresentação não é hora de reescrever RLS de todo o sistema. Ver memória `rls-permissiva-por-perfil` — retomar com o `arquiteto` depois de quarta.
-
-## O que falta do ROADMAP (itens sem prioridade numerada, não feitos)
-- Tela de Animais (V1) modernizar no padrão da tela de Gestações (V2).
-- Tela de Animais: edição sem confirmação, editável direto na "planilha" (sem modo leitura/edição separado).
-- Aba de Medidas: layout ainda precisa de melhoria visual (o *bug* de carregar foi corrigido; a estética não).
-- Campo "situação"/"data de confirmação" no cadastro de novo animal.
-- Buscar medidas de confirmação (altura/tórax/canela) da ABCCC pro cadastro.
-
-## E-mail de acesso — construído (sessão anterior, ✅ já em produção)
-Cliente paga → cabanha provisionada → admin recebe e-mail e define a própria senha (link recovery via Auth Admin `generateLink` + Resend, sem senha determinística). Edge functions `enviar-acesso`/`provisionar-cabanha`/`asaas-webhook` já deployadas e testadas ponta a ponta. Revisão de isolamento: ✅ aprovado.
+A RLS de **todas** as tabelas de tenant libera INSERT/UPDATE/DELETE pra qualquer perfil ativo do tenant, não só
+admin — um cabanheiro logado podia se autopromover a admin via API direta. Pré-existente, sistêmico. Retomar com
+o `arquiteto`.
 
 ## Arquitetura (o que existe e funciona)
-- **App:** `index.html` único, sem framework/bundler. **Produção:** GitHub Pages, branch `main`, `app.mimba.com.br`. **Staging:** Cloudflare Pages, branch `staging`, `mimba-hml.pages.dev` — **mesmo banco Supabase da produção** (staging isola só código, não dados; só testar na "Cabanha Pedro Teste"; ver memória `staging-e-isolamento-de-dados`).
-- **Backend:** Supabase `fmjfvfufkqswweyasjyp` (Postgres + Edge Functions Deno + Auth). anon key pública (no index.html).
-- **Multi-tenant por schema:** cada cabanha = `cab_<slug>`. `public` é o **template** (tabelas vazias). Control-plane em `public`.
-- **Login identity-first:** Supabase Auth (email+senha, JWT). `tenant_memberships` (identidade → N cabanhas + perfil). `minhas_cabanhas()` → 1 entra direto, N abre seletor. Sessão agora persiste entre reloads (ver item 7 acima).
-- **Isolamento (RLS):** policies só `authenticated` via `tem_acesso_tenant(<tenant_id>)` em `(select ...)`. `anon` sem acesso aos schemas de cabanha (→ 401). Cabanha nova nasce isolada. *(Mas ver achado de segurança acima — escrita não é restrita por perfil ainda.)*
+- **App:** `index.html` único, sem framework/bundler. **Produção:** GitHub Pages, branch `main`, `app.mimba.com.br`.
+  **Staging:** Cloudflare Pages, branch `staging`, `mimba-hml.pages.dev` — **mesmo banco Supabase da produção**
+  (staging isola só código, não dados).
+- **Backend:** Supabase `fmjfvfufkqswweyasjyp` (Postgres + Edge Functions Deno + Auth). anon key pública.
+- **Multi-tenant por schema:** cada cabanha = `cab_<slug>`. `public` é o **template**. Control-plane em `public`.
+- **Login identity-first:** Supabase Auth (email+senha, JWT). `tenant_memberships` (identidade → N cabanhas +
+  perfil). `minhas_cabanhas()` → 1 entra direto, N abre seletor (agora filtrado por `ambiente_teste`, ver acima).
+- **Isolamento (RLS):** policies só `authenticated` via `tem_acesso_tenant(<tenant_id>)` em `(select ...)`. `anon`
+  sem acesso aos schemas de cabanha. *(Mas ver achado de segurança acima — escrita não é restrita por perfil.)*
 
 ## Fluxo de contratação (self-serve) — construído e testado no sandbox
 ```
@@ -75,92 +111,61 @@ mimba.com.br/assinar (form) → Edge Function criar-checkout → Asaas (cliente 
 cliente paga (Asaas) → redireciona p/ mimba.com.br/obrigado
 Asaas → asaas-webhook (valida token) → provisionar-cabanha → cabanha isolada → enviar-acesso   ✅ testado ponta a ponta
 ```
-- Decisões: **cobrança imediata**; assinatura **mensal**; cliente escolhe forma de pagamento; pagamento na **página hospedada do Asaas**.
-- **Recorrência:** cartão cobra automático/mês; PIX/boleto gera invoice/mês. Webhook **idempotente**. Inadimplência = futuro.
-- **Gotcha conhecido:** conta Asaas precisa ter um **site/domínio cadastrado** em "Minha Conta" pro `callback`/redirect do checkout funcionar, senão dá erro genérico "Falha ao criar assinatura". Vale pra sandbox **e** pra produção no cutover.
+`enviar-acesso` também recebeu o fix "só código, sem link" (mesmo padrão do `convidar-usuario`).
 
-## Edge Functions (produção)
+## Edge Functions (produção — mesmo projeto Supabase pra staging e prod)
 - `criar-checkout` (verify_jwt=false) — form → Asaas → signup → invoiceUrl.
 - `asaas-webhook` (verify_jwt=false) — valida token; PAYMENT_CONFIRMED/RECEIVED → `provisionar-cabanha` → `enviar-acesso`.
-- `provisionar-cabanha` (verify_jwt=false, exige `Bearer service_role`) — cria tenant, RPC, admin no auth.users (senha aleatória nunca divulgada), membership, expõe schema.
-- `enviar-acesso` (verify_jwt=false, exige `Bearer service_role`) — link recovery + Resend.
-- `convidar-usuario` (verify_jwt=**true**) — **enviada, aplicação não reconfirmada** (ver seção de pendências acima).
+- `provisionar-cabanha` (verify_jwt=false, exige `Bearer service_role`).
+- `enviar-acesso` (verify_jwt=false, exige `Bearer service_role`) — v7, código sem link.
+- `convidar-usuario` (verify_jwt=**true**) — v7, ver ciclo completo acima.
 - `buscar-abccc`, `analise-sangues` (features do app).
-- RPCs: `provisionar_schema_cabanha`, `minhas_cabanhas`, `tem_acesso_tenant`, `buscar_auth_user_por_email`, `vincular_admin_cabanha`, `carregar_dados_cabanha` (✅ aplicada), `atualizar_tenant`/`vincular_usuario_cabanha`/`revogar_acesso_usuario` (enviadas, **não reconfirmadas**).
+- RPCs principais: `provisionar_schema_cabanha`, `minhas_cabanhas` (com `ambiente_teste`), `tem_acesso_tenant`,
+  `buscar_auth_user_por_email`, `vincular_admin_cabanha`, `carregar_dados_cabanha`, `atualizar_tenant`,
+  `vincular_usuario_cabanha` (idempotente), `revogar_acesso_usuario`, `usuarios_pendentes_tenant`.
 
 ## Secrets (nomes; valores só no Supabase)
-- `SB_MGMT_TOKEN`, `ASAAS_WEBHOOK_TOKEN`, `ASAAS_API_KEY` (⚠️ `$` no início, sandbox agora), `ASAAS_BASE_URL` (opcional), `RESEND_API_KEY` (+ opcionais `RESEND_FROM`/`RESEND_REPLY_TO`/`APP_URL`/`ACCESS_REDIRECT_TO`).
+`SB_MGMT_TOKEN`, `ASAAS_WEBHOOK_TOKEN`, `ASAAS_API_KEY` (⚠️ `$` no início, sandbox agora), `ASAAS_BASE_URL`
+(opcional), `RESEND_API_KEY` (+ opcionais `RESEND_FROM`/`RESEND_REPLY_TO`/`APP_URL`/`ACCESS_REDIRECT_TO`).
 
 ## Estado por frente
 | Frente | Estado |
 |---|---|
 | Login identity-first + isolamento + sessão persistente | ✅ no ar (staging) / parcial em prod |
 | Provisionamento automático | ✅ testado |
-| E-mail de acesso | ✅ em produção |
+| E-mail de acesso / convite de usuário (código, sem link, reenvio) | ✅ v7, testado com caso real (Thiago) |
 | Checkout self-serve (sandbox) | ✅ testado ponta a ponta |
-| **ROADMAP Prioridades 1-6** | ✅ concluídas — **só na staging**, aguardando promover pra `main` |
-| Tela de Conta (SQL/edge function) | ⚠️ enviado, aplicação não reconfirmada nesta sessão |
-| RLS permissiva por perfil (achado de segurança) | ❌ registrado, não corrigido (pós-apresentação, c/ `arquiteto`) |
-| Rename repo `cabanha`→`mimba` | ⏳ adiado pra depois de 29/07 (ver memória) |
-| Linkar "Contratar" da home → /assinar | ⏳ (sessão da landing) |
-| Cutover Asaas p/ produção | ❌ trocar `ASAAS_API_KEY`/`ASAAS_BASE_URL` + cadastrar domínio na conta Asaas de prod + redeploy `criar-checkout`/`asaas-webhook` |
-| reCAPTCHA/rate-limit no `criar-checkout` | ❌ antes de expor de verdade (é público) |
-| Migrar os 3 usuários da Mãe de Deus | ⏳ (agora que convite de usuário existe, destravar isso) |
+| ROADMAP Prioridades 1-6 + Reprodução Equina v2 | ✅ concluídas — **só na staging** |
+| Redesign visual da casca | ✅ implementado, ⏳ aguardando validação do sócio |
+| Segregação staging/produção (`ambiente_teste`) | ✅ construído, ⚠️ Santa Adelina marcada teste temporariamente |
+| RLS permissiva por perfil (achado de segurança) | ❌ registrado, não corrigido |
+| **Promover `staging` → `main`** | ❌ decisão pendente há várias sessões, trava suporte a cliente real |
+| Rename repo `cabanha`→`mimba` | ⏳ adiado |
+| Cutover Asaas p/ produção | ❌ trocar `ASAAS_API_KEY`/`ASAAS_BASE_URL` + domínio + redeploy |
+| reCAPTCHA/rate-limit no `criar-checkout` | ❌ antes de expor de verdade |
 | Refactor do index.html | ❌ futuro (ADR 0004 com o `arquiteto`) |
 
 ## Gotchas (já mordido)
 - **Trocou secret de Edge Function → redeploy a função** (cache do valor antigo).
 - **Secret com `$`/especial via CLI → aspas simples**, ou use o painel.
-- `verify_jwt` **false** em webhook/funções públicas; **true** só na `convidar-usuario` (chamada direto pelo navegador do usuário logado).
+- `verify_jwt` **false** em webhook/funções públicas; **true** só na `convidar-usuario`.
 - `perfil` é enum `adm/vet/cab`. `sangues_linhagem.total_anc` é gerada. `tenants`: email_admin/asaas_customer_id não únicos.
-- MCP do Supabase agora tem **acesso completo** (não é mais read-only) — writes via `apply_migration`/`execute_sql` direto.
-- **`convidar-usuario` (edge function, v3)**: dois bugs de reconvite corrigidos — (1) `revogar_acesso_usuario` só
-  marca `tenant_memberships.ativo=false`, nunca apaga a linha, então reconvidar batia em 409 até a função aprender a
-  reativar em vez de bloquear; (2) `identidadeNova` (decide qual e-mail mandar) usava só "acabei de criar a
-  identidade agora?" — se o convite anterior expirou sem a pessoa nunca ter feito login, a identidade já existia
-  mas sem senha nenhuma, e ela recebia "use a senha que você já tem" (que nunca existiu). Agora checa
-  `last_sign_in_at IS NULL` via Admin API antes de decidir. `vincular_usuario_cabanha` (RPC) também virou idempotente
-  (upsert por `login`) pro caso de reconvidar alguém só suspenso (não excluído — a linha local `usuarios` continua lá).
-- **Link de "definir senha" "expira" em minutos pra e-mail corporativo (v4/v5)**: causa raiz confirmada nos logs do
-  Auth — o link, de uso único, era gasto por um gateway de segurança da empresa do destinatário (Safe Links/Proofpoint
-  etc., comum em domínio corporativo) que visita todo link recebido por e-mail automaticamente pra escanear, antes da
-  pessoa clicar de verdade.
-  ⚠️ **Tentativa 1 (v4/v5) não resolveu de verdade**: mandar o link E o código juntos "como alternativa" não dá
-  redundância nenhuma — descobrimos (via logs do Auth) que **os dois compartilham o mesmo token por baixo**: usar
-  qualquer um dos dois (inclusive um scanner só *visitando* o link) invalida o outro imediatamente. Um teste real
-  confirmou: link visitado com sucesso às 17:05, código gerado junto tentado às 17:12 → "token expirado", porque já
-  tinha sido gasto pelo link 7 min antes.
-  ✅ **Fix de verdade (v5/v6)**: e-mail de identidade nova agora manda **só o código**, sem link clicável nenhum (o
-  botão do e-mail vira um link comum pra home do app, sem poder de autenticar sozinho — visitável à vontade por
-  qualquer scanner sem custar nada). Tela de login: "Tenho um código de acesso" (`_toggleCodigoAcesso`/
-  `confirmarCodigoAcesso`) troca o formulário inteiro (esconde email/senha/Entrar) em vez de empilhar — chama
-  `POST /auth/v1/verify` com `{email, token: codigo, type:'recovery'}` e funil pro mesmo fluxo de definir senha.
-  Campo de código sem `maxlength` (o `email_otp` pode ter mais de 6 dígitos). Mensagens de erro sempre em português
-  agora (antes repassava o texto cru do Supabase, ex. "Token has expired or is invalid").
-  **Atalho no e-mail (v6/v7)**: botão "Ir para a Mimba" aponta pra `APP_URL/?acesso=codigo` — não autentica nada
-  sozinho (só um parâmetro de UI), então visitável à vontade por qualquer scanner sem gastar o código. O app detecta
-  o parâmetro no boot (`_checkAcessoCodigo`) e já abre o painel "Tenho um código" pronto pra colar.
-  **"Convite pendente" (RPC `usuarios_pendentes_tenant`)**: a Tela de Conta → Usuários agora mostra um badge âmbar
-  "Convite pendente" pra quem foi convidado mas nunca completou o primeiro login (`auth.users.last_sign_in_at is
-  null`) — só admin ativo do próprio tenant pode chamar a RPC. Badge carrega ao abrir a aba (`_carregarStatusPendente`),
-  não bloqueia a renderização inicial.
-  ⚠️ **Pendente de ação manual sua**: reduzir a validade do código/link — hoje é o padrão do projeto no Supabase
-  (não consegui confirmar o valor exato nem mudar via ferramentas disponíveis, é config de projeto só no Dashboard).
-  Ajustar em **Authentication → Sign In / Providers → Email → Email OTP Expiration** (segundos; máximo permitido é
-  `86400` = 1 dia, que é o valor que você pediu).
-- **`tenants.ambiente_teste`** (bool, novo): segrega cabanhas de teste do staging/produção — `minhas_cabanhas()` devolve
-  o campo, `index.html` filtra client-side (`AMBIENTE_STAGING = location.hostname==='mimba-hml.pages.dev'`). Não é
-  barreira de segurança de verdade (mesmo banco/anon key nos dois ambientes) — é trava de UX. `true` hoje:
-  `qa_isolamento`, `qa_segunda`, `cabanha_pedro_teste`. Marcar tenants novos de teste manualmente.
+- MCP do Supabase tem **acesso completo** (não é read-only) — writes via `apply_migration`/`execute_sql` direto.
 - Schema `public` tem `ALTER DEFAULT PRIVILEGES` do Supabase que concede `anon`/`PUBLIC` automaticamente em toda
-  **tabela e função** nova criada por `postgres` — sempre `revoke ... from anon, public` explícito depois de criar
-  (mordido 2x no módulo de Reprodução — ver `docs/roadmap-reproducao-equina.md`).
-- Named-property shadowing do HTML: um `<input name="submit">` sobrescreve `form.submit()` — use `HTMLFormElement.prototype.submit.call(form)` (mordido no fix do link ABCCC).
-- CORS preflight custa caro em request→request diferente de endpoint: prefira 1 RPC que devolve tudo a N chamadas REST separadas quando fizer sync de dados.
+  **tabela e função** nova criada por `postgres` — sempre `revoke ... from anon, public` explícito depois de criar.
+- **Link e código de acesso (Auth `type=recovery`) compartilham o mesmo token** — nunca mandar os dois, só o código.
+- Named-property shadowing do HTML: `<input name="submit">` sobrescreve `form.submit()` — use
+  `HTMLFormElement.prototype.submit.call(form)`.
+- CORS preflight custa caro em request→request diferente de endpoint: prefira 1 RPC que devolve tudo a N chamadas
+  REST separadas.
+- **`ambiente_teste` esconde cabanhas reais de quem testa via staging** — inclusive de admins/suporte. Ver seção
+  "Segregação de ambiente" acima antes de usar staging pra investigar algo de um cliente real.
+- **`auth.users` sem FK formal de `public`/schemas de tenant** — apagar uma linha de `auth.users` não cascateia
+  pra `tenant_memberships` nem `<schema>.usuarios`; limpar manualmente se algum dia for necessário excluir conta.
 
 ## Repos e domínios
 - App: `mimba-app/cabanha` → **app.mimba.com.br** (main) / **mimba-hml.pages.dev** (staging, Cloudflare Pages).
 - Landing: `mimba-app/mimba-landing` → **mimba.com.br**.
 - Deploy do app (main): push → GitHub Pages + `versionar.yml`. Deploy staging: push na branch `staging` → Cloudflare Pages automático.
 
-Memória do projeto (auto-carrega): `MEMORY.md` + arquivos — inclui agora `staging-e-isolamento-de-dados`, `pendencias-pos-apresentacao`, `rls-permissiva-por-perfil` (novos desta sessão).
+Memória do projeto (auto-carrega): `MEMORY.md` + arquivos.
