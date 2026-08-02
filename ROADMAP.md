@@ -104,9 +104,12 @@
   cross-origin (restrição do navegador). Corrigido para montar um POST na própria página e
   submeter mirando a popup, exatamente os campos do formulário real da ABCCC. Testado contra o
   site real (curl) e no browser (mocks confirmando campos/target corretos).
-- [ ] **Campo "situação" e "data de confirmação"** no cadastro de novos animais — hoje ausente.
-  Motivação: no futuro será preciso reportar quantidade de animais não confirmados (regra ABCCC:
-  confirmação exige idade mínima de 2 anos).
+- [x] **Campo "confirmado" no cadastro de novos animais — concluído (Fase 1 do Reprodutivo v3,
+  2026-08-02).** Checkbox "Confirmado" no cadastro/edição de animal (`animais.confirmado`), sem
+  bloqueio de idade — aviso não-intrusivo se marcado com menos de 2 anos (regra ABCCC: confirmação
+  exige idade mínima de 2 anos, mas a responsabilidade pela informação é do dono da cabanha, decisão
+  registrada em `docs/spec-reprodutivo-v3.md`). Badge "Confirmado" na listagem e nos dois modos
+  (leitura/edição) da ficha de detalhe. Não tem `data_confirmacao` separada — só o flag por ora.
 - [ ] **Buscar as medidas da confirmação** (altura, tórax, canela) direto da ABCCC para
   pré-preencher o cadastro de novo animal.
 - [x] **Login concluído:** e-mail lembrado (localStorage, nunca a senha), botão de mostrar/ocultar

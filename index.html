@@ -2258,6 +2258,14 @@
       <div class="form-group"><label>Situação</label><select id="nsit"><option value="NA CABANHA">Na Cabanha</option><option value="EMPRESTIMO">Empréstimo</option><option value="VENDIDO">Vendido(a)</option><option value="TRANSFERIDO">Transferido/Doado</option><option value="MORTO">Morto(a)</option></select></div>
       <div class="form-group"><label>Mãe</label><input type="text" id="nmae"></div>
       <div class="form-group"><label>Pai</label><input type="text" id="npai"></div>
+      <div class="form-group" style="grid-column:1/-1">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="ncnf" style="width:auto" onchange="_avisarConfirmacaoIdade('nnasc','ncnf','ncnf-aviso')"> Confirmado (técnico validou Crioulo/pedigree/medidas)
+        </label>
+        <div id="ncnf-aviso" style="display:none;margin-top:5px;font-size:11px;padding:6px 9px;background:var(--amber-l);color:var(--amber-d);border-radius:var(--radius)">
+          ⚠️ Confirmação normalmente só acontece a partir de 2 anos de idade — a responsabilidade pela informação é sua.
+        </div>
+      </div>
       <div class="form-group"><label>Estágio / atividade</label><select id="nest">
         <option value="">— selecione —</option>
         <option value="CAMPO">CAMPO</option>
@@ -2837,7 +2845,7 @@ function renderAnimais(){
   document.getElementById('tbody-animais').innerHTML=lista.map((a,_)=>{
     const i=animais.indexOf(a);
     return`<tr>
-      <td style="padding:8px 10px;font-weight:600;max-width:170px">${a.nome}${a.status_cadastro==='rascunho'?' <span class="badge ba" title="Aguardando cadastro completo via SBB">Rascunho — aguardando SBB</span>':''}</td>
+      <td style="padding:8px 10px;font-weight:600;max-width:170px">${a.nome}${a.status_cadastro==='rascunho'?' <span class="badge ba" title="Aguardando cadastro completo via SBB">Rascunho — aguardando SBB</span>':''}${a.confirmado?' <span class="badge bg" title="Técnico validou Crioulo/pedigree/medidas">✓ Confirmado</span>':''}</td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${a.rp}</td>
       <td>${sbbL(a.sbb)}</td>
       <td>${sexm(a.sexo)}</td>
@@ -4488,13 +4496,23 @@ function _renderDetCorpo(i, editando) {
           <input id="ed-pai" value="${a.pai||''}" style="width:100%;font-size:12px" placeholder="Nome do pai"></div>
         <div class="form-group" style="grid-column:1/-1"><label style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase">Observações</label>
           <input id="ed-obs" value="${a.obs||''}" style="width:100%;font-size:12px" placeholder="Observações"></div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+            <input type="checkbox" id="ed-confirmado" style="width:auto" ${a.confirmado?'checked':''} onchange="_avisarConfirmacaoIdade('ed-nasc','ed-confirmado','ed-confirmado-aviso')"> Confirmado (técnico validou Crioulo/pedigree/medidas)
+          </label>
+          <div id="ed-confirmado-aviso" style="display:${a.confirmado&&(_idadeAnos(a.nasc)===null||_idadeAnos(a.nasc)<2)?'':'none'};margin-top:5px;font-size:11px;padding:6px 9px;background:var(--amber-l);color:var(--amber-d);border-radius:var(--radius)">
+            ⚠️ Confirmação normalmente só acontece a partir de 2 anos de idade — a responsabilidade pela informação é sua.
+          </div>
+        </div>
       </div>
     </div>`;
   } else {
     // Grid de cards independentes (não .ficha-row dentro de grid — cada linha flex
     // espremida numa coluna de grid era a causa do texto colado/espaçamento
     // inconsistente). Cada campo tem sua própria altura, sem depender da coluna vizinha.
-    S1=`<div class="ficha-section"><div class="ficha-section-title">${_iconCavalo(14)} Identificação</div>
+    S1=`<div class="ficha-section"><div class="ficha-section-title">${_iconCavalo(14)} Identificação
+      ${a.confirmado?'<span class="badge bg" style="margin-left:8px">Confirmado</span>':'<span class="badge" style="margin-left:8px;background:var(--bg3);color:var(--text3)">Não confirmado</span>'}
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px 18px">
       ${[['RP',a.rp||'—'],['SBB ABCCC',a.sbb?`<a class="sbb-link" href="#" onclick="abrirAbccc('${a.sbb}');return false;">${a.sbb} ↗</a>`:'—'],
          ['Sexo',a.sexo||'—'],['Pelagem',a.pelagem||'—'],['Nascimento',fd(a.nasc)||'—'],['Ciclo',a.ciclo||'—'],
@@ -4656,6 +4674,7 @@ function salvarEdicaoAnimal() {
   a.mae      = (document.getElementById('ed-mae')?.value||'').toUpperCase();
   a.pai      = (document.getElementById('ed-pai')?.value||'').toUpperCase();
   a.obs      = document.getElementById('ed-obs')?.value||'';
+  a.confirmado = !!document.getElementById('ed-confirmado')?.checked;
   a.status_cadastro = document.getElementById('ed-status-cadastro')?.value || a.status_cadastro || 'ativo';
   // Persistir no banco
   _dbSalvarAnimal(a, i);
@@ -4770,6 +4789,23 @@ function _calcCiclo(nasc) {
   return `${s(anoInicio)}/${s(anoInicio + 1)}`;
 }
 
+// Confirmação de animal (Fase 1 da spec docs/spec-reprodutivo-v3.md): não bloqueia
+// idade, só avisa — a responsabilidade pela informação é do dono da cabanha.
+function _idadeAnos(nasc) {
+  if (!nasc) return null;
+  const d = new Date(nasc + 'T12:00:00');
+  if (isNaN(d.getTime())) return null;
+  return (HOJE - d) / (365.25 * 864e5);
+}
+function _avisarConfirmacaoIdade(nascId, checkId, avisoId) {
+  const nasc = document.getElementById(nascId)?.value;
+  const marcado = document.getElementById(checkId)?.checked;
+  const idade = _idadeAnos(nasc);
+  const mostrar = marcado && (idade === null || idade < 2);
+  const el = document.getElementById(avisoId);
+  if (el) el.style.display = mostrar ? '' : 'none';
+}
+
 function _autoCiclo(nasc, targetId) {
   const ciclo = _calcCiclo(nasc);
   if (!ciclo) return;
@@ -4847,6 +4883,7 @@ function salvarAnimal(){
     situacao:document.getElementById('nsit').value,estagio:document.getElementById('nest').value.toUpperCase(),
     obs:document.getElementById('nobs').value,sexo:document.getElementById('nsex').value,
     pelagem:document.getElementById('npel').value,
+    confirmado:document.getElementById('ncnf').checked,
     ult_vac:'',prox_vac:document.getElementById('npvac').value,
     ult_verm:'',val_exame:document.getElementById('npexame').value,
   });
@@ -9711,6 +9748,7 @@ async function _sincronizarAoLogin() {
         situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||'',
         obs: a.obs||'', sexo: a.sexo||'', pelagem: a.pelagem||'',
         ult_vac: '', prox_vac: a.prox_vac||'', ult_verm:'', val_exame: a.val_exame||'',
+        confirmado: !!a.confirmado,
         status_cadastro: a.status_cadastro || 'ativo',
         ativo: a.ativo
       }));
@@ -10063,6 +10101,7 @@ async function _dbSalvarAnimal(a, idx) {
     situacao: (()=>{const m={'MORTO(A)':'MORTO','DOADO(A)':'TRANSFERIDO','VENDIDO(A)':'VENDIDO','Na Cabanha':'NA CABANHA','Empréstimo':'EMPRESTIMO','Vendido(a)':'VENDIDO','Transferido/Doado':'TRANSFERIDO','Morto(a)':'MORTO'}; return m[a.situacao]||a.situacao||'NA CABANHA';})(), estagio: a.estagio||null,
     obs: a.obs||null, prox_vac: a.prox_vac||null,
     val_exame: a.val_exame||null,
+    confirmado: !!a.confirmado,
     status_cadastro: a.status_cadastro || 'ativo',
     criado_por: usuarioAtual?.db_id || null
   };
