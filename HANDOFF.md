@@ -26,6 +26,21 @@ quando a cabanha não tem logo própria cadastrada). Feito:
 - **Status:** validado visualmente (servidor estático local + injeção de sessão fake). **Ainda não confirmado que o
   sócio revisou/aprovou** — era o objetivo original do pedido, retomar quando ele der retorno.
 
+## 🔥 Incidente breve: rename de `coberturas` quebrou login de toda cabanha (2026-08-02, resolvido em minutos)
+Ao aplicar a Fase 0 do Reprodutivo v3 (renomear a tabela legada `coberturas` → `coberturas_arquivadas_legado`),
+esqueci de atualizar quem ainda lia dessa tabela pelo nome antigo: a RPC `carregar_dados_cabanha` — chamada
+**no boot de login de toda cabanha** — e mais 4 pontos do frontend (excluir cobertura, timeline do animal,
+salvar cobertura na tela antiga de Reprodutivo). Efeito: login/carregamento de dados quebrado pra **todo
+tenant**, staging e produção, por alguns minutos até o hotfix. Corrigido: RPC atualizada pra ler de
+`coberturas_arquivadas_legado` (mantendo a chave `coberturas` no JSON de retorno, pra não quebrar quem ainda
+lê `bootstrap.coberturas` até a Fase 5 remover a tela antiga de vez); os 4 pontos do frontend também
+apontados pro novo nome.
+⚠️ **Lição pra próximas migrations de rename/drop**: antes de renomear/derrubar uma tabela, grep no
+`index.html` **e** em todas as funções `public.*` por chamadas diretas ao nome antigo (`_supa('...',
+'nome_tabela', ...)` no frontend, `%I.nome_tabela` em SQL dinâmico) — não basta revisar RLS/isolamento, o
+`revisor-isolamento` não pega esse tipo de quebra de contrato de nome (não é um problema de isolamento entre
+tenants, é global).
+
 ## 🐛 Convite de usuário — ciclo completo de correções (fins de julho → 2026-08-02)
 Começou como um bug simples ("reconvidei e disse que já existia") e virou uma revisão de ponta a ponta do fluxo de
 primeiro acesso. Estado final, `convidar-usuario` (edge function) na **v7**:
