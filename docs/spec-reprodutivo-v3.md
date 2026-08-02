@@ -283,3 +283,30 @@ foi trazer esse fluxo pronto pra dentro do Planejador, não construir do zero:
 Fase 0 é pré-requisito de todas as outras (schema). Fase 1 é independente e pode andar em paralelo à Fase 0.
 Fases 2→3→4 são sequenciais (mesma tela, build incremental). Fase 5 só depois de 2, 3 e 4 estarem prontas e
 testadas — é ela que remove as telas antigas, sem volta fácil se algo do planejador ainder estiver faltando.
+
+## 12. Revisão final antes da Fase 5 (2026-08-02)
+
+Antes do corte final, rodei uma checagem própria (sintaxe, ids duplicados, referências órfãs — tudo limpo) e
+uma revisão de isolamento (`revisor-isolamento`) cobrindo o arco inteiro Fase 0→4. Achado real, corrigido:
+
+**`_limparEstadoLocal()` não zerava os arrays de Reprodução/Marketplace** (`fontesCobertura`, `acasalamentos`,
+`coberturasNegociadas`, `gestacoes`, `tentativas`, `coberturas` legado) — só eram zerados dentro de
+`_sincronizarAoLogin` (assíncrono), deixando uma janela real em que trocar de cabanha (multi-tenant) e abrir
+o Planejador **antes do sync terminar** mostrava dado da cabanha **anterior**, incluindo `comprador_nome`/
+`comprador_contato`/`valor_total` de negociações de marketplace — dado de outra cabanha. Não é bypass de RLS
+(o dado foi buscado legitimamente pra sessão anterior e ficou em memória), mas é vazamento visual entre
+tenants. Existia antes da Fase 4, mas ficou mais exposto porque o Planejador virou a aba padrão de
+Reprodutivo (menos cliques até esses dados que a antiga aba "Fontes de Cobertura" dentro de Gestação).
+**Corrigido**: os 6 arrays entraram na lista zerada por `_limparEstadoLocal()`. Testado via servidor local
+(popular os arrays, chamar `_limparEstadoLocal()`, confirmar os 6 zerados).
+
+Demais pontos checados e aprovados: migration da Fase 0 (RLS/grants corretos, nenhum grant residual a
+`anon`), remoção de `coberturas` do provisionamento (nenhuma referência órfã, tenants novos nascem sem a
+tabela), exposição do marketplace na Fase 4 (zero RPC/policy nova, isolamento continua garantido pelo
+banco), e a Fase 5 em si (nenhuma policy/trigger depende exclusivamente das telas antigas — pode remover a
+UI sem afetar persistência/RLS).
+
+Item fora do escopo desta migration, sinalizado pelo revisor mas não verificável via MCP (read-only): checar
+manualmente no SQL Editor se algum schema `cab_*` mais antigo tem grant residual pra `anon` — a `Fase 0` não
+reexecuta esse revoke (só `provisionar_schema_cabanha`, chamada só no provisionamento), mas também não
+concede nada novo, então só é risco se já existisse antes, fora do escopo deste módulo.

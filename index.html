@@ -10904,7 +10904,13 @@ function _entrarSeletor(i){ if(window.__cabs && window.__cabs[i]) _entrarCabanha
 // cabanha anterior continuam na tela até o sync terminar — vazamento visual
 // entre tenants para quem trabalha em mais de uma cabanha.
 function _limparEstadoLocal() {
-  [animais, coberturas2, eventosEsp, estoque, movimentos, lancamentos, pendencias, USUARIOS]
+  // Reprodutivo/marketplace (fontesCobertura, acasalamentos, coberturasNegociadas, gestacoes,
+  // tentativas, coberturas) precisam estar aqui igual aos demais — antes só eram zerados dentro
+  // de _sincronizarAoLogin (async), deixando uma janela real em que trocar de cabanha e abrir o
+  // Planejador antes do sync terminar mostrava dado de negociação (nome/contato de outra cabanha)
+  // da cabanha ANTERIOR. Achado na revisão de isolamento antes do corte final da Fase 5.
+  [animais, coberturas2, coberturas, eventosEsp, estoque, movimentos, lancamentos, pendencias, USUARIOS,
+   fontesCobertura, acasalamentos, coberturasNegociadas, gestacoes, tentativas]
     .forEach(a => { if (Array.isArray(a)) a.length = 0; });
   [histVacinas, histExames, medidas, histVermifugacoes]
     .forEach(o => Object.keys(o).forEach(k => delete o[k]));
