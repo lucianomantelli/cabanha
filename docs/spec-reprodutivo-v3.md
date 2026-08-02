@@ -272,12 +272,40 @@ foi trazer esse fluxo pronto pra dentro do Planejador, não construir do zero:
 - Testado via servidor local: oferta recebida com aceitar/recusar, oferta enviada com status, botão "Negociar"
   no card do garanhão abrindo o modal já preenchido com saldo/ciclo corretos.
 
-### Fase 5 — Corte final e limpeza
-- Remove as duas abas antigas do menu lateral (Reprodutivo + Gestação), deixando só "Reprodutivo" (nova).
-- QA ponta a ponta em staging: planejar um ciclo do zero (garanhão, égua de cria, receptora, cobertura
-  comprada), estourar saldo de propósito (confirma aviso incisivo sem bloquear), virar ciclo (confirma
-  herança automática), negociar uma cobertura entre duas cabanhas de teste.
-- Deploy: skill `deploy` (produção) só depois de validar tudo em `mimba-hml.pages.dev`.
+### Fase 5 — Corte final e limpeza ✅ APLICADA (2026-08-02, QA local; QA em staging real ainda pendente)
+Consolidação real (não só remoção): as duas páginas viraram uma.
+- **Menu lateral**: item "Gestação" removido — só "Reprodutivo" (SVG já existente) fica.
+- **Todas as abas da antiga Gestação foram migradas** (não descartadas) pra dentro de "Reprodutivo", como
+  abas depois do Planejador: Acasalamentos (kanban), Gestações (dado real), Agenda reprodutiva, Fontes de
+  Cobertura (histórico completo, todos os ciclos — complementa o Planejador, que só mostra 2), Protocolos,
+  Nascimentos. Nenhuma função/id mudou de nome — só de página, então zero retrabalho de lógica.
+- **"Gestações ativas" virou "Gestações legadas em aberto"**: filtra só o que ainda está `Prenha`/`Aguardando`
+  na tabela arquivada (`coberturas_arquivadas_legado`), com aviso explicando que é legado e sem botão de criar
+  novas — só editar/fechar o que já existia. **"Histórico de coberturas" foi removido** (100% redundante com
+  "Histórico arquivado", que já mostra a mesma tabela por completo).
+- **`abrirModalCobertura()` removida** (a última porta de criação de dado novo na tabela arquivada) —
+  `editCobGest`/`excluirCobertura` continuam existindo pra fechar prenhezes legadas em aberto.
+- **Achados corrigidos no caminho** (dado real que ficaria "congelado" silenciosamente se eu só tivesse
+  removido a UI sem olhar o que dependia dela):
+  - O alerta do Dashboard "Parto próximo/atrasado" só lia a tabela arquivada (`coberturas2`) — ganhou uma
+    versão paralela lendo `gestacoes` (dado real), mantendo a legada só pra não sumir com o que já estava em
+    aberto.
+  - O card "Reprodução" na ficha de detalhe do animal (fêmea) tinha o mesmo problema — mesma correção.
+  - Permissões por perfil (`PERMISSOES.veterinario`/`vet`/`cabanheiro`/`cab`) referenciavam a página
+    `'gestacao'`, que deixou de existir — trocado por `'reprodutivo'`, preservando o nível de acesso que
+    vet/cabanheiro já tinham (e como consequência inerente da fusão, ganham acesso também ao que só existia
+    no antigo "Reprodutivo" — não dá pra ter permissão parcial dentro de uma página só).
+  - Link "Ver gestação" (kanban de Protocolo Reprodutivo, na página Saúde) apontava pra
+    `#page-gestacao .tab-row .tab:nth-child(7)` (seletor frágil, quebraria though com a nova ordem de abas) —
+    trocado por um seletor por atributo (`[onclick*="gest-gestacoes"]`), mais robusto a reordenação futura.
+- Testado via servidor local: as 12 abas trocam sem erro, dado real (`gestacoes`) e legado (`coberturas2`)
+  aparecem corretamente nas abas certas, ficha de detalhe mostra a seção de gestação real, perfil `vet`
+  mantém acesso à página fundida, nenhuma referência órfã a `page-gestacao`/`showPage('gestacao')`/
+  `gest-historico`/`abrirModalCobertura` sobrou no código.
+- **Pendente, não feito aqui**: QA ponta a ponta em `mimba-hml.pages.dev` com dado/login reais (login,
+  planejar ciclo do zero, negociar entre duas cabanhas de teste de verdade) e o deploy pra produção — o que
+  foi feito nesta fase foi construção + QA local (sessão fake via servidor estático), consistente com o
+  padrão usado em todas as fases anteriores desta spec.
 
 ## 11. Dependências entre fases
 Fase 0 é pré-requisito de todas as outras (schema). Fase 1 é independente e pode andar em paralelo à Fase 0.
