@@ -114,7 +114,54 @@ cabanha (garanhões, éguas de cria) e oferece **completar** com o que falta (co
    que, se os sócios identificarem depois que algum recurso importante foi cortado, dá pra recuperar. (Ver
    nota de implementação abaixo — provavelmente renomear/mover tabelas em vez de `DROP`, nunca apagar dado.)
 
-## 8. Próximos passos deste documento
+## 8. Levantamento do schema atual (2026-08-02)
+
+Tabelas em `public` (template, clonado em cada `cab_<slug>`) relevantes ao domínio:
+
+| Tabela | O que guarda hoje |
+|---|---|
+| `fontes_cobertura` | Já é quase exatamente o conceito de "saldo de coberturas por ciclo" pedido na spec: `tipo` (`proprio`/`cota`/`direito_uso`), `garanhao_nome`/`garanhao_sbb`, `tem_rm` (bool), `quantidade_adquirida`, `ciclo` (texto), `vigencia_inicio/fim`, `proprietario_cota`, `percentual_cota`, `status` (`ativa`/`vencida`). |
+| `acasalamentos` | Lançamento de cobertura em si: `egua_id`, `fonte_cobertura_id`, `tipo_cobertura`, `ciclo`, `status` (`rascunho`/`em_curso`/`confirmado`/`cancelado`), aprovação (`aprovado_em/por`). |
+| `tentativas` | Tentativas dentro de um acasalamento (inseminação/diagnóstico), com veterinário e resultado. |
+| `gestacoes` | Uma gestação confirmada, ligada a um `acasalamento_id` — datas de cobertura/confirmação/parto, protocolo aplicado. |
+| `protocolos_reproducao` | Protocolos reutilizáveis (etapas em jsonb). |
+| `coberturas_negociadas` | **Marketplace entre cabanhas já existe**: `fonte_cobertura_id`, `quantidade`, `comprador_tenant_id`/`nome`/`contato`, `valor_total`, `parcelas` (jsonb), `status` (`pendente`/`aceito`/`quitado`/...). |
+| `coberturas` | Tabela **antiga** (pré-v2), campos soltos (`egua_nome`, `garanhao` texto livre, `sbb_padrillo`, `cria_nome`/`sexo` direto na linha) — é a que a spec pede pra **arquivar** (seção 7, item 7). |
+| `animais` | Sem campo de reprodutor/cotas, sem campo de confirmação — só `situacao`, `estagio`, `status_cadastro`, `sexo`, `nasc`, `sbb`. Confirma que os dois campos novos da spec (seção 4.1 e 4.2) realmente não existem ainda. |
+
+RPCs/funções já implementadas:
+- `_calc_ciclo_texto(data)` — calcula o texto do ciclo (`"25/26"`) a partir de uma data.
+- `encerrar_ciclo_reproducao()` — rotina (chamada por cron, `SECURITY DEFINER`, roda pra **todos os tenants**) que
+  a cada virada de ciclo: vence fontes de cobertura própria com saldo (indevidamente, hoje — ver conflito 1
+  abaixo), cancela acasalamentos `em_curso` não confirmados, **recria automaticamente** uma fonte de cobertura
+  nova pro ciclo seguinte por garanhão (`120` coberturas, ou `150` se `tem_rm=true`), vence cotas/direitos de
+  uso com `vigencia_fim` expirada.
+- `negociar_cobertura_mimba` / `aceitar_negociacao_cobertura` / `recusar_negociacao_cobertura` /
+  `buscar_tenant_para_negociacao` — fluxo completo de venda/aceite de cobertura **entre cabanhas diferentes do
+  Mimba**, já funcionando.
+
+### ⚠️ Conflitos com as decisões da seção 7 — precisam de resposta antes de desenhar as fases
+
+1. **Corte do ciclo está em agosto, não em julho.** `_calc_ciclo_texto` vira o ciclo em **1º de agosto**
+   (`month >= 8`), mas a decisão da seção 7.1 foi **1º de julho**. É só trocar `>= 8` por `>= 7` na função — mas
+   preciso confirmar que agosto foi um desalinhamento e não uma escolha proposital de alguma sessão anterior,
+   já que essa função já roda em produção via cron pra todos os tenants.
+2. **Limite de coberturas está em 120/150 (por `tem_rm`), não 120/240 (por Demérito).** `tem_rm` (nome sugere
+   "tem RM" — registro genealógico? monta?) hoje libera **150**, mas a spec fala em **240 pra registro
+   Demérito**. `tem_rm` e "Demérito" são o mesmo conceito com nome trocado, ou são coisas diferentes (nesse
+   caso faltaria um terceiro campo)? Preciso confirmar antes de decidir se ajusto o número existente ou crio
+   um campo novo.
+3. **"Fora de escopo" (seção 6) já está construído e rodando.** `coberturas_negociadas` +
+   `negociar_cobertura_mimba`/`aceitar_negociacao_cobertura` implementam exatamente o marketplace entre
+   cabanhas que a spec registrou como "não agora". Não vou tocar nisso nesta rodada — só preciso saber se a
+   tela nova de Reprodutivo deve **expor** esse fluxo (já que ele já funciona por baixo) ou se ele fica
+   escondido/desligado por enquanto até vocês decidirem retomar esse pilar de propósito.
+4. **`encerrar_ciclo_reproducao` já recria fontes automaticamente por ciclo** — o que é parecido, mas não
+   idêntico, ao pedido da seção 4.1 (usuário informa manualmente a cota por ciclo). Preciso confirmar se a
+   recriação automática deve continuar (ciclo novo já nasce com o saldo herdado do ciclo anterior, e o admin
+   só ajusta) ou se cada ciclo deve começar zerado e ser 100% preenchido manualmente como a seção 4.1 sugere.
+
+## 9. Próximos passos deste documento
 
 Spec de requisitos e decisões de produto **fechada** com as respostas acima. Antes de virar plano de
 desenvolvimento (fases, migrations, telas), ainda falta:
