@@ -255,11 +255,22 @@ infra de `fontesCobertura`/modal já existente do módulo de Reprodução Equina
 - Testado via servidor local: égua sem plano → marcar reprodutora → fonte filtrada por ciclo → salvar → aparece
   como reprodutora no planejador; receptora pré-preenchida; botão/modal antigos confirmados removidos.
 
-### Fase 4 — Marketplace entre cabanhas (expor o que já existe)
-- Nova UI dentro da tela Reprodutivo pro fluxo que já funciona no backend: `negociar_cobertura_mimba` (vender
-  cota pra outra cabanha), `aceitar_negociacao_cobertura`/`recusar_negociacao_cobertura` (do lado comprador),
-  `buscar_tenant_para_negociacao`. Zero mudança de backend nesta fase — só desenhar telas/fluxo pra algo que
-  hoje só existe como RPC sem interface.
+### Fase 4 — Marketplace entre cabanhas (expor o que já existe) ✅ APLICADA (2026-08-02)
+**Achado ao iniciar a fase**: diferente do presumido no levantamento de schema (seção 8), o marketplace **já
+tinha UI própria** desde a Fase 7 do módulo anterior — botão "Negociar" nos cards da aba antiga "Fontes de
+Cobertura", e aceitar/recusar já funcionavam, só que enterrados dentro da página **Saúde → Pendências**
+("Pendências sanitárias"), fora de contexto pra quem está pensando em Reprodutivo. O trabalho real desta fase
+foi trazer esse fluxo pronto pra dentro do Planejador, não construir do zero:
+- Botão "Negociar com outra cabanha" adicionado direto no card do garanhão no planejador (reaproveita
+  `abrirModalNegociarCobertura` como está).
+- Nova seção "Marketplace entre cabanhas" no planejador: **ofertas recebidas** (pendências tipo
+  `negociacao_cobertura` não resolvidas, com Aceitar/Recusar reaproveitando `aceitarNegociacaoCobertura`/
+  `recusarNegociacaoCobertura` — mesmas funções, só chamadas de um lugar novo) e **ofertas enviadas**
+  (`coberturasNegociadas` com `status='pendente'`, lista somente-leitura).
+- Zero mudança de RPC/banco, como previsto. As ofertas continuam também aparecendo em Saúde → Pendências
+  (não removido de lá) — só passaram a ser alcançáveis também de onde fazem mais sentido.
+- Testado via servidor local: oferta recebida com aceitar/recusar, oferta enviada com status, botão "Negociar"
+  no card do garanhão abrindo o modal já preenchido com saldo/ciclo corretos.
 
 ### Fase 5 — Corte final e limpeza
 - Remove as duas abas antigas do menu lateral (Reprodutivo + Gestação), deixando só "Reprodutivo" (nova).
