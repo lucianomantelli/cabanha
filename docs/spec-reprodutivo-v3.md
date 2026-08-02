@@ -1,8 +1,9 @@
 # Spec — Reprodutivo v3 (unificação Gestação + Reprodutivo, planejamento por ciclo)
 
-> **Status: rascunho em construção.** Este documento consolida o que o Pedro passou em 2026-08-02 (primeira
-> leva de informações soltas). Ainda vai receber mais input antes de virar plano de desenvolvimento — as
-> seções marcadas com ❓ são pontos que precisam de decisão/confirmação antes de começar a implementar.
+> **Status: spec fechada, pronta pra desenvolvimento.** Requisitos (seções 1-6), decisões de produto (seção 7),
+> levantamento de schema + conflitos resolvidos (seção 8) e fases de implementação (seção 10) completos. Um
+> único ponto secundário segue em aberto (empilhar ou não os bônus de `tem_rm`+`demerito`, seção 10/Fase 0) —
+> não bloqueia o início do trabalho.
 
 ## 1. Problema
 
@@ -165,11 +166,75 @@ RPCs/funções já implementadas:
    precisa de mudança de banco, só garantir que a tela nova deixa essa edição visível e óbvia no fluxo do
    planejador (não escondida numa tela separada de "fontes de cobertura" como está hoje).
 
-## 9. Próximos passos deste documento
+## 9. Nota de síntese (onde vive o saldo de coberturas)
 
-Spec de requisitos, decisões de produto e levantamento de schema **fechados**. Antes de começar a
-implementação, ainda falta:
-- Desenhar a tela única (wireframe/fluxo) substituindo as duas abas atuais — incluindo onde entra o fluxo de
-  marketplace (item 3 acima), hoje sem UI própria.
-- Quebrar em fases de implementação (banco → planejador → integração SBB → UI final → arquivamento de
-  `coberturas`).
+A resposta à pergunta 4 original ("usuário informa manualmente a quantidade de cotas do animal **ao
+cadastrar na aba de animais**") parecia contradizer a seção 4.1 ("isso não pode ficar na aba de Animais,
+tem que ficar no planejador, porque muda por ciclo"). Resolvido pela decisão 4 da rodada seguinte ("herda do
+ciclo anterior, edita manualmente") + pelo schema já existente (`fontes_cobertura` já é por-ciclo, com
+`ciclo` como coluna): **o saldo/cota vive em `fontes_cobertura` (por ciclo), nunca na tabela `animais`**. O
+garanhão em si (nome/SBB) continua vindo do cadastro em Animais — só o número de coberturas disponíveis
+naquele ciclo específico é que é configurado (e herdado/editado) no planejador. Sem conflito real, só
+imprecisão de linguagem na resposta — sinalizando aqui pra não haver dúvida na hora de implementar.
+
+## 10. Fases de implementação
+
+### Fase 0 — Fundação de banco (migrations, reflete em todos os `cab_*` via skill `nova-migration-tenant`)
+- `animais`: nova coluna `confirmado boolean not null default false` (sem `data_confirmacao` obrigatória por
+  ora — só o flag, ver Fase 1).
+- `fontes_cobertura`: nova coluna `demerito boolean not null default false` (independente de `tem_rm`).
+  Ajustar a lógica de teto (hoje só `tem_rm` → 150) pra: base 120, +120 se `demerito` (total 240), `tem_rm`
+  mantém seu efeito atual **separado** (❓ empilha ou não — decidir aqui, é o único ponto ainda em aberto,
+  não bloqueia o resto da fase).
+- `_calc_ciclo_texto`: trocar corte de `month >= 8` pra `month >= 7`. Revisar dados já gerados com o corte
+  antigo antes de aplicar (não deve haver nenhum ciclo "errado" ainda, já que a virada real de julho/26 só
+  aconteceu recentemente — checar).
+- `coberturas` (tabela legada): renomear pra `coberturas_arquivadas_legado` em cada schema `cab_*` existente
+  (não `DROP`) + remover do template `public` a versão "ativa" (a tabela de arquivo não precisa existir no
+  template, só nos tenants que já tinham dado). Revisar grants (não expor a tabela arquivada via API).
+- Revisão de isolamento (`revisor-isolamento`) obrigatória nesta fase — mexe em template + reflexo cross-tenant.
+
+### Fase 1 — Confirmação de animal (aba Animais)
+- Campo "Confirmado" (sim/não) no formulário de cadastro/edição de animal — sem bloqueio de idade, só aviso
+  visual se `nasc` indicar menos de 2 anos e o usuário marcar confirmado mesmo assim (banner de alerta, não
+  impede salvar — decisão 5).
+- Badge "Confirmado"/"Não confirmado" na listagem de Animais e na ficha de detalhe.
+- Fecha também o item pendente equivalente já registrado no `ROADMAP.md`.
+
+### Fase 2 — Planejador de ciclo (núcleo da tela nova)
+- Tela única "Reprodutivo" substitui as abas "Reprodutivo" + "Gestação" no menu lateral.
+- Seletor de ciclo com no máximo 2 opções simultâneas: **ciclo atual** e **próximo ciclo** (decisão 2) —
+  texto calculado via `_calc_ciclo_texto` (já corrigido na Fase 0).
+- Painel de garanhões: lista quem está cadastrado como reprodutor em Animais (macho, >20 meses); pra cada um,
+  mostra a fonte de cobertura do ciclo selecionado (herdada automaticamente do ciclo anterior por
+  `encerrar_ciclo_reproducao`, decisão 4) com edição manual inline (quantidade, `tem_rm`, `demerito`).
+- Contador regressivo de saldo por garanhão/ciclo (adquirida − usadas). Ao estourar: **aviso bem incisivo**
+  (banner vermelho fixo no topo do card do garanhão, não um toast) — não bloqueia lançamento (decisão 3).
+
+### Fase 3 — Éguas e origens de cobertura (dentro do planejador)
+- Éguas de cria da cabanha (Animais, fêmeas ativas) aparecem no planejador com toggle "reprodutora neste
+  ciclo" — nunca um campo fixo no cadastro do animal (decisão original da seção 4.3).
+- **Receptora**: busca por SBB reaproveitando a integração já usada no link SBB→ABCCC / importação em lote
+  (decisão 6) — traz dados básicos e associa ao ciclo como reprodutora "receptora".
+- **Cobertura comprada**: substitui o formulário livre atual — busca por SBB do garanhão (mesma integração),
+  associa a uma `fonte_cobertura` do tipo `cota`/`direito_uso` já existente no schema.
+- Remove definitivamente a tela/fluxo antigo de registro de cobertura da aba Reprodutivo (decisão da seção 5)
+  — dado antigo já arquivado na Fase 0.
+
+### Fase 4 — Marketplace entre cabanhas (expor o que já existe)
+- Nova UI dentro da tela Reprodutivo pro fluxo que já funciona no backend: `negociar_cobertura_mimba` (vender
+  cota pra outra cabanha), `aceitar_negociacao_cobertura`/`recusar_negociacao_cobertura` (do lado comprador),
+  `buscar_tenant_para_negociacao`. Zero mudança de backend nesta fase — só desenhar telas/fluxo pra algo que
+  hoje só existe como RPC sem interface.
+
+### Fase 5 — Corte final e limpeza
+- Remove as duas abas antigas do menu lateral (Reprodutivo + Gestação), deixando só "Reprodutivo" (nova).
+- QA ponta a ponta em staging: planejar um ciclo do zero (garanhão, égua de cria, receptora, cobertura
+  comprada), estourar saldo de propósito (confirma aviso incisivo sem bloquear), virar ciclo (confirma
+  herança automática), negociar uma cobertura entre duas cabanhas de teste.
+- Deploy: skill `deploy` (produção) só depois de validar tudo em `mimba-hml.pages.dev`.
+
+## 11. Dependências entre fases
+Fase 0 é pré-requisito de todas as outras (schema). Fase 1 é independente e pode andar em paralelo à Fase 0.
+Fases 2→3→4 são sequenciais (mesma tela, build incremental). Fase 5 só depois de 2, 3 e 4 estarem prontas e
+testadas — é ela que remove as telas antigas, sem volta fácil se algo do planejador ainder estiver faltando.
