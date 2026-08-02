@@ -9007,7 +9007,7 @@ async function _dbSalvarEvento(evt, idx) {
 // ─── EXCLUSÃO DE COBERTURA/GESTAÇÃO ──────────────────────────────────────────
 async function _dbExcluirCobertura(db_id) {
   if(!db_id) return;
-  await _supa('DELETE', 'coberturas', null, '?id=eq.' + db_id);
+  await _supa('DELETE', 'coberturas_arquivadas_legado', null, '?id=eq.' + db_id);
 }
 
 function excluirCobertura(i) {
@@ -9251,7 +9251,7 @@ async function _carregarLinhaTempo(animalId, animalNome, animalNasc) {
     _supa('GET','vacinacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,vacina,dose,vet') || [],
     _supa('GET','exames','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,tipo,resultado,vet') || [],
     _supa('GET','vermifugacoes','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,produto') || [],
-    _supa('GET','coberturas','','?egua_id=eq.'+animalId+'&order=data.desc&select=data,garanhao,tipo,resultado,parto_real') || [],
+    _supa('GET','coberturas_arquivadas_legado','','?egua_id=eq.'+animalId+'&order=data.desc&select=data,garanhao,tipo,resultado,parto_real') || [],
     _supa('GET','medidas','','?animal_id=eq.'+animalId+'&order=data.desc&select=data,peso,escore,contexto') || [],
     _supa('GET','animal_midia','','?animal_id=eq.'+animalId+'&order=data_midia.desc&select=*') || [],
   ]);
@@ -10178,9 +10178,9 @@ async function _dbSalvarCobertura(cob, idx) {
   clean.resultado = payload.resultado;
 
   if(cob.db_id) {
-    await _supa('PATCH','coberturas', clean, '?id=eq.'+cob.db_id);
+    await _supa('PATCH','coberturas_arquivadas_legado', clean, '?id=eq.'+cob.db_id);
   } else {
-    const res = await _supa('POST','coberturas', clean);
+    const res = await _supa('POST','coberturas_arquivadas_legado', clean);
     if(res?.[0]?.id) coberturas2[idx].db_id = res[0].id;
   }
 }
