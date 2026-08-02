@@ -9,6 +9,27 @@
 ## 🔴 O MAIS IMPORTANTE PRA SABER AGORA
 Toda a maratona de correções desta sessão (ver `ROADMAP.md`) está **só na branch `staging`**, publicada em **`https://mimba-hml.pages.dev/`** via Cloudflare Pages — **nada disso está em produção** (`app.mimba.com.br`, branch `main`) ainda. A `main` só tem o que foi feito antes da `staging` existir (dashboard/toast fix + e-mail de acesso). **Antes da apresentação, decidir: promover `staging` → `main`?** (`git checkout main && git merge staging` + skill `deploy`, depois de testar tudo na URL de staging).
 
+## 🎨 Redesign visual da casca (2026-08-02) — pendente de validação com o sócio
+Pedido do sócio: a sidebar/navegação estava com "cara de vibe coding" (emoji cru como ícone de menu, marca ausente
+quando a cabanha não tem logo própria cadastrada). Feito:
+- **Sidebar**: menu lateral trocou todos os 12 ícones de navegação (emoji: 🐴🌾🏆🤰📦📏🧬 + símbolos ⊞✚♡$) por um
+  conjunto único de ícones SVG geométricos (mesmo padrão `stroke=currentColor, stroke-width=2` já usado na engrenagem/
+  logout que já existiam). Adicionado indicador de aba ativa (barra verde à esquerda). Marca "Mimba" (Playfair serif)
+  agora **sempre visível** no topo da sidebar com um monograma "M" (verde, canto arredondado) — antes, cabanha sem
+  logo própria cadastrada não mostrava marca nenhuma, só o nome da cabanha.
+- **Corpo das páginas**: uma auditoria (subagente Explore) mapeou ~230 ocorrências de emoji funcional (ícone de botão,
+  título de seção, badge, kanban) fora da sidebar. Duas passadas de limpeza (subagentes `engenheiro-frontend`,
+  sequenciais — mesmo arquivo, não dava pra paralelizar) resolveram a esmagadora maioria: semáforo 🔴🟡🟢 (removido,
+  já tinha classe de cor `.badge`), pares condicionais 💉🔬/📄🖼️/📷🎬 (centralizados em funções `_iconX()` reutilizáveis),
+  botões repetidos ✏️💾✕🔍📋 (ícones SVG), ~150 emojis de seção (🐴🌾🏆🤰🏠👤 etc.) em `.ficha-section-title`/badges/alertas,
+  cores hex duplicando `var(--blue-l)` etc., padding de tabela inconsistente entre telas de listagem parecidas.
+  **Ficou de fora de propósito** (baixo risco/baixo impacto): ✅✓⚠ em toasts de status transitório (padrão de UX comum,
+  não é "vibe coding"), ♂♀ em contexto de sexo/reprodução (símbolo científico padrão, não emoji decorativo), e uma
+  cauda longa de ~15 emojis de uso único e baixíssima frequência.
+- **Não testado ainda**: só validei visualmente via screenshot local (servidor estático temporário) simulando login —
+  **não testei o fluxo real de login em staging**. Testar em `mimba-hml.pages.dev` antes de considerar pronto pra
+  validar com o sócio.
+
 ## ✅ ROADMAP — Prioridades 1 a 6 + vários itens extra: CONCLUÍDOS (nesta sessão, 2026-07-27)
 Ver `ROADMAP.md` para o detalhe de cada um. Resumo rápido do que mudou no app (`index.html`, tudo na `staging`):
 1. **Dashboard lento** → causa real era 12 requisições REST cada uma pagando preflight CORS; virou 1 RPC (`carregar_dados_cabanha`). Skeleton animado enquanto carrega.
