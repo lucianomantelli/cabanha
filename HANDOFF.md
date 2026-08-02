@@ -93,6 +93,20 @@ A RLS de **todas** as tabelas de tenant libera INSERT/UPDATE/DELETE pra qualquer
 admin — um cabanheiro logado podia se autopromover a admin via API direta. Pré-existente, sistêmico. Retomar com
 o `arquiteto`.
 
+## 🎯 Próximos passos combinados (2026-08-02)
+1. **Revisão do módulo de Reprodução Equina com olhar veterinário** — o Pedro vai mandar uma spec completa
+   (revisão do que já foi construído nas 8 fases, com correções/ajustes do ponto de vista clínico). Aguardando
+   o documento antes de agir.
+2. **Fluxo de cadastro do admin inicial (dono da cabanha) não pode depender só do código expirável** — achado
+   direto do incidente do Thiago: pra um usuário convidado *depois* por um admin já ativo, o fluxo atual
+   funciona (se o código expirar, o admin reenvia pela aba Usuários — item v7 acima). Mas o **admin
+   inicial/dono**, criado no provisionamento self-serve (`provisionar-cabanha` → `enviar-acesso`), não tem
+   ninguém "de dentro" da cabanha pra reenviar se o código dele expirar antes do primeiro login — hoje isso só
+   se resolve com intervenção manual nossa via banco (exatamente o que foi feito pro Thiago). Precisa de um
+   fluxo diferente pra esse caso específico — ex.: link de recuperação autosserviço, expiração maior só pra
+   esse primeiro convite, ou uma tela de "reenviar meu próprio acesso" que não dependa de já estar logado.
+   Ainda não desenhado — próxima frente de trabalho.
+
 ## Arquitetura (o que existe e funciona)
 - **App:** `index.html` único, sem framework/bundler. **Produção:** GitHub Pages, branch `main`, `app.mimba.com.br`.
   **Staging:** Cloudflare Pages, branch `staging`, `mimba-hml.pages.dev` — **mesmo banco Supabase da produção**
