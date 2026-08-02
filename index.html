@@ -8596,6 +8596,7 @@ function renderUsuarios() {
       <td style="font-size:11px;color:var(--text3)">${u.criadoEm||'—'}</td>
       ${!isAdmViewer ? '' : `<td style="white-space:nowrap">
         <button class="btn btn-sm" onclick="abrirModalUsuario(${i})" title="Editar">${_iconEditar(14)}</button>
+        ${ativo && u.pendenteConvite ? `<button class="btn btn-sm" onclick="reenviarConviteUsuario(${i})" title="Reenviar código de acesso" style="margin-left:3px">${_iconSino(14)}</button>` : ''}
         ${!isMe ? `<button class="btn btn-sm" onclick="toggleSuspenderUsuario(${i})" title="${ativo?'Suspender':'Reativar'}" style="margin-left:3px">${ativo?_iconPausar(14):_iconReproduzir(14)}</button>` : ''}
         ${!isMe ? `<button class="btn btn-sm" onclick="excluirUsuario(${i})" title="Excluir" style="margin-left:3px;color:var(--red-d)">${_iconFechar(14)}</button>` : ''}
       </td>`}
@@ -8708,6 +8709,22 @@ async function _recarregarUsuarios() {
   }));
   _saveUsuarios();
   renderUsuarios();
+}
+
+// Reenviar código pra quem está "Convite pendente" (ativo, mas nunca completou o
+// primeiro login) — não apaga/recria nada, só pede um código novo (o antigo expirou).
+// A edge function reconhece esse caso (membership ativa + identidade sem last_sign_in_at)
+// e trata como reenvio em vez de bloquear com "usuário já tem acesso".
+async function reenviarConviteUsuario(idx) {
+  const u = USUARIOS[idx];
+  if(!u) return;
+  if(!confirm(`Reenviar um novo código de acesso para "${u.nome}" (${u.login})?`)) return;
+  const { ok, status, data } = await _chamarConvidarUsuario({ tenant_id: TENANT_INFO?.tenant_id, nome: u.nome, email: u.login, perfil: u.perfil });
+  if(!ok) {
+    if(status === 403) return alert('Somente administradores podem reenviar convites.');
+    return alert('Falha ao reenviar convite: ' + (data?.erro || 'erro desconhecido'));
+  }
+  _mostrarStatusSync(data?.email_enviado === false ? '⚠️ Falha ao enviar o e-mail' : '✅ Código reenviado', data?.email_enviado === false ? 'amber' : 'green');
 }
 
 // Suspender/reativar: mexe na linha local (o que a UI mostra) E revoga o acesso de
