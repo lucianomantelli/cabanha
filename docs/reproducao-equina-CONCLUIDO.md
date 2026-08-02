@@ -3,8 +3,11 @@
 > ✅ **CONCLUÍDO** (2026-07-28) — Fases 1-8 implementadas, commitadas e publicadas em `staging`. Mantido aqui como
 > registro histórico das decisões/armadilhas de banco encontradas, não como pendência ativa. Itens cortados
 > deliberadamente (documentados fase a fase): concentração de sangue projetada completa (Fase 2), verificação
-> sanitária automática de eventos ABCCC (Fase 5). Pendente pra depois: migração definitiva de `coberturas` → módulo
-> novo com descontinuação da tela antiga (hoje coexistem), testar o job da Fase 8 de verdade antes de 1º/08/2026.
+> sanitária automática de eventos ABCCC (Fase 5). ~~Pendente pra depois: migração definitiva de `coberturas` →
+> módulo novo com descontinuação da tela antiga (hoje coexistem)~~ — retomado em `docs/spec-reprodutivo-v3.md`
+> (Fase 0): a tabela `coberturas` foi **renomeada** para `coberturas_arquivadas_legado` (2026-08-02), dado
+> preservado, tela antiga removida na Fase 5 dessa spec nova. Referências a `coberturas` neste documento abaixo
+> são históricas (nome válido na época) — o nome atual da tabela arquivada é `coberturas_arquivadas_legado`.
 
 > Origem: spec funcional/técnica do sócio (`spec-reproducao-mimba-v2.docx`, MimbaTech, julho 2026).
 > Este documento quebra a spec em fases executáveis, na ordem sugerida pela própria spec (seção 11).
@@ -185,8 +188,9 @@ Todas as 8 fases da spec do sócio estão no banco (isolamento revisado em cada 
 Fase 7 por ser cross-tenant) e no `index.html`. Itens cortados deliberadamente (documentados fase a fase, não
 esquecidos): concentração de sangue projetada completa (Fase 2), verificação sanitária automática de eventos
 ABCCC (Fase 5) — ambos por falta de base/infra existente pra plugar, não por decisão de escopo arbitrária.
-Pendente pra depois: migração de dados definitiva de `coberturas`→ módulo novo com descontinuação da tela antiga
-(hoje coexistem), testar o job da Fase 8 de verdade num schema descartável antes de 1º/08/2026.
+~~Pendente pra depois: migração de dados definitiva de `coberturas`→ módulo novo com descontinuação da tela
+antiga (hoje coexistem)~~ — ver nota no topo deste documento: retomado e resolvido via `docs/spec-reprodutivo-v3.md`.
+Testar o job da Fase 8 de verdade num schema descartável antes de 1º/08/2026.
 
 ---
 
