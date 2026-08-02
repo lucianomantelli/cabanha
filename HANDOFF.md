@@ -93,6 +93,25 @@ A RLS de **todas** as tabelas de tenant libera INSERT/UPDATE/DELETE pra qualquer
 admin — um cabanheiro logado podia se autopromover a admin via API direta. Pré-existente, sistêmico. Retomar com
 o `arquiteto`.
 
+## 🐴 Reprodutivo v3 — spec fechada, Fase 0 aplicada (2026-08-02)
+Spec completa em `docs/spec-reprodutivo-v3.md` (unifica as abas Reprodutivo+Gestação, planejamento por Ciclo
+Reprodutivo jul-jun, garanhões/saldo por ciclo, confirmação de animal, éguas de cria/receptora/cobertura
+comprada via SBB, marketplace entre cabanhas exposto). 6 fases de implementação desenhadas.
+
+**Fase 0 (fundação de banco) já aplicada** em produção (banco compartilhado — vale pra staging e prod ao
+mesmo tempo, independente de qual frontend está publicado):
+- `animais.confirmado` e `fontes_cobertura.demerito` (novas colunas, template + todos os 7 tenants).
+- `_calc_ciclo_texto`: corte de ciclo agora em **julho** (era agosto).
+- `encerrar_ciclo_reproducao`: bônus de `tem_rm` (+30) e `demerito` (+120) **empilham** na renovação
+  automática por ciclo (120 base, até 270 coberturas/ano).
+- Tabela legada `coberturas` **renomeada** pra `coberturas_arquivadas_legado` (dado preservado, não usada
+  mais pelo app).
+- `provisionar_schema_cabanha` ajustada (achado extra: tinha `coberturas` hardcoded no array de tabelas
+  clonadas — sem o ajuste, cabanhas novas quebrariam no provisionamento).
+- Aprovada pelo `revisor-isolamento` antes de aplicar. Migration versionada em
+  `docs/migrations/2026-08-02-reprodutivo-fase0.sql`.
+- **Próxima**: Fase 1 (campo "Confirmado" na UI da aba Animais) — schema já pronto, falta só o frontend.
+
 ## 🎯 Próximos passos combinados (2026-08-02)
 1. **Revisão do módulo de Reprodução Equina com olhar veterinário** — o Pedro vai mandar uma spec completa
    (revisão do que já foi construído nas 8 fases, com correções/ajustes do ponto de vista clínico). Aguardando

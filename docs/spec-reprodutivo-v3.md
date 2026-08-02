@@ -179,7 +179,15 @@ imprecisão de linguagem na resposta — sinalizando aqui pra não haver dúvida
 
 ## 10. Fases de implementação
 
-### Fase 0 — Fundação de banco (migrations, reflete em todos os `cab_*` via skill `nova-migration-tenant`)
+### Fase 0 — Fundação de banco ✅ APLICADA (2026-08-02)
+Migration `docs/migrations/2026-08-02-reprodutivo-fase0.sql` aplicada e verificada nos 7 tenants provisionados
+(`cab_cabanha_santa_adelina`, `cab_mae_de_deus`, `cab_cabanha_santa_enoema`, `cab_qa_isolamento`,
+`cab_qa_segunda`, `cab_cabanha_pedro_teste`, `cab_cabanha_pedro_teste_completo`) + template `public`. Bônus de
+`tem_rm`+`demerito` **empilha** (120 base, +30 tem_rm, +120 demerito, até 270) — confirmado com o Pedro.
+
+<details><summary>Escopo original da fase (referência)</summary>
+
+(migrations, reflete em todos os `cab_*` via skill `nova-migration-tenant`)
 - `animais`: nova coluna `confirmado boolean not null default false` (sem `data_confirmacao` obrigatória por
   ora — só o flag, ver Fase 1).
 - `fontes_cobertura`: nova coluna `demerito boolean not null default false` (independente de `tem_rm`).
@@ -193,6 +201,8 @@ imprecisão de linguagem na resposta — sinalizando aqui pra não haver dúvida
   (não `DROP`) + remover do template `public` a versão "ativa" (a tabela de arquivo não precisa existir no
   template, só nos tenants que já tinham dado). Revisar grants (não expor a tabela arquivada via API).
 - Revisão de isolamento (`revisor-isolamento`) obrigatória nesta fase — mexe em template + reflexo cross-tenant.
+
+</details>
 
 ### Fase 1 — Confirmação de animal (aba Animais)
 - Campo "Confirmado" (sim/não) no formulário de cadastro/edição de animal — sem bloqueio de idade, só aviso
