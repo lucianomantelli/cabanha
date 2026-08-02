@@ -211,15 +211,29 @@ Migration `docs/migrations/2026-08-02-reprodutivo-fase0.sql` aplicada e verifica
 - Badge "Confirmado"/"Não confirmado" na listagem de Animais e na ficha de detalhe.
 - Fecha também o item pendente equivalente já registrado no `ROADMAP.md`.
 
-### Fase 2 — Planejador de ciclo (núcleo da tela nova)
-- Tela única "Reprodutivo" substitui as abas "Reprodutivo" + "Gestação" no menu lateral.
-- Seletor de ciclo com no máximo 2 opções simultâneas: **ciclo atual** e **próximo ciclo** (decisão 2) —
-  texto calculado via `_calc_ciclo_texto` (já corrigido na Fase 0).
-- Painel de garanhões: lista quem está cadastrado como reprodutor em Animais (macho, >20 meses); pra cada um,
-  mostra a fonte de cobertura do ciclo selecionado (herdada automaticamente do ciclo anterior por
-  `encerrar_ciclo_reproducao`, decisão 4) com edição manual inline (quantidade, `tem_rm`, `demerito`).
-- Contador regressivo de saldo por garanhão/ciclo (adquirida − usadas). Ao estourar: **aviso bem incisivo**
-  (banner vermelho fixo no topo do card do garanhão, não um toast) — não bloqueia lançamento (decisão 3).
+### Fase 2 — Planejador de ciclo (núcleo da tela nova) ✅ APLICADA (2026-08-02)
+Nova aba **"Planejador de ciclo"** dentro da página Reprodutivo (primeira/padrão), reaproveitando toda a
+infra de `fontesCobertura`/modal já existente do módulo de Reprodução Equina v2 em vez de recriar CRUD:
+- Seletor de ciclo com no máximo 2 opções (decisão 2): "Ciclo atual" e "Próximo ciclo", calculados no
+  frontend por `_cicloAtualTexto()`/`_cicloProximoTexto()` (espelham o corte de julho do `_calc_ciclo_texto`
+  do banco, Fase 0).
+- Painel de garanhões: `animais.filter(sexo==='Macho' && isNaCabanha && idade≥20 meses)`. Pra cada um, busca a
+  `fonte_cobertura` (tipo `proprio`) do ciclo selecionado (por SBB, com fallback pro nome) — se existir, mostra
+  saldo (usado/negociado/disponível), badges RM/Demérito e botão "Editar saldo do ciclo" (abre o modal já
+  existente, `editFonteCobertura`); se não existir ainda, mostra "+ Definir saldo deste ciclo" (pré-preenche
+  o modal com nome/SBB/ciclo via `_criarFonteParaGaranhao`).
+- Aviso incisivo ao estourar (decisão 3): `_saldoFonteCobertura()` foi corrigida — antes escondia o excedente
+  atrás de `Math.max(0, ...)`; agora expõe `estourado`/`excedente` também, e tanto o planejador quanto o card
+  antigo da aba "Fontes de Cobertura" mostram um banner vermelho fixo (não um toast) quando o saldo é
+  ultrapassado. Nunca bloqueia o lançamento.
+- Campo `demerito` exposto no modal de fonte de cobertura (checkbox ao lado do já existente "Reserva de
+  material (RM)"), persistido e lido em todos os pontos (`_dbSalvarFonteCobertura`, bootstrap,
+  `_recarregarFontesCobertura`).
+- Testado via servidor estático local + sessão injetada: garanhão sem fonte, com saldo normal e com saldo
+  estourado; troca de ciclo; pré-preenchimento do modal a partir do planejador.
+- **Não fechado nesta fase** (fica pra Fase 5, por decisão de escopo): a tela "Gestação" e as demais abas de
+  "Reprodutivo" (Crias por ciclo, Matrizes, Reprodutores, Coberturas) continuam coexistindo por enquanto —
+  o corte final das telas antigas é o item da Fase 5.
 
 ### Fase 3 — Éguas e origens de cobertura (dentro do planejador)
 - Éguas de cria da cabanha (Animais, fêmeas ativas) aparecem no planejador com toggle "reprodutora neste
