@@ -235,15 +235,25 @@ infra de `fontesCobertura`/modal já existente do módulo de Reprodução Equina
   "Reprodutivo" (Crias por ciclo, Matrizes, Reprodutores, Coberturas) continuam coexistindo por enquanto —
   o corte final das telas antigas é o item da Fase 5.
 
-### Fase 3 — Éguas e origens de cobertura (dentro do planejador)
-- Éguas de cria da cabanha (Animais, fêmeas ativas) aparecem no planejador com toggle "reprodutora neste
-  ciclo" — nunca um campo fixo no cadastro do animal (decisão original da seção 4.3).
-- **Receptora**: busca por SBB reaproveitando a integração já usada no link SBB→ABCCC / importação em lote
-  (decisão 6) — traz dados básicos e associa ao ciclo como reprodutora "receptora".
-- **Cobertura comprada**: substitui o formulário livre atual — busca por SBB do garanhão (mesma integração),
-  associa a uma `fonte_cobertura` do tipo `cota`/`direito_uso` já existente no schema.
-- Remove definitivamente a tela/fluxo antigo de registro de cobertura da aba Reprodutivo (decisão da seção 5)
-  — dado antigo já arquivado na Fase 0.
+### Fase 3 — Éguas e origens de cobertura (dentro do planejador) ✅ APLICADA (2026-08-02)
+- **Éguas de cria**: nova seção no planejador (`renderEguasCriaPlanejador`) lista `animais.filter(sexo==='Fêmea'
+  && isNaCabanha && estagio==='CRIA')`. "Reprodutora neste ciclo" **não é um campo novo** — é derivado de existir
+  (ou não) um `acasalamento` não-cancelado dessa égua nesse ciclo, evitando duplicar estado. Marcar abre o modal
+  de acasalamento já existente com a égua pré-selecionada e as fontes filtradas pro ciclo do planejador
+  (`_marcarEguaReprodutora`); desmarcar reusa `acasCancelar` (exige motivo, preserva histórico).
+- **Receptora via SBB**: botão "+ Adicionar receptora (via SBB)" reaproveita o modal de cadastro de animal
+  normal (`modal-novo`) pré-preenchido (sexo Fêmea, estágio CRIA, obs "Receptora (TE)") com foco no campo SBB —
+  o autofill já existente (`_buscarAbccc('novo')`) faz o resto. Ao salvar, ela aparece automaticamente na lista
+  de éguas de cria acima. Zero integração nova.
+- **Cobertura comprada**: campo SBB no modal de fonte de cobertura agora busca o garanhão automaticamente
+  (`_buscarAbcccParaFonte`, mesma edge function `buscar-abccc` usada em Animais) e preenche o nome — funciona
+  pra qualquer tipo de fonte (`proprio`/`cota`/`direito_uso`), não só cobertura comprada.
+- **Removido de vez**: modal `modal-cob` e a função `salvarCobertura()` (achado no caminho: essa função nem
+  persistia no banco — só empurrava pro array local, dado se perderia ao recarregar a página). O botão
+  "+ Registrar cobertura" saiu do cabeçalho e da aba "Coberturas", que agora é só consulta ao histórico
+  arquivado (`coberturas_arquivadas_legado`, Fase 0), com aviso explicando a descontinuação.
+- Testado via servidor local: égua sem plano → marcar reprodutora → fonte filtrada por ciclo → salvar → aparece
+  como reprodutora no planejador; receptora pré-preenchida; botão/modal antigos confirmados removidos.
 
 ### Fase 4 — Marketplace entre cabanhas (expor o que já existe)
 - Nova UI dentro da tela Reprodutivo pro fluxo que já funciona no backend: `negociar_cobertura_mimba` (vender

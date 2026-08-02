@@ -926,7 +926,6 @@
 <div class="page" id="page-reprodutivo">
   <div class="page-header">
     <div><div class="page-title">Reprodutivo</div><div class="page-sub">Planejamento por ciclo reprodutivo · ciclos, matrizes e reprodutores</div></div>
-    <button class="btn btn-primary" onclick="openModal('modal-cob')">+ Registrar cobertura</button>
   </div>
   <div class="tab-row">
     <button class="tab active" onclick="switchTab(this,'tab-planejador')">Planejador de ciclo</button>
@@ -941,11 +940,22 @@
       disponível para o ciclo selecionado. O saldo herda automaticamente do ciclo anterior — ajuste manualmente
       se a disponibilidade mudou (ex.: cotas vendidas ou adquiridas).</div>
     <div id="planejador-garanhoes-content"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 0 6px">
+      <div class="card-title" style="margin:0">Éguas de cria</div>
+      <button class="btn btn-sm" onclick="_abrirReceptoraViaSBB()">+ Adicionar receptora (via SBB)</button>
+    </div>
+    <div class="page-sub" style="margin:-4px 0 14px">Éguas cadastradas em Animais com estágio "Cria". Marque quais serão
+      reprodutoras neste ciclo — a seleção é por ciclo, nunca fixa no cadastro do animal.</div>
+    <div id="planejador-eguas-content"></div>
   </div>
   <div id="tab-ciclos" style="display:none"><div id="ciclos-content"></div></div>
   <div id="tab-matrizes" style="display:none"><div class="card" style="padding:0;overflow:hidden;overflow-x:auto"><table><thead><tr><th style="padding:9px 10px">Matriz</th><th>SBB</th><th>Pelagem</th><th>Crias registradas</th><th>Situação</th></tr></thead><tbody id="tbody-matrizes"></tbody></table></div></div>
   <div id="tab-reprod" style="display:none"><div class="card" style="padding:0;overflow:hidden;overflow-x:auto"><table><thead><tr><th style="padding:9px 10px">Reprodutor</th><th>Crias na cabanha</th></tr></thead><tbody id="tbody-reprod"></tbody></table></div></div>
-  <div id="tab-cob-hist" style="display:none"><div class="card" style="padding:0;overflow:hidden;overflow-x:auto"><table><thead><tr><th style="padding:9px 10px">Égua</th><th>Padrillo / Macho</th><th>Data</th><th>Tipo</th><th>Resultado</th><th>Obs</th></tr></thead><tbody id="tbody-cob-hist"></tbody></table></div><div style="text-align:center;padding:1rem 0"><button class="btn btn-primary" onclick="openModal('modal-cob')">+ Registrar cobertura</button></div></div>
+  <div id="tab-cob-hist" style="display:none">
+    <div class="alert alert-b" style="margin-bottom:0.75rem;font-size:12px">Histórico arquivado — este registro antigo de cobertura foi descontinuado (ver aba "Planejador de ciclo"). Os dados abaixo ficam preservados só como consulta.</div>
+    <div class="card" style="padding:0;overflow:hidden;overflow-x:auto"><table><thead><tr><th style="padding:9px 10px">Égua</th><th>Padrillo / Macho</th><th>Data</th><th>Tipo</th><th>Resultado</th><th>Obs</th></tr></thead><tbody id="tbody-cob-hist"></tbody></table></div>
+  </div>
 </div>
 
 <!-- FINANCEIRO -->
@@ -2358,21 +2368,6 @@
   </div>
 </div>
 
-<div class="modal-bg" id="modal-cob">
-  <div class="modal">
-    <div class="modal-header"><span class="modal-title">Registrar cobertura / acasalamento</span><button class="modal-close" onclick="closeModal('modal-cob')">×</button></div>
-    <div class="form-grid">
-      <div class="form-group"><label>Égua</label><input type="text" id="cob-egua" placeholder="Nome da égua"></div>
-      <div class="form-group"><label>Padrillo / Macho reprodutor</label><input type="text" id="cob-gar" placeholder="Nome do padrillo / macho"></div>
-      <div class="form-group"><label>Data</label><input type="date" id="cob-data"></div>
-      <div class="form-group"><label>Tipo</label><select id="cob-tipo"><option>Natural</option><option>IA</option><option>IATF</option><option>TE</option></select></div>
-      <div class="form-group"><label>Resultado</label><select id="cob-res"><option value="">Aguardando</option><option>Prenha</option><option>Vazia</option></select></div>
-      <div class="form-group" style="grid-column:1/-1"><label>Observações</label><input type="text" id="cob-obs"></div>
-    </div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('modal-cob')">Cancelar</button><button class="btn btn-primary" onclick="salvarCobertura()">Salvar</button></div>
-  </div>
-</div>
-
 <div class="modal-bg" id="modal-fonte-cobertura">
   <div class="modal">
     <div class="modal-header"><span class="modal-title" id="fc-titulo">Nova fonte de cobertura</span><button class="modal-close" onclick="closeModal('modal-fonte-cobertura')">×</button></div>
@@ -2386,7 +2381,11 @@
         </select>
       </div>
       <div class="form-group"><label>Garanhão</label><input type="text" id="fc-garanhao-nome" placeholder="Nome do garanhão"></div>
-      <div class="form-group"><label>SBB (opcional)</label><input type="text" id="fc-garanhao-sbb" placeholder="Código SBB"></div>
+      <div class="form-group"><label>SBB
+        <span style="font-weight:400;font-size:10px;color:var(--text3)"> — informe pra buscar o nome automaticamente</span></label>
+        <input type="text" id="fc-garanhao-sbb" placeholder="Código SBB" onblur="_buscarAbcccParaFonte()" oninput="this.value=this.value.toUpperCase()">
+        <div id="fc-abccc-status" style="display:none;margin-top:5px;font-size:11px;padding:5px 8px;background:var(--bg3);border-radius:var(--radius)"></div>
+      </div>
       <div class="form-group" id="fc-grp-rm"><label>&nbsp;</label>
         <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px">
           <input type="checkbox" id="fc-tem-rm" style="width:auto"> Reserva de material (RM)
@@ -4892,6 +4891,8 @@ function renderPlanejadorReprodutivo() {
     `<button class="btn btn-sm${ciclo === c ? ' btn-primary' : ''}" onclick="_selecionarCicloPlanejador('${c}')">${label} · ${c}</button>`
   ).join('');
 
+  renderEguasCriaPlanejador(); // seção independente — roda mesmo sem garanhão cadastrado
+
   const garanhoes = animais.filter(a => a.sexo === 'Macho' && isNaCabanha(a) && (_idadeAnos(a.nasc) === null || _idadeAnos(a.nasc) >= 20 / 12));
 
   if (!garanhoes.length) {
@@ -4950,6 +4951,107 @@ function _criarFonteParaGaranhao(nome, sbb, ciclo) {
   document.getElementById('fc-ciclo').value = ciclo;
 }
 
+// ─── ÉGUAS DE CRIA NO PLANEJADOR (Fase 3 da spec) ─────────────────────────────
+// "Reprodutora neste ciclo" não é um campo próprio — é derivado de existir (ou
+// não) um acasalamento não-cancelado dessa égua nesse ciclo. Evita duplicar
+// estado: a fonte de verdade continua sendo a tabela `acasalamentos`.
+function renderEguasCriaPlanejador() {
+  const el = document.getElementById('planejador-eguas-content');
+  if (!el) return;
+  const ciclo = window._cicloPlanejador || _cicloAtualTexto();
+  const eguas = animais.filter(a => a.sexo === 'Fêmea' && isNaCabanha(a) && (a.estagio || '').toUpperCase() === 'CRIA');
+
+  if (!eguas.length) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma égua com estágio "Cria" cadastrada em Animais.</div>';
+    return;
+  }
+
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">' +
+    eguas.map(a => {
+      const acIdx = acasalamentos.findIndex(ac => String(ac.egua_id) === String(a.db_id) && ac.ciclo === ciclo && ac.status !== 'cancelado');
+      const ac = acIdx >= 0 ? acasalamentos[acIdx] : null;
+
+      if (!ac) {
+        return `<div class="card" style="border-style:dashed">
+          <div style="font-size:14px;font-weight:700">${a.nome}</div>
+          <div style="font-size:11px;color:var(--text2);margin:4px 0 10px">${a.sbb ? 'SBB ' + a.sbb + ' · ' : ''}Não é reprodutora no ciclo ${ciclo}</div>
+          <button class="btn btn-sm btn-primary" onclick="_marcarEguaReprodutora('${a.db_id}','${ciclo}')">+ Marcar como reprodutora</button>
+        </div>`;
+      }
+
+      const statusLabel = AC_STATUS_COLS.find(s => s.status === ac.status)?.label || ac.status;
+      return `<div class="card">
+        <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px">
+          ${a.nome} <span class="badge bg" style="font-size:9px">Reprodutora</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin:4px 0 8px">${a.sbb ? 'SBB ' + a.sbb + ' · ' : ''}Ciclo ${ciclo}</div>
+        <div style="font-size:12px"><b>Garanhão:</b> ${ac.garanhao_nome || '—'}</div>
+        <div style="font-size:12px;margin-top:2px"><b>Status:</b> <span class="badge bgr">${statusLabel}</span></div>
+        <div style="margin-top:10px"><button class="btn btn-sm" style="color:var(--red-d);border-color:var(--red-d)" onclick="acasCancelar(${acIdx})">Cancelar</button></div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+// Abre o modal de acasalamento já existente com a égua pré-selecionada e as
+// fontes de cobertura filtradas pro ciclo do planejador (evita escolher o
+// garanhão errado — ac-ciclo é derivado da fonte escolhida, não digitável).
+function _marcarEguaReprodutora(eguaDbId, ciclo) {
+  abrirModalAcasalamento();
+  const selEgua = document.getElementById('ac-egua');
+  if (selEgua) selEgua.value = eguaDbId;
+  const selFonte = document.getElementById('ac-fonte');
+  if (selFonte) {
+    const fontesDoCiclo = _acFontesAtivas().filter(f => f.ciclo === ciclo);
+    selFonte.innerHTML = '<option value="">Selecione...</option>' +
+      fontesDoCiclo.map(f => `<option value="${f.db_id}">${f.garanhao_nome}</option>`).join('');
+  }
+  document.getElementById('ac-ciclo').value = ciclo;
+  _renderSimulacaoAcasalamento();
+}
+
+// Cobertura comprada (Fase 3 da spec): busca o garanhão pelo SBB direto no
+// modal de fonte de cobertura, reaproveitando a MESMA edge function já usada no
+// cadastro de animal e na importação em lote — não é uma integração nova.
+async function _buscarAbcccParaFonte() {
+  const sbbEl = document.getElementById('fc-garanhao-sbb');
+  const statEl = document.getElementById('fc-abccc-status');
+  const sbb = (sbbEl?.value || '').trim().toUpperCase();
+  if (!sbb || sbb.length < 4) return;
+
+  if (statEl) { statEl.style.display = ''; statEl.innerHTML = '<span style="color:var(--text2)">🔄 Buscando no ABCCC...</span>'; }
+  if (sbbEl) sbbEl.disabled = true;
+
+  let dados = null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/buscar-abccc?sbb=${encodeURIComponent(sbb)}`,
+      { headers: { apikey: SUPABASE_KEY }, signal: AbortSignal.timeout(15000) });
+    if (res.ok) dados = await res.json();
+  } catch (e) { console.warn('Edge Function ABCCC error:', e); }
+
+  if (sbbEl) sbbEl.disabled = false;
+
+  if (dados?.encontrado === 'sim') {
+    const nomeEl = document.getElementById('fc-garanhao-nome');
+    if (nomeEl && !nomeEl.value.trim()) nomeEl.value = dados.nome || '';
+    if (statEl) statEl.innerHTML = `<span style="color:var(--green-d)">✅ Encontrado: ${dados.nome || sbb}. Revise e salve.</span>`;
+  } else if (dados?.encontrado === 'nao') {
+    if (statEl) statEl.innerHTML = `<span style="color:var(--amber-d)">⚠️ SBB <strong>${sbb}</strong> não encontrado no registro ABCCC. Preencha o nome manualmente.</span>`;
+  } else if (statEl) {
+    statEl.style.display = 'none';
+  }
+}
+
+// Receptora (TE): égua "de fora" que recebe embrião — cadastrada via SBB, mesma
+// integração já usada no cadastro normal de animal (_buscarAbccc('novo')). Vira
+// uma égua de cria comum ao salvar, aparecendo automaticamente na lista acima.
+function _abrirReceptoraViaSBB() {
+  openModal('modal-novo');
+  const sexEl = document.getElementById('nsex'); if (sexEl) sexEl.value = 'Fêmea';
+  const estEl = document.getElementById('nest'); if (estEl) estEl.value = 'CRIA';
+  const obsEl = document.getElementById('nobs'); if (obsEl) obsEl.value = 'Receptora (TE)';
+  const sbbEl = document.getElementById('nsbb'); if (sbbEl) { sbbEl.value = ''; sbbEl.focus(); }
+}
+
 // ─── FINANCEIRO ───────────────────────────────────────────────────────────────
 function renderFinanceiro(){
   const mesAtual=HOJE.getMonth(), anoAtual=HOJE.getFullYear();
@@ -4992,6 +5094,7 @@ function salvarAnimal(){
   _dbSalvarAnimal(animais[animais.length-1], animais.length-1);
   closeModal('modal-novo');
   populaCiclos();renderDashboard();renderAnimais();
+  renderPlanejadorReprodutivo(); // se veio de "+ Adicionar receptora (via SBB)", ela já aparece na lista
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -5152,17 +5255,6 @@ function _finalizarImportSBB(){
 }
 
 function salvarEvento(){closeModal('modal-evento');}
-
-function salvarCobertura(){
-  const egua=document.getElementById('cob-egua').value.trim();
-  if(!egua)return alert('Nome da égua obrigatório.');
-  coberturas.push({
-    egua,garanhao:document.getElementById('cob-gar').value,
-    data:document.getElementById('cob-data').value,tipo:document.getElementById('cob-tipo').value,
-    resultado:document.getElementById('cob-res').value,obs:document.getElementById('cob-obs').value
-  });
-  closeModal('modal-cob');renderReprodutivo();
-}
 
 function salvarLancamento(){
   const desc=document.getElementById('lan-desc').value.trim(),val=document.getElementById('lan-val').value;
@@ -7065,6 +7157,7 @@ function abrirModalFonteCobertura() {
   document.getElementById('fc-tipo').value = 'proprio';
   document.getElementById('fc-garanhao-nome').value = '';
   document.getElementById('fc-garanhao-sbb').value = '';
+  document.getElementById('fc-abccc-status').style.display = 'none';
   document.getElementById('fc-tem-rm').checked = false;
   document.getElementById('fc-demerito').checked = false;
   document.getElementById('fc-qtd').value = '';
@@ -7087,6 +7180,7 @@ function editFonteCobertura(i) {
   document.getElementById('fc-tipo').value = f.tipo || 'proprio';
   document.getElementById('fc-garanhao-nome').value = f.garanhao_nome || '';
   document.getElementById('fc-garanhao-sbb').value = f.garanhao_sbb || '';
+  document.getElementById('fc-abccc-status').style.display = 'none';
   document.getElementById('fc-tem-rm').checked = !!f.tem_rm;
   document.getElementById('fc-demerito').checked = !!f.demerito;
   document.getElementById('fc-qtd').value = f.quantidade_adquirida ?? '';
@@ -7604,6 +7698,7 @@ function salvarAcasalamento() {
   _dbSalvarAcasalamento(obj, acasalamentos.length - 1);
   closeModal('modal-acasalamento');
   renderAcasalamentos();
+  renderEguasCriaPlanejador();
 }
 
 function acasSimular(i) {
@@ -7654,6 +7749,7 @@ function acasCancelar(i) {
   a.motivo_cancelamento = motivo.trim();
   _dbAtualizarStatusAcasalamento(a, {status: 'cancelado', motivo_cancelamento: a.motivo_cancelamento});
   renderAcasalamentos();
+  renderEguasCriaPlanejador();
 }
 
 function _toggleCanceladosAcasalamentos() {
