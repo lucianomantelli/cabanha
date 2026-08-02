@@ -140,32 +140,36 @@ RPCs/funções já implementadas:
   `buscar_tenant_para_negociacao` — fluxo completo de venda/aceite de cobertura **entre cabanhas diferentes do
   Mimba**, já funcionando.
 
-### ⚠️ Conflitos com as decisões da seção 7 — precisam de resposta antes de desenhar as fases
+### Conflitos com as decisões da seção 7 — resolvidos em 2026-08-02
 
-1. **Corte do ciclo está em agosto, não em julho.** `_calc_ciclo_texto` vira o ciclo em **1º de agosto**
-   (`month >= 8`), mas a decisão da seção 7.1 foi **1º de julho**. É só trocar `>= 8` por `>= 7` na função — mas
-   preciso confirmar que agosto foi um desalinhamento e não uma escolha proposital de alguma sessão anterior,
-   já que essa função já roda em produção via cron pra todos os tenants.
-2. **Limite de coberturas está em 120/150 (por `tem_rm`), não 120/240 (por Demérito).** `tem_rm` (nome sugere
-   "tem RM" — registro genealógico? monta?) hoje libera **150**, mas a spec fala em **240 pra registro
-   Demérito**. `tem_rm` e "Demérito" são o mesmo conceito com nome trocado, ou são coisas diferentes (nesse
-   caso faltaria um terceiro campo)? Preciso confirmar antes de decidir se ajusto o número existente ou crio
-   um campo novo.
-3. **"Fora de escopo" (seção 6) já está construído e rodando.** `coberturas_negociadas` +
-   `negociar_cobertura_mimba`/`aceitar_negociacao_cobertura` implementam exatamente o marketplace entre
-   cabanhas que a spec registrou como "não agora". Não vou tocar nisso nesta rodada — só preciso saber se a
-   tela nova de Reprodutivo deve **expor** esse fluxo (já que ele já funciona por baixo) ou se ele fica
-   escondido/desligado por enquanto até vocês decidirem retomar esse pilar de propósito.
-4. **`encerrar_ciclo_reproducao` já recria fontes automaticamente por ciclo** — o que é parecido, mas não
-   idêntico, ao pedido da seção 4.1 (usuário informa manualmente a cota por ciclo). Preciso confirmar se a
-   recriação automática deve continuar (ciclo novo já nasce com o saldo herdado do ciclo anterior, e o admin
-   só ajusta) ou se cada ciclo deve começar zerado e ser 100% preenchido manualmente como a seção 4.1 sugere.
+1. **✅ Corte do ciclo: muda pra julho.** `_calc_ciclo_texto` passa de `month >= 8` pra **`month >= 7`**.
+   Como essa função já roda em produção via cron (`encerrar_ciclo_reproducao`) pra todos os tenants, é
+   migration simples na função — mas **atenção no dia do deploy**: rodar fora da janela de virada de ciclo
+   (não fazer isso em julho de um ano real sem revisar o que já foi criado com o corte antigo).
+2. **✅ Investigado — `tem_rm` NÃO tem relação com Demérito.** Confirmado no código-fonte
+   (`index.html`, checkbox `#fc-tem-rm`): o rótulo é **"Reserva de material (RM)"**, um conceito de reserva de
+   sêmen/material genético — sem nenhuma ligação com a classificação Demérito da ABCCC. É só uma coincidência os
+   dois hoje darem bônus parecido (RM libera 150 em vez de 120). **Decisão**: `tem_rm` continua existindo como
+   está (não mexe); Demérito vira um **campo novo e independente** em `fontes_cobertura` (ex.: `demerito
+   boolean`), que sozinho eleva o teto de 120 pra 240. ❓ Combinação `tem_rm=true` + `demerito=true` ao mesmo
+   tempo: soma os dois bônus, ou o maior teto (240) já cobre tudo? Decidir na fase de implementação, não é
+   bloqueante pra desenhar o resto.
+3. **✅ Marketplace fica exposto.** A tela nova de Reprodutivo vai dar acesso ao fluxo de
+   `negociar_cobertura_mimba`/`aceitar_negociacao_cobertura` (venda/compra de cotas entre cabanhas) e à
+   marcação automática que ele já habilita — não é preciso construir nada novo de backend pra isso, só desenhar
+   a UI que hoje não existe pra esse fluxo.
+4. **✅ Herança automática mantida, com edição manual liberada.** `encerrar_ciclo_reproducao` continua recriando
+   a fonte de cobertura do ciclo novo herdando do ciclo anterior (comportamento atual, sem mudar a rotina) — o
+   admin só precisa poder **editar manualmente** depois (garanhão trocou de cota disponível, ou a cabanha
+   adquiriu mais coberturas entre um ciclo e outro). Isso já é possível hoje via `editFonteCobertura` — não
+   precisa de mudança de banco, só garantir que a tela nova deixa essa edição visível e óbvia no fluxo do
+   planejador (não escondida numa tela separada de "fontes de cobertura" como está hoje).
 
 ## 9. Próximos passos deste documento
 
-Spec de requisitos e decisões de produto **fechada** com as respostas acima. Antes de virar plano de
-desenvolvimento (fases, migrations, telas), ainda falta:
-- Levantar o estado atual do schema (`cab_<slug>`) pras tabelas de Reprodutivo/Gestação existentes, pra
-  desenhar o novo modelo de dados por Ciclo Reprodutivo e o plano de arquivamento do item 7.
-- Desenhar a tela única (wireframe/fluxo) substituindo as duas abas atuais.
-- Quebrar em fases de implementação (banco → planejador → integração SBB → UI final).
+Spec de requisitos, decisões de produto e levantamento de schema **fechados**. Antes de começar a
+implementação, ainda falta:
+- Desenhar a tela única (wireframe/fluxo) substituindo as duas abas atuais — incluindo onde entra o fluxo de
+  marketplace (item 3 acima), hoje sem UI própria.
+- Quebrar em fases de implementação (banco → planejador → integração SBB → UI final → arquivamento de
+  `coberturas`).
