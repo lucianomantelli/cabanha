@@ -108,24 +108,32 @@ A RLS de **todas** as tabelas de tenant libera INSERT/UPDATE/DELETE pra qualquer
 admin — um cabanheiro logado podia se autopromover a admin via API direta. Pré-existente, sistêmico. Retomar com
 o `arquiteto`.
 
-## 🐴 Reprodutivo v3 — spec fechada, Fase 0 aplicada (2026-08-02)
-Spec completa em `docs/spec-reprodutivo-v3.md` (unifica as abas Reprodutivo+Gestação, planejamento por Ciclo
-Reprodutivo jul-jun, garanhões/saldo por ciclo, confirmação de animal, éguas de cria/receptora/cobertura
-comprada via SBB, marketplace entre cabanhas exposto). 6 fases de implementação desenhadas.
-
-**Fase 0 (fundação de banco) já aplicada** em produção (banco compartilhado — vale pra staging e prod ao
-mesmo tempo, independente de qual frontend está publicado):
-- `animais.confirmado` e `fontes_cobertura.demerito` (novas colunas, template + todos os 7 tenants).
-- `_calc_ciclo_texto`: corte de ciclo agora em **julho** (era agosto).
-- `encerrar_ciclo_reproducao`: bônus de `tem_rm` (+30) e `demerito` (+120) **empilham** na renovação
-  automática por ciclo (120 base, até 270 coberturas/ano).
-- Tabela legada `coberturas` **renomeada** pra `coberturas_arquivadas_legado` (dado preservado, não usada
-  mais pelo app).
-- `provisionar_schema_cabanha` ajustada (achado extra: tinha `coberturas` hardcoded no array de tabelas
-  clonadas — sem o ajuste, cabanhas novas quebrariam no provisionamento).
-- Aprovada pelo `revisor-isolamento` antes de aplicar. Migration versionada em
-  `docs/migrations/2026-08-02-reprodutivo-fase0.sql`.
-- **Próxima**: Fase 1 (campo "Confirmado" na UI da aba Animais) — schema já pronto, falta só o frontend.
+## 🐴 Reprodutivo v3 — TODAS AS 6 FASES CONCLUÍDAS (2026-08-02) — falta QA em staging real + deploy
+Spec completa em `docs/spec-reprodutivo-v3.md`. Unifica as antigas páginas "Reprodutivo" e "Gestação" numa
+tela só, organizada por Ciclo Reprodutivo (jul-jun): Planejador de ciclo (garanhões com saldo por ciclo,
+éguas de cria com toggle "reprodutora neste ciclo", receptora/cobertura comprada via SBB, marketplace entre
+cabanhas), mais as abas herdadas da Gestação (Acasalamentos, Gestações, Agenda, Fontes, Protocolos,
+Nascimentos, Crias por ciclo, Matrizes, Reprodutores, Histórico arquivado).
+- **Fase 0** (banco): `animais.confirmado`, `fontes_cobertura.demerito`, corte de ciclo em julho, bônus
+  `tem_rm`+`demerito` empilhado, `coberturas` arquivada (`coberturas_arquivadas_legado`), provisionamento
+  corrigido. Aplicada em produção (banco compartilhado). Migration: `docs/migrations/2026-08-02-reprodutivo-fase0.sql`.
+- **Fase 1**: campo "Confirmado" na aba Animais (aviso, não bloqueia).
+- **Fase 2**: Planejador de ciclo — núcleo da tela nova, saldo por garanhão com aviso incisivo ao estourar.
+- **Fase 3**: éguas de cria, receptora via SBB, cobertura comprada via SBB — remove o registro antigo de
+  cobertura (achado: nem persistia no banco).
+- **Fase 4**: marketplace entre cabanhas exposto no Planejador (já existia pronto no backend desde antes,
+  só sem UI acessível — estava "escondido" em Saúde → Pendências).
+- **Fase 5** (corte final): as duas páginas viraram uma só (menu "Gestação" removido). Achados corrigidos no
+  caminho: alerta do Dashboard e card de "Reprodução" na ficha do animal só liam a tabela legada — ganharam
+  versão paralela lendo a tabela `gestacoes` real; permissões de vet/cabanheiro atualizadas pra apontar pra
+  `reprodutivo` em vez de `gestacao` (página que deixou de existir).
+- Revisão de isolamento (`revisor-isolamento`) rodada cobrindo Fases 0-4 antes do corte final — achou e
+  corrigiu 1 problema real: `_limparEstadoLocal()` não zerava os arrays de Reprodução/Marketplace, deixando
+  uma janela de vazamento visual entre cabanhas ao trocar de tenant (não era bypass de RLS, era estado em
+  memória). Corrigido.
+- **Tudo testado só localmente** (servidor estático + sessão injetada), como em todas as fases anteriores —
+  **falta QA de ponta a ponta em `mimba-hml.pages.dev` com login/dado reais** (planejar ciclo do zero,
+  negociar cobertura entre duas cabanhas de teste de verdade) **antes de considerar pronto pra produção**.
 
 ## 🎯 Próximos passos combinados (2026-08-02)
 1. **Revisão do módulo de Reprodução Equina com olhar veterinário** — o Pedro vai mandar uma spec completa
