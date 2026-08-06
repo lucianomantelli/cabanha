@@ -135,6 +135,14 @@ Nascimentos, Crias por ciclo, Matrizes, Reprodutores, Histórico arquivado).
   **falta QA de ponta a ponta em `mimba-hml.pages.dev` com login/dado reais** (planejar ciclo do zero,
   negociar cobertura entre duas cabanhas de teste de verdade) **antes de considerar pronto pra produção**.
 
+## 🚀 Meta V1.5 até 29/08/2026 (definida com o Pedro em 2026-08-02)
+Plano completo em `docs/roadmap-v15.md`. Origem: `docs/roadmap-gestao-crioulo.pdf` (roadmap geral), marco
+"V1.5 · Agosto 2026" — 6 itens: personalização de cores, trial automático 30d, painel admin da plataforma,
+dashboard de métricas de uso, portal do cliente, relatórios em PDF. Nenhum começado ainda. Fases 0-1
+(promover staging→main + personalização de cores) são a base de baixo risco pra começar; Fase 2 (trial)
+tem decisão de produto já tomada (cartão tokenizado, cobra só no dia 30) mas falta decidir o que fazer se a
+cobrança falhar. Risco de prazo sinalizado no documento — 27 dias é apertado pra tudo isso sozinho.
+
 ## 🎯 Próximos passos combinados (2026-08-02)
 1. **Revisão do módulo de Reprodução Equina com olhar veterinário** — o Pedro vai mandar uma spec completa
    (revisão do que já foi construído nas 8 fases, com correções/ajustes do ponto de vista clínico). Aguardando
