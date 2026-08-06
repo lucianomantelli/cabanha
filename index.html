@@ -1390,6 +1390,14 @@
           <label>Nome de exibição</label>
           <input type="text" id="conta-nome-exibicao" placeholder="Ex: Cabanha Mãe de Deus" style="width:100%">
         </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Cor da marca</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="color" id="conta-cor-primaria" value="#5c3a24" style="width:44px;height:34px;padding:2px;cursor:pointer">
+            <span style="font-size:11px;color:var(--text3)">Usada nos destaques (botões, links, marca) do sistema pra esta cabanha.</span>
+            <button class="btn btn-sm" type="button" onclick="_resetCorPrimaria()" style="margin-left:auto">Restaurar padrão Mimba</button>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn" onclick="closeModal('modal-conta')">Fechar</button>
@@ -9041,6 +9049,7 @@ function abrirTelaConta() {
   if(TENANT_INFO?.logo_url) { logoImg.src = TENANT_INFO.logo_url; logoImg.style.display=''; logoPh.style.display='none'; }
   else { logoImg.style.display='none'; logoPh.style.display='flex'; }
   window._contaNovoLogo = undefined;
+  document.getElementById('conta-cor-primaria').value = TENANT_INFO?.cor_primaria || '#2D5A3D';
   document.querySelectorAll('#modal-conta .tab-row .tab').forEach((t,i)=>t.classList.toggle('active', i===0));
   document.getElementById('conta-tab-cabanha').style.display = '';
   document.getElementById('conta-tab-usuarios').style.display = 'none';
@@ -9091,14 +9100,16 @@ async function salvarDadosCabanha() {
   if(!TENANT_INFO?.tenant_id) return;
   const nome = document.getElementById('conta-nome-exibicao').value.trim();
   const logo = window._contaNovoLogo !== undefined ? window._contaNovoLogo : (TENANT_INFO.logo_url || null);
+  const cor = document.getElementById('conta-cor-primaria').value || null;
   const btn = document.getElementById('conta-btn-salvar-cabanha');
   if(btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
-  const okRpc = await _rpc('atualizar_tenant', { p_tenant_id: TENANT_INFO.tenant_id, p_nome_exibicao: nome, p_logo_url: logo });
+  const okRpc = await _rpc('atualizar_tenant', { p_tenant_id: TENANT_INFO.tenant_id, p_nome_exibicao: nome, p_logo_url: logo, p_cor_primaria: cor });
   if(btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
   if(okRpc !== true) return alert('Falha ao salvar. Confira se você é administrador desta cabanha.');
 
   TENANT_INFO.nome_exibicao = nome || null;
   TENANT_INFO.logo_url = logo || null;
+  TENANT_INFO.cor_primaria = cor;
   const cabEl = document.getElementById('sidebar-cabanha'); if(cabEl) cabEl.textContent = nome || TENANT_INFO.nome_cabanha || '';
   const logoEl = document.getElementById('sidebar-logo-img');
   const monoEl = document.getElementById('sidebar-logo-monogram');
@@ -9107,7 +9118,12 @@ async function salvarDadosCabanha() {
     else { logoEl.removeAttribute('src'); logoEl.style.display='none'; if(monoEl) monoEl.style.display=''; }
   }
   if(nome) document.title = `${nome} — Mimba`;
+  _aplicarCorPrimaria(cor);
   _mostrarStatusSync('✅ Dados da cabanha atualizados', 'green');
+}
+
+function _resetCorPrimaria() {
+  document.getElementById('conta-cor-primaria').value = '#2D5A3D';
 }
 
 // ── TROCAR SENHA (self-service) ──────────────────────────────────────────────
@@ -10903,6 +10919,36 @@ async function _entrarCabanha(cab) {
   _entrarApp();
 }
 
+// Personalização de cores por cabanha (V1.5, docs/roadmap-v15.md): sobrescreve as
+// CSS variables de acento primário (--green/--green-d/--green-l, usadas em botões
+// e estado ativo do menu) via inline style em :root — vence a cascata do CSS sem
+// precisar duplicar regra nenhuma. Sem cor definida, volta ao padrão Mimba.
+function _hexParaRgb(hex) {
+  const h = (hex || '').replace('#', '');
+  const norm = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const n = parseInt(norm, 16);
+  if (isNaN(n)) return null;
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+function _misturarComBranco(hex, pct) {
+  const rgb = _hexParaRgb(hex);
+  if (!rgb) return null;
+  const mix = c => Math.round(c + (255 - c) * pct);
+  return `rgb(${mix(rgb.r)},${mix(rgb.g)},${mix(rgb.b)})`;
+}
+function _aplicarCorPrimaria(cor) {
+  const root = document.documentElement.style;
+  if (cor && _hexParaRgb(cor)) {
+    root.setProperty('--green', cor);
+    root.setProperty('--green-d', cor);
+    root.setProperty('--green-l', _misturarComBranco(cor, 0.88));
+  } else {
+    root.removeProperty('--green');
+    root.removeProperty('--green-d');
+    root.removeProperty('--green-l');
+  }
+}
+
 // Pós-login: mostra o app (reaproveitado pelo login direto e pelo seletor)
 function _entrarApp() {
   const user = usuarioAtual;
@@ -10924,6 +10970,7 @@ function _entrarApp() {
     if(TENANT_INFO && TENANT_INFO.logo_url) { logoEl.src = TENANT_INFO.logo_url; logoEl.style.display=''; if(monoEl) monoEl.style.display='none'; }
     else { logoEl.removeAttribute('src'); logoEl.style.display='none'; if(monoEl) monoEl.style.display=''; }
   }
+  _aplicarCorPrimaria(TENANT_INFO?.cor_primaria);
   if(nomeCab) document.title = `${nomeCab} — Mimba`;
   const usrSub = document.getElementById('usuarios-sub');
   if(usrSub) usrSub.textContent = 'Controle de acesso ao sistema' + (nomeCab ? ` — ${nomeCab}` : '');
@@ -10945,10 +10992,11 @@ function fazerLogout() {
   _limparSessaoSalva(); // sair de verdade não pode voltar sozinho no próximo reload
   // fechar a Tela de Conta, se estiver aberta
   closeModal('modal-conta');
-  // limpar a marca da cabanha (logo/nome/título) ao voltar para o login
+  // limpar a marca da cabanha (logo/nome/título/cor) ao voltar para o login
   const _lg = document.getElementById('sidebar-logo-img');
   if(_lg){ _lg.removeAttribute('src'); _lg.style.display='none'; }
   const _cb = document.getElementById('sidebar-cabanha'); if(_cb) _cb.textContent='';
+  _aplicarCorPrimaria(null);
   document.title = 'Mimba — Gestão Crioulos';
   _loadUsuarios();
   document.getElementById('login-screen').style.display='flex';

@@ -24,11 +24,18 @@ flags de teste que façam sentido + deploy) quando o pacote da V1.5 estiver pron
   voltar a `ambiente_teste=false` antes do lançamento.
 - Promover `staging` → `main` (skill `deploy`) — junto com o lançamento da V1.5, não antes.
 
-### Fase 1 — Personalização de cores por cabanha (rápido, isolado) — **começar por aqui**
-- `tenants.cor_primaria` já existe no banco (não usado). Aplicar como CSS variable no login/casca do app
-  (mesmo padrão de `logo_url`, já usado hoje). Ponto de edição: Tela de Conta → aba Cabanha (onde já se
-  edita nome/logo).
-- Menor esforço de todo o roadmap V1.5 — bom pra abrir o sprint com uma entrega rápida.
+### Fase 1 — Personalização de cores por cabanha ✅ CONCLUÍDA (2026-08-02)
+- Campo "Cor da marca" (color picker) na Tela de Conta → aba Cabanha, ao lado de nome/logo — mesmo padrão
+  de edição já usado ali.
+- Aplicada via CSS variables (`--green`/`--green-d`/`--green-l`, o acento primário usado em botões e estado
+  ativo do menu) sobrescritas por inline style em `:root` — vence a cascata sem duplicar regra nenhuma.
+  `--green-l` (fundo claro) é calculado misturando a cor com branco (88%), não precisa o usuário escolher 3
+  tons. Aplica no login (`_entrarApp`), some no logout (volta ao verde padrão Mimba).
+- Backend: `minhas_cabanhas()` **já devolvia** `cor_primaria` (achado — já estava pronto de uma sessão
+  anterior, só não era usado). `atualizar_tenant` RPC atualizada pra aceitar e persistir `p_cor_primaria`
+  (parâmetro com `default null`, mantém compatibilidade com chamadas antigas).
+- Testado via servidor local: cor aplicada no login, carregada certa ao abrir a Tela de Conta, "Restaurar
+  padrão" funciona, e o logout limpa a cor customizada (volta ao verde Mimba).
 
 ### Fase 2 — Trial automático de 30 dias (decisão de produto já tomada: cartão tokenizado)
 - Modelo definido: cadastro coleta cartão via Asaas (tokenizado), mas **não cobra na hora** — só ativa a
