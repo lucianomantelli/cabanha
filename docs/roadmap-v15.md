@@ -7,21 +7,24 @@
 ## Panorama antes de começar
 
 `staging` está **53 commits à frente de `main`** — todo o trabalho recente (Reprodutivo v3, redesign,
-correção de convite, mobile) só existe em homologação. Isso é a Fase 0 deste plano: sem promover, cada
-feature nova da V1.5 é construída em cima de uma base não publicada, aumentando o risco de acumular ainda
-mais defasagem.
+correção de convite, mobile) só existe em homologação.
+
+**Decisão de 2026-08-02: a promoção `staging→main` (Fase 0) fica pra DEPOIS, não agora.** Thiago (sócio,
+admin da Cabanha Santa Adelina) usa a staging pra testar as funcionalidades novas conforme são construídas
+— a Cabanha Santa Adelina fica **de propósito** marcada `ambiente_teste=true` (não é um contorno a reverter).
+Ordem combinada: construir as Fases 1-4 da V1.5 primeiro, com a `main` estável do jeito que está pros
+clientes reais que já usam produção, e só promover tudo de uma vez (com a Fase 0 completa: QA + reverter
+flags de teste que façam sentido + deploy) quando o pacote da V1.5 estiver pronto pro lançamento.
 
 ## Fases
 
-### Fase 0 — Fundação (destrava tudo, baixo risco, faz primeiro)
-- QA de ponta a ponta do Reprodutivo v3 em `mimba-hml.pages.dev` com login/dado reais (pendência já
-  registrada no HANDOFF).
-- Reverter `ambiente_teste=false` na Cabanha Santa Adelina (cliente real, hoje marcada como teste por um
-  contorno temporário).
-- Promover `staging` → `main` (skill `deploy`) — publica tudo que já está pronto de uma vez.
-- **Sem isso, os itens abaixo nascem em cima de uma base que ainda não é produção de verdade.**
+### Fase 0 — Fundação (QA + promoção pra produção) — **adiada, fazer por último**
+- QA de ponta a ponta do Reprodutivo v3 em `mimba-hml.pages.dev` com login/dado reais.
+- Revisar (não necessariamente reverter — Santa Adelina fica teste de propósito) quais cabanhas devem
+  voltar a `ambiente_teste=false` antes do lançamento.
+- Promover `staging` → `main` (skill `deploy`) — junto com o lançamento da V1.5, não antes.
 
-### Fase 1 — Personalização de cores por cabanha (rápido, isolado)
+### Fase 1 — Personalização de cores por cabanha (rápido, isolado) — **começar por aqui**
 - `tenants.cor_primaria` já existe no banco (não usado). Aplicar como CSS variable no login/casca do app
   (mesmo padrão de `logo_url`, já usado hoje). Ponto de edição: Tela de Conta → aba Cabanha (onde já se
   edita nome/logo).

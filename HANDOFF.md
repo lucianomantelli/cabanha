@@ -71,9 +71,10 @@ primeiro acesso. Estado final, `convidar-usuario` (edge function) na **v7**:
 **Caso real resolvido com isso:** Thiago (Cabanha Santa Adelina) recebeu convite em 31/07, nunca completou o login
 (código expirou). Usado o botão de reenvio (via staging, com a cabanha marcada `ambiente_teste=true` temporariamente
 pelo Pedro) — ele conseguiu acessar em 2026-08-02. Acesso temporário do Pedro àquela cabanha já foi removido.
-⚠️ **A cabanha Santa Adelina continua marcada `ambiente_teste=true`** no banco (o Pedro marcou direto) — como é uma
-cliente real, isso a esconde da produção quando a `staging` for promovida. Confirmar com o Pedro se deve voltar
-pra `false` antes da promoção.
+**A cabanha Santa Adelina continua marcada `ambiente_teste=true`** no banco, **de propósito** (decisão de
+2026-08-02): Thiago é sócio, não só cliente, e usa a staging pra testar funcionalidades novas conforme são
+construídas. Não reverter essa flag sem confirmar com o Pedro — revisar isso só faz parte da Fase 0
+(promoção `staging→main`), que está adiada até o lançamento da V1.5 (ver `docs/roadmap-v15.md`).
 
 ## 📱 Mobile — dois ciclos de correção
 - **Prioridade 6 do ROADMAP** (ver abaixo): overflow-x travado na raiz, `.tab-row` rolável, menu lateral virou
