@@ -37,16 +37,36 @@ flags de teste que façam sentido + deploy) quando o pacote da V1.5 estiver pron
 - Testado via servidor local: cor aplicada no login, carregada certa ao abrir a Tela de Conta, "Restaurar
   padrão" funciona, e o logout limpa a cor customizada (volta ao verde Mimba).
 
-### Fase 2 — Trial automático de 30 dias (decisão de produto já tomada: cartão tokenizado)
-- Modelo definido: cadastro coleta cartão via Asaas (tokenizado), mas **não cobra na hora** — só ativa a
-  cobrança automática no dia 30. Isso muda o fluxo `criar-checkout` atual (que hoje cobra imediatamente) —
-  precisa de um novo fluxo "assinar com trial" em paralelo ao checkout imediato existente, não substituindo.
-- `tenants.trial_inicio`/`trial_fim` já existem no banco (sem lógica hoje) — usar como base.
-- Precisa de: (a) fluxo de cadastro que tokeniza cartão sem cobrar, (b) job periódico (`pg_cron`, já
-  instalado no projeto) que verifica `trial_fim` vencido e dispara cobrança via Asaas, (c) se a cobrança
-  falhar (cartão recusado): **decidido — bloqueia o acesso da cabanha imediatamente**, mostrando uma tela
-  pedindo atualização do pagamento (sem retry automático nem período de carência nesta primeira versão).
-- Maior peça de trabalho do sprint, mas sem mais decisões de produto pendentes — pode ser implementada.
+### Fase 2 — Trial automático de 30 dias ✅ CONSTRUÍDA (2026-08-02) — falta 1 passo manual seu
+- **Banco**: `tenants.asaas_card_token` (novo). `minhas_cabanhas()` passou a devolver cabanhas com
+  `status in ('ativo','trial','bloqueado')` — antes só `'ativo'`, o que deixaria uma cabanha em trial
+  **invisível no login** (achado no meio da implementação).
+- **`provisionar-cabanha`** (v14): aceita `status`/`asaas_card_token` opcionais (default `'ativo'`,
+  compatível com o fluxo de pagamento imediato existente).
+- **Nova edge function `criar-checkout-trial`** (pública, chamada pela landing): tokeniza o cartão no Asaas
+  (`/creditCard/tokenize`, nada é cobrado nesse passo) e provisiona a cabanha na hora com `status:'trial'`
+  — não espera o `asaas-webhook`, porque não há pagamento ainda pra confirmar.
+- **Nova edge function `cobrar-trial`** (interna, só `Bearer service_role`): roda 1x/dia via `pg_cron`,
+  busca tenants com `status='trial'` e `trial_fim` vencido, cria a assinatura de verdade no Asaas com o
+  cartão tokenizado. Sucesso → `status='ativo'`. Falha → `status='bloqueado'` na hora (decisão já tomada:
+  sem retry/carência nesta versão).
+- **Frontend**: tela de bloqueio (`login-bloqueado`) quando a cabanha está `status='bloqueado'` — barra
+  a entrada antes de buscar qualquer dado. Aviso de "X dias restantes" na sidebar quando `status='trial'`.
+- **⚠️ Achado da revisão de isolamento, corrigido**: o bloqueio acima era só client-side — a RLS não sabia
+  nada sobre `status`, então um JWT válido + membership continuava com acesso total via API direta a uma
+  cabanha "bloqueada". Corrigido na raiz: `tem_acesso_tenant()` (usada por **todas** as policies de
+  **todos** os schemas `cab_*`) agora exige `tenants.status in ('ativo','trial')` além do membership — uma
+  função só, efeito em todo lugar, sem precisar tocar policy por policy. Verificado que os 7 tenants
+  provisionados existentes (`status='ativo'`) não foram afetados.
+- Demais achados da revisão (payload de `criar-checkout-trial`, loop de `cobrar-trial`, colunas devolvidas
+  por `minhas_cabanhas()`) — conferidos direto no código real: sem problema.
+- **⚠️ Falta um passo manual seu antes disso rodar de verdade**: agendar o `pg_cron` exige a
+  `service_role key` guardada no Vault do banco — só você tem essa chave (Project Settings → API). SQL
+  pronto em `docs/migrations/2026-08-02-cron-cobrar-trial.sql`, é só colar a chave e rodar no SQL Editor.
+- **Fora do escopo desta sessão**: o formulário de cadastro com trial na landing (`mimba.com.br/assinar`)
+  vive no repo `mimba-landing`, separado deste — o backend já está pronto pra receber a chamada
+  (`criar-checkout-trial`), mas o formulário em si (campos de cartão/endereço) precisa ser construído numa
+  sessão nesse outro repo.
 
 ### Fase 3 — Painel admin da plataforma + Dashboard de métricas de uso (mesma audiência, construir junto)
 - Público interno Mimba (não o cliente cabanha) — visão de todas as cabanhas ativas, status de

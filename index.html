@@ -497,6 +497,21 @@
       <div class="login-logo-sub">Restaurando sua sessão...</div>
     </div>
   </div>
+  <!-- V1.5 (docs/roadmap-v15.md, Fase 2): trial vencido e cobrança automática falhou —
+       acesso bloqueado até atualizar o pagamento. Sem self-service de troca de cartão
+       ainda (isso é o Portal do Cliente, Fase 4) — por ora só orienta a falar com a Mimba. -->
+  <div class="login-box" id="login-bloqueado" style="display:none;text-align:center">
+    <div class="login-logo">
+      <div class="login-logo-title">Mimba</div>
+      <div class="login-logo-sub" style="color:var(--red-d)">Acesso temporariamente bloqueado</div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.6;margin:12px 0 18px">
+      Não conseguimos confirmar o pagamento de <strong id="bloqueado-nome-cabanha"></strong> ao final do
+      período de teste. Entre em contato com a gente pra regularizar e liberar o acesso de novo.
+    </div>
+    <a class="login-btn" style="display:block;text-decoration:none;box-sizing:border-box" href="mailto:app.mimba@gmail.com">Falar com a Mimba</a>
+    <div style="margin-top:12px"><a href="#" onclick="fazerLogout();return false;" style="font-size:12px;color:var(--text2)">← Voltar ao login</a></div>
+  </div>
   <div class="login-box" id="definir-senha-box" style="display:none">
     <div class="login-logo">
       <div class="login-logo-title">Mimba</div>
@@ -530,6 +545,7 @@
       <div class="logo-wordmark">Mimba</div>
     </div>
     <span class="logo-badge" id="sidebar-cabanha"></span>
+    <div id="sidebar-trial-aviso" style="display:none;font-size:10px;color:var(--amber-d);background:var(--amber-l);border-radius:var(--radius);padding:4px 8px;margin-top:6px;text-align:center"></div>
   </div>
   <button class="nav-btn active" onclick="showPage('dashboard')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span>Dashboard</span></button>
   <button class="nav-btn" onclick="showPage('animais')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="16" rx="5" ry="4"/><circle cx="6" cy="8" r="2.1"/><circle cx="11" cy="5.3" r="2.1"/><circle cx="16" cy="5.3" r="2.1"/><circle cx="19" cy="9" r="2.1"/></svg></span><span>Animais</span></button>
@@ -10901,6 +10917,15 @@ function _limparEstadoLocal() {
 
 // Entrar numa cabanha: define o schema e carrega o usuário do schema pela identidade global
 async function _entrarCabanha(cab) {
+  // V1.5 (Fase 2, trial automático): cobrança do fim do trial falhou -> bloqueado na hora,
+  // sem acessar dado nenhum da cabanha. 'trial' e 'ativo' entram normalmente.
+  if (cab.status === 'bloqueado') {
+    document.getElementById('login-box-main').style.display = 'none';
+    document.getElementById('login-restaurando').style.display = 'none';
+    document.getElementById('bloqueado-nome-cabanha').textContent = cab.nome_exibicao || cab.nome_cabanha || 'sua cabanha';
+    document.getElementById('login-bloqueado').style.display = '';
+    return;
+  }
   TENANT_SCHEMA = cab.schema_name;
   TENANT_INFO   = cab;
   _limparEstadoLocal();   // nunca renderizar a cabanha nova com dado da anterior
@@ -10971,6 +10996,17 @@ function _entrarApp() {
     else { logoEl.removeAttribute('src'); logoEl.style.display='none'; if(monoEl) monoEl.style.display=''; }
   }
   _aplicarCorPrimaria(TENANT_INFO?.cor_primaria);
+  // V1.5 (Fase 2, trial automático): avisa quantos dias faltam do trial.
+  const trialEl = document.getElementById('sidebar-trial-aviso');
+  if (trialEl) {
+    if (TENANT_INFO?.status === 'trial' && TENANT_INFO?.trial_fim) {
+      const dias = Math.ceil((new Date(TENANT_INFO.trial_fim) - HOJE) / 864e5);
+      trialEl.textContent = dias > 0 ? `Teste grátis — ${dias} dia(s) restante(s)` : 'Teste grátis — cobrança prevista hoje';
+      trialEl.style.display = '';
+    } else {
+      trialEl.style.display = 'none';
+    }
+  }
   if(nomeCab) document.title = `${nomeCab} — Mimba`;
   const usrSub = document.getElementById('usuarios-sub');
   if(usrSub) usrSub.textContent = 'Controle de acesso ao sistema' + (nomeCab ? ` — ${nomeCab}` : '');
@@ -11000,6 +11036,9 @@ function fazerLogout() {
   document.title = 'Mimba — Gestão Crioulos';
   _loadUsuarios();
   document.getElementById('login-screen').style.display='flex';
+  // restaurar a tela normal de login (pode estar escondida por causa da tela de bloqueio)
+  document.getElementById('login-box-main').style.display='';
+  const bloq = document.getElementById('login-bloqueado'); if(bloq) bloq.style.display='none';
   // restaurar campos e esconder o seletor
   const box = document.getElementById('login-seletor'); if(box){ box.style.display='none'; box.innerHTML=''; }
   const fu = document.getElementById('login-user'); const fs = document.getElementById('login-senha');
