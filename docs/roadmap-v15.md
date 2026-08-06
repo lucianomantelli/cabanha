@@ -33,18 +33,21 @@ mais defasagem.
   precisa de um novo fluxo "assinar com trial" em paralelo ao checkout imediato existente, não substituindo.
 - `tenants.trial_inicio`/`trial_fim` já existem no banco (sem lógica hoje) — usar como base.
 - Precisa de: (a) fluxo de cadastro que tokeniza cartão sem cobrar, (b) job periódico (`pg_cron`, já
-  instalado no projeto) que verifica `trial_fim` vencido e dispara cobrança via Asaas, (c) tratamento de
-  falha de cobrança (cartão recusado no dia 30 → o quê? bloquear? tentar de novo? — **decisão de produto
-  ainda em aberto, resolver antes de implementar o job**).
-- Maior peça de trabalho do sprint — depende de decisões de produto adicionais no caminho.
+  instalado no projeto) que verifica `trial_fim` vencido e dispara cobrança via Asaas, (c) se a cobrança
+  falhar (cartão recusado): **decidido — bloqueia o acesso da cabanha imediatamente**, mostrando uma tela
+  pedindo atualização do pagamento (sem retry automático nem período de carência nesta primeira versão).
+- Maior peça de trabalho do sprint, mas sem mais decisões de produto pendentes — pode ser implementada.
 
 ### Fase 3 — Painel admin da plataforma + Dashboard de métricas de uso (mesma audiência, construir junto)
 - Público interno Mimba (não o cliente cabanha) — visão de todas as cabanhas ativas, status de
   assinatura, métricas de uso (animais cadastrados, módulos usados, frequência de acesso), logs de
   provisionamento.
-- Precisa de um conceito de "usuário Mimba/staff" que hoje só existe fragmentado (`usuarios_master`,
-  1 conta única `admin@arandu.app`, achado em sessão anterior) — vale revisar com o `arquiteto` antes de
-  implementar, já que é RLS/acesso cross-tenant de verdade (não é por schema de cabanha).
+- **Decidido — acesso restrito a Pedro e sócio por enquanto.** Reaproveita o login atual (Supabase Auth):
+  um flag simples de "staff" (ex.: em `usuarios_master`, hoje com 1 conta única `admin@arandu.app`, ou uma
+  tabela nova `mimba_staff` com os `auth.users.id` autorizados) — não precisa de sistema de auth novo, só
+  uma policy/RPC que checa esse flag antes de expor dado cross-tenant. Ainda assim é RLS/acesso cross-tenant
+  de verdade (não por schema de cabanha) — vale uma revisão rápida com o `revisor-isolamento` antes de
+  liberar, mesmo sendo só 2 contas.
 - Combinar os dois itens do roadmap geral numa tela só evita duas iniciativas separadas pro mesmo público.
 
 ### Fase 4 — Portal do cliente + Relatórios em PDF (cliente-facing, mais isolados entre si)
@@ -64,10 +67,11 @@ Fase 2, cada decisão de produto não resolvida antes de começar a construir co
 revisar o progresso na Fase 0/1 concluída como checkpoint pra confirmar se o restante do prazo é realista ou
 se algo precisa ser recortado — melhor decidir isso cedo do que descobrir no dia 27.
 
-## Pendências de decisão de produto (bloqueiam Fases 2-4 se não resolvidas antes)
-1. Trial (Fase 2): o que acontece se a cobrança do dia 30 falhar (cartão recusado)? Bloqueia a cabanha na
-   hora, tenta de novo em X dias, ou dá um prazo de carência?
-2. Painel admin (Fase 3): quem tem acesso — só o Pedro/sócio, ou uma equipe maior? Precisa de um novo
-   sistema de login separado do login de cabanha, ou reaproveita a mesma auth com um flag de "staff"?
-3. Portal do cliente (Fase 4): troca de plano é self-service de verdade (upgrade/downgrade automático) ou
+## Pendências de decisão de produto
+
+Resolvidas em 2026-08-02: falha de cobrança no trial (Fase 2) → bloqueio imediato, sem retry/carência.
+Acesso ao painel admin (Fase 3) → só Pedro + sócio, via flag de staff reaproveitando o login atual.
+
+Ainda em aberto (não bloqueia o início das Fases 0-3, só precisa ser resolvida antes da Fase 4):
+1. Portal do cliente (Fase 4): troca de plano é self-service de verdade (upgrade/downgrade automático) ou
    só visualização + pedido que a Mimba processa manualmente por enquanto?
