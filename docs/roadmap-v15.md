@@ -107,6 +107,20 @@ flags de teste que façam sentido + deploy) quando o pacote da V1.5 estiver pron
     implementar a troca de plano até essa lista chegar** — combinado explicitamente, não é esquecimento.
   - O resto do Portal do cliente (histórico de faturas, atualização de forma de pagamento) não depende
     dessa lista — pode ser construído em paralelo.
+  - **✅ Histórico de faturas + atualizar cartão — CONSTRUÍDO (2026-08-02).** Nova aba "Faturamento" na
+    Tela de Conta (admin-only, mesmo padrão da aba Usuários). Duas edge functions novas
+    (`verify_jwt=true`, mesmo padrão de `convidar-usuario` — checam admin ativo do tenant antes de
+    tocar em qualquer dado, ASAAS_API_KEY nunca sai do servidor): `portal-faturas` (lista cobranças do
+    Asaas por `asaas_customer_id`) e `portal-atualizar-cartao` (tokeniza cartão novo e, se a cabanha já
+    tem assinatura ativa no Asaas, atualiza ela pra cobrar no cartão novo dali pra frente — reaproveita
+    `cnpj_cpf` já salvo no cadastro, não pede de novo). Achado corrigido no caminho: bug de UI
+    pré-existente no padrão de erro (`.login-error` tem `display:none` na classe — setar
+    `style.display=''` não reexibe, precisa ser `'block'` explícito; usado errado na primeira versão do
+    modal de cartão, corrigido e confirmado contra o padrão já usado em `login-error`/`cod-error`).
+    Testado via servidor local com `fetch` simulado: aba visível só pra admin, histórico renderiza com
+    status traduzidos, validação de campos do modal mostra erro corretamente.
+  - Troca de plano continua bloqueada (ver acima) — só essa parte do Portal ficou pra quando a lista
+    chegar.
 - **Relatórios em PDF**: sanidade do plantel, histórico sanitário por animal, relatório de gestações,
   análise de sangues — geração client-side (`jsPDF` ou similar) ou via Edge Function; independente das
   outras fases, pode ser paralelizado por outra frente se houver.

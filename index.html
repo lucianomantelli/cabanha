@@ -1444,6 +1444,7 @@
     <div class="tab-row" style="margin-bottom:1.25rem">
       <button class="tab active" onclick="switchContaTab(this,'conta-tab-cabanha')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg> Cabanha</button>
       <button class="tab" onclick="switchContaTab(this,'conta-tab-usuarios')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg> Usuários</button>
+      <button class="tab" id="conta-tab-btn-faturamento" onclick="switchContaTab(this,'conta-tab-faturamento')" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Faturamento</button>
     </div>
 
     <div id="conta-tab-cabanha" style="overflow-y:auto;flex:1">
@@ -1496,6 +1497,48 @@
       <div class="card" style="padding:0;overflow:hidden">
         <div id="usuarios-table-content"></div>
       </div>
+    </div>
+
+    <!-- V1.5 (Fase 4): Portal do cliente — faturamento. Só a parte que NÃO depende da lista
+         de limites por plano (troca de plano fica bloqueada até o Pedro mandar essa lista,
+         ver docs/roadmap-v15.md). Admin-only, mesmo padrão de acesso da aba Usuários. -->
+    <div id="conta-tab-faturamento" style="display:none;overflow-y:auto;flex:1">
+      <div class="card-title" style="margin-bottom:8px">Cartão de cobrança</div>
+      <div id="fat-cartao-resumo" style="font-size:12px;color:var(--text2);margin-bottom:10px"></div>
+      <button class="btn btn-sm" onclick="abrirModalAtualizarCartao()">Atualizar cartão</button>
+
+      <div class="card-title" style="margin:22px 0 8px">Histórico de faturas</div>
+      <div id="fat-faturas-content">
+        <div class="card" style="text-align:center;padding:1.5rem;color:var(--text3);font-size:12px">Carregando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- V1.5 (Fase 4): atualizar cartão de cobrança -->
+<div class="modal-bg" id="modal-atualizar-cartao">
+  <div class="modal" style="width:440px">
+    <div class="modal-header">
+      <span class="modal-title">Atualizar cartão de cobrança</span>
+      <button class="modal-close" onclick="closeModal('modal-atualizar-cartao')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Nome impresso no cartão</label><input type="text" id="cc-nome-titular"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Número do cartão</label><input type="text" id="cc-numero" inputmode="numeric" placeholder="0000 0000 0000 0000"></div>
+      <div class="form-group"><label>Validade (MM/AAAA)</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="cc-validade-mes" placeholder="MM" style="width:60px" inputmode="numeric" maxlength="2">
+          <input type="text" id="cc-validade-ano" placeholder="AAAA" style="width:80px" inputmode="numeric" maxlength="4">
+        </div>
+      </div>
+      <div class="form-group"><label>CVV</label><input type="text" id="cc-ccv" inputmode="numeric" maxlength="4" style="width:80px"></div>
+      <div class="form-group"><label>CEP do titular</label><input type="text" id="cc-cep" inputmode="numeric"></div>
+      <div class="form-group"><label>Número do endereço</label><input type="text" id="cc-numero-endereco"></div>
+    </div>
+    <div class="login-error" id="cc-error" style="display:none;margin:0 1.1rem"></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-atualizar-cartao')">Cancelar</button>
+      <button class="btn btn-primary" id="cc-btn-salvar" onclick="salvarNovoCartao()">Salvar cartão</button>
     </div>
   </div>
 </div>
@@ -9122,6 +9165,11 @@ function abrirTelaConta() {
   document.querySelectorAll('#modal-conta .tab-row .tab').forEach((t,i)=>t.classList.toggle('active', i===0));
   document.getElementById('conta-tab-cabanha').style.display = '';
   document.getElementById('conta-tab-usuarios').style.display = 'none';
+  document.getElementById('conta-tab-faturamento').style.display = 'none';
+  // V1.5 (Fase 4): Faturamento é admin-only, mesmo padrão da aba Usuários.
+  const isAdm = usuarioAtual?.perfil === 'adm' || usuarioAtual?.perfil === 'admin';
+  const fatBtn = document.getElementById('conta-tab-btn-faturamento');
+  if (fatBtn) fatBtn.style.display = isAdm ? '' : 'none';
   renderUsuarios();
   _carregarStatusPendente();
   _aplicarPermissoes();
@@ -9131,9 +9179,11 @@ function abrirTelaConta() {
 function switchContaTab(btn, tabId) {
   btn.closest('.tab-row').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('conta-tab-cabanha').style.display  = tabId === 'conta-tab-cabanha'  ? '' : 'none';
-  document.getElementById('conta-tab-usuarios').style.display = tabId === 'conta-tab-usuarios' ? '' : 'none';
+  document.getElementById('conta-tab-cabanha').style.display     = tabId === 'conta-tab-cabanha'     ? '' : 'none';
+  document.getElementById('conta-tab-usuarios').style.display    = tabId === 'conta-tab-usuarios'    ? '' : 'none';
+  document.getElementById('conta-tab-faturamento').style.display = tabId === 'conta-tab-faturamento' ? '' : 'none';
   if(tabId === 'conta-tab-usuarios') { renderUsuarios(); _carregarStatusPendente(); }
+  if(tabId === 'conta-tab-faturamento') { renderFaturamento(); }
 }
 
 // "Convite pendente": a pessoa foi convidada mas nunca fez login de verdade (nunca
@@ -9193,6 +9243,100 @@ async function salvarDadosCabanha() {
 
 function _resetCorPrimaria() {
   document.getElementById('conta-cor-primaria').value = '#2D5A3D';
+}
+
+// ── FATURAMENTO (V1.5, Fase 4 — Portal do cliente, parte 1) ──────────────────
+// Histórico de faturas + atualizar cartão. Troca de plano fica de fora nesta
+// rodada — aguardando a lista de limites por plano (docs/roadmap-v15.md).
+const FAT_STATUS_LABEL = {
+  PENDING: 'Pendente', RECEIVED: 'Recebida', CONFIRMED: 'Confirmada', OVERDUE: 'Atrasada',
+  REFUNDED: 'Estornada', RECEIVED_IN_CASH: 'Recebida (dinheiro)', CHARGEBACK_REQUESTED: 'Contestada',
+};
+const FAT_STATUS_BADGE = {
+  PENDING: 'ba', RECEIVED: 'bg', CONFIRMED: 'bg', OVERDUE: 'br', REFUNDED: 'bgr', CHARGEBACK_REQUESTED: 'br',
+};
+const FAT_FORMA_LABEL = { CREDIT_CARD: 'Cartão de crédito', BOLETO: 'Boleto', PIX: 'PIX', UNDEFINED: 'A escolher' };
+
+async function renderFaturamento() {
+  const resumoEl = document.getElementById('fat-cartao-resumo');
+  resumoEl.textContent = TENANT_INFO?.status === 'trial'
+    ? 'Cartão cadastrado no teste grátis — será cobrado automaticamente ao final do período.'
+    : 'Cartão usado para a cobrança mensal da assinatura.';
+
+  const el = document.getElementById('fat-faturas-content');
+  el.innerHTML = '<div class="card" style="text-align:center;padding:1.5rem;color:var(--text3);font-size:12px">Carregando...</div>';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/portal-faturas`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenant_id: TENANT_INFO?.tenant_id }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data?.erro || 'Falha ao carregar faturas');
+    const faturas = data?.faturas || [];
+    if (!faturas.length) {
+      el.innerHTML = '<div class="card" style="text-align:center;padding:1.5rem;color:var(--text3);font-size:12px">Nenhuma fatura ainda.</div>';
+      return;
+    }
+    el.innerHTML = `<div class="card" style="padding:0;overflow:hidden;overflow-x:auto"><table><thead><tr>
+      <th style="padding:9px 10px">Vencimento</th><th>Valor</th><th>Forma</th><th>Status</th><th></th>
+    </tr></thead><tbody>${faturas.map((f) => `<tr>
+      <td style="padding:8px 10px;font-size:12px">${fd(f.vencimento) || '—'}</td>
+      <td style="font-weight:600">R$ ${Number(f.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+      <td style="font-size:12px">${FAT_FORMA_LABEL[f.forma_pagamento] || f.forma_pagamento}</td>
+      <td><span class="badge ${FAT_STATUS_BADGE[f.status] || 'bgr'}">${FAT_STATUS_LABEL[f.status] || f.status}</span></td>
+      <td>${f.invoice_url ? `<a href="${f.invoice_url}" target="_blank" style="font-size:11px;color:var(--blue-d)">ver fatura ↗</a>` : ''}</td>
+    </tr>`).join('')}</tbody></table></div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="card" style="text-align:center;padding:1.5rem;color:var(--red-d);font-size:12px">${e instanceof Error ? e.message : 'Falha ao carregar faturas.'}</div>`;
+  }
+}
+
+function abrirModalAtualizarCartao() {
+  ['cc-nome-titular','cc-numero','cc-validade-mes','cc-validade-ano','cc-ccv','cc-cep','cc-numero-endereco'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('cc-error').style.display = 'none';
+  openModal('modal-atualizar-cartao');
+}
+
+async function salvarNovoCartao() {
+  const nome_titular = document.getElementById('cc-nome-titular').value.trim();
+  const numero = document.getElementById('cc-numero').value.trim();
+  const validade_mes = document.getElementById('cc-validade-mes').value.trim();
+  const validade_ano = document.getElementById('cc-validade-ano').value.trim();
+  const ccv = document.getElementById('cc-ccv').value.trim();
+  const cep = document.getElementById('cc-cep').value.trim();
+  const numero_endereco = document.getElementById('cc-numero-endereco').value.trim();
+  const errEl = document.getElementById('cc-error');
+  errEl.style.display = 'none';
+
+  if (!nome_titular || !numero || !validade_mes || !validade_ano || !ccv || !cep || !numero_endereco) {
+    errEl.textContent = 'Preencha todos os campos.'; errEl.style.display = 'block'; return;
+  }
+
+  const btn = document.getElementById('cc-btn-salvar');
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/portal-atualizar-cartao`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenant_id: TENANT_INFO?.tenant_id,
+        cartao: { nome_titular, numero, validade_mes, validade_ano, ccv },
+        titular: { cep, numero_endereco },
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data?.sucesso) throw new Error(data?.erro || 'Falha ao atualizar o cartão.');
+    closeModal('modal-atualizar-cartao');
+    _mostrarStatusSync('✅ Cartão atualizado', 'green');
+  } catch (e) {
+    errEl.textContent = e instanceof Error ? e.message : 'Falha ao atualizar o cartão.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar cartão';
+  }
 }
 
 // ── TROCAR SENHA (self-service) ──────────────────────────────────────────────
