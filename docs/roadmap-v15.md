@@ -60,9 +60,8 @@ flags de teste que façam sentido + deploy) quando o pacote da V1.5 estiver pron
   provisionados existentes (`status='ativo'`) não foram afetados.
 - Demais achados da revisão (payload de `criar-checkout-trial`, loop de `cobrar-trial`, colunas devolvidas
   por `minhas_cabanhas()`) — conferidos direto no código real: sem problema.
-- **⚠️ Falta um passo manual seu antes disso rodar de verdade**: agendar o `pg_cron` exige a
-  `service_role key` guardada no Vault do banco — só você tem essa chave (Project Settings → API). SQL
-  pronto em `docs/migrations/2026-08-02-cron-cobrar-trial.sql`, é só colar a chave e rodar no SQL Editor.
+- **`pg_cron` agendado** (2026-08-02, rodado pelo Pedro): job `cobrar-trials-vencidos` ativo, todo dia às
+  3h (`jobid=2`). Fase 2 fechada de ponta a ponta.
 - **Fora do escopo desta sessão**: o formulário de cadastro com trial na landing (`mimba.com.br/assinar`)
   vive no repo `mimba-landing`, separado deste — o backend já está pronto pra receber a chamada
   (`criar-checkout-trial`), mas o formulário em si (campos de cartão/endereço) precisa ser construído numa
