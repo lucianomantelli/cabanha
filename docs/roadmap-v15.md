@@ -97,6 +97,16 @@ flags de teste que façam sentido + deploy) quando o pacote da V1.5 estiver pron
 - **Portal do cliente**: gestão de conta, histórico de faturas, troca de plano, atualização de forma de
   pagamento — depende da integração Asaas já existente (expandir, não recriar) e se beneficia da Fase 2
   (tokenização de cartão) já estar pronta.
+  - **Decidido (2026-08-02): troca de plano é self-service de verdade**, não só pedido manual. Mas com
+    validação — se o plano novo tiver limite que a cabanha já estoura (ex.: downgrade com mais animais
+    cadastrados do que o plano novo permite), a troca **bloqueia** com uma mensagem explicando exatamente
+    o que precisa ajustar antes (ex.: "reduza pra X animais ativos"), não deixa trocar e só regularizar
+    depois.
+  - **🚫 BLOQUEADO — aguardando o Pedro**: ainda não existe a lista de recursos/limites de cada plano
+    (Potro/Arreio/Tropilha). Sem isso não dá pra escrever a validação (não sei o que checar). **Não
+    implementar a troca de plano até essa lista chegar** — combinado explicitamente, não é esquecimento.
+  - O resto do Portal do cliente (histórico de faturas, atualização de forma de pagamento) não depende
+    dessa lista — pode ser construído em paralelo.
 - **Relatórios em PDF**: sanidade do plantel, histórico sanitário por animal, relatório de gestações,
   análise de sangues — geração client-side (`jsPDF` ou similar) ou via Edge Function; independente das
   outras fases, pode ser paralelizado por outra frente se houver.
