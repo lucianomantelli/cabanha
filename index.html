@@ -446,6 +446,32 @@
 </head>
 <body>
 
+<!-- V1.5 (Fase 3): Painel Mimba — visão cross-tenant restrita a public.mimba_staff. Tela cheia
+     separada (não é por cabanha, não define TENANT_SCHEMA nenhum). -->
+<div id="painel-mimba-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;overflow-y:auto">
+  <div style="max-width:1100px;margin:0 auto;padding:2rem 1.5rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+      <div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--serif)">Painel Mimba</div>
+        <div style="font-size:12px;color:var(--text2)" id="painel-mimba-sub">Visão da plataforma — todas as cabanhas</div>
+      </div>
+      <button class="btn" onclick="fecharPainelMimba()">← Voltar ao app</button>
+    </div>
+    <div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:1.25rem">
+      <div class="metric"><div class="metric-label">Cabanhas ativas</div><div class="metric-value" id="pm-m-ativas">—</div></div>
+      <div class="metric"><div class="metric-label">Em teste (trial)</div><div class="metric-value" id="pm-m-trial">—</div></div>
+      <div class="metric"><div class="metric-label">Bloqueadas/canceladas</div><div class="metric-value" style="color:var(--red-d)" id="pm-m-bloqueadas">—</div></div>
+      <div class="metric"><div class="metric-label">Animais cadastrados (total)</div><div class="metric-value" id="pm-m-animais">—</div></div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;overflow-x:auto">
+      <table><thead><tr>
+        <th style="padding:9px 10px">Cabanha</th><th>Status</th><th>Plano</th><th>Animais</th><th>Usuários</th>
+        <th>Trial termina</th><th>Provisionada em</th><th>Ambiente</th>
+      </tr></thead><tbody id="pm-tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
 <!-- TELA DE LOGIN -->
 <div id="login-screen" class="login-screen">
   <div class="login-box" id="login-box-main">
@@ -572,6 +598,11 @@
   <button class="nav-btn" onclick="showPage('medidas')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="6" rx="1"/><line x1="7" y1="9" x2="7" y2="12"/><line x1="11" y1="9" x2="11" y2="12"/><line x1="15" y1="9" x2="15" y2="12"/><line x1="19" y1="9" x2="19" y2="12"/></svg></span><span>Medidas</span></button>
   <button class="nav-btn" onclick="showPage('sangues')"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3c0 6 12 6 12 12"/><path d="M18 21c0-6-12-6-12-12"/><line x1="7.5" y1="6" x2="16.5" y2="6"/><line x1="8.5" y1="9.5" x2="15.5" y2="9.5"/><line x1="8.5" y1="14.5" x2="15.5" y2="14.5"/><line x1="7.5" y1="18" x2="16.5" y2="18"/></svg></span><span>Sangues</span></button>
   <div style="margin-top:auto;padding-top:1rem;border-top:0.5px solid var(--border)">
+    <!-- V1.5 (Fase 3): só aparece pra quem está em public.mimba_staff (checado no login). -->
+    <button id="sidebar-btn-painel-mimba" onclick="abrirPainelMimba()" style="display:none;width:100%;margin-bottom:8px;padding:7px 8px;border-radius:var(--radius);background:var(--purple-l);color:var(--purple-d);border:0.5px solid var(--purple);font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Painel Mimba
+    </button>
     <div id="sidebar-account-card" style="display:flex;align-items:center;gap:9px;padding:8px;border-radius:var(--radius);background:var(--card-neutral);border:0.5px solid var(--card-neutral-border)">
       <div id="sidebar-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--green-l);color:var(--green-d);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0">?</div>
       <div style="flex:1;min-width:0">
@@ -11041,6 +11072,68 @@ async function _cancelarTrialClick() {
   fazerLogout();
 }
 
+// ─── PAINEL MIMBA (V1.5, Fase 3) ────────────────────────────────────────────
+// Cross-tenant, restrito a public.mimba_staff — não define TENANT_SCHEMA nenhum,
+// só lê agregados via admin_listar_cabanhas() (que já checa sou_staff_mimba()
+// internamente, então não precisa reconferir aqui — a RPC nega sozinha).
+async function _checarStaffMimba() {
+  const btn = document.getElementById('sidebar-btn-painel-mimba');
+  if (!btn) return;
+  try {
+    const souStaff = await _rpc('sou_staff_mimba', {});
+    btn.style.display = souStaff === true ? 'flex' : 'none';
+  } catch (e) { btn.style.display = 'none'; }
+}
+
+function abrirPainelMimba() {
+  document.getElementById('painel-mimba-screen').style.display = 'block';
+  renderPainelMimba();
+}
+function fecharPainelMimba() {
+  document.getElementById('painel-mimba-screen').style.display = 'none';
+}
+
+const PM_STATUS_LABEL = { ativo: 'Ativo', trial: 'Em teste', bloqueado: 'Bloqueado', cancelado: 'Cancelado' };
+const PM_STATUS_BADGE = { ativo: 'bg', trial: 'ba', bloqueado: 'br', cancelado: 'bgr' };
+
+async function renderPainelMimba() {
+  const tbody = document.getElementById('pm-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text3)">Carregando...</td></tr>';
+  let lista;
+  try {
+    lista = await _rpc('admin_listar_cabanhas', {});
+  } catch (e) { lista = null; }
+  if (!Array.isArray(lista)) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--red-d)">Falha ao carregar — confira se você tem acesso ao Painel Mimba.</td></tr>';
+    return;
+  }
+
+  const ativas = lista.filter(c => c.status === 'ativo').length;
+  const trial = lista.filter(c => c.status === 'trial').length;
+  const bloqueadas = lista.filter(c => c.status === 'bloqueado' || c.status === 'cancelado').length;
+  const totalAnimais = lista.reduce((s, c) => s + (Number(c.animais_count) || 0), 0);
+  document.getElementById('pm-m-ativas').textContent = ativas;
+  document.getElementById('pm-m-trial').textContent = trial;
+  document.getElementById('pm-m-bloqueadas').textContent = bloqueadas;
+  document.getElementById('pm-m-animais').textContent = totalAnimais;
+
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text3)">Nenhuma cabanha cadastrada.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = lista.map(c => `<tr>
+    <td style="padding:8px 10px;font-weight:600">${c.nome_exibicao || c.nome_cabanha}${c.ambiente_teste ? ' <span class="badge ba" style="font-size:9px">teste</span>' : ''}</td>
+    <td><span class="badge ${PM_STATUS_BADGE[c.status] || 'bgr'}">${PM_STATUS_LABEL[c.status] || c.status}</span></td>
+    <td style="font-size:12px">${c.plano_nome || '—'}</td>
+    <td style="text-align:center">${c.animais_count ?? 0}</td>
+    <td style="text-align:center">${c.usuarios_count ?? 0}</td>
+    <td style="font-size:11px;color:var(--text2)">${c.status === 'trial' ? (fd(c.trial_fim?.slice ? c.trial_fim.slice(0,10) : c.trial_fim) || '—') : '—'}</td>
+    <td style="font-size:11px;color:var(--text2)">${fd(c.provisionado_em?.slice ? c.provisionado_em.slice(0,10) : c.provisionado_em) || '—'}</td>
+    <td style="font-size:11px;color:var(--text3)">${c.ambiente_teste ? 'Teste' : 'Produção'}</td>
+  </tr>`).join('');
+}
+
 // Pós-login: mostra o app (reaproveitado pelo login direto e pelo seletor)
 function _entrarApp() {
   const user = usuarioAtual;
@@ -11076,6 +11169,7 @@ function _entrarApp() {
     }
   }
   _atualizarBannerTrial();
+  _checarStaffMimba();
   if(nomeCab) document.title = `${nomeCab} — Mimba`;
   const usrSub = document.getElementById('usuarios-sub');
   if(usrSub) usrSub.textContent = 'Controle de acesso ao sistema' + (nomeCab ? ` — ${nomeCab}` : '');
@@ -11109,6 +11203,8 @@ function fazerLogout() {
   document.getElementById('login-box-main').style.display='';
   const bloq = document.getElementById('login-bloqueado'); if(bloq) bloq.style.display='none';
   const canc = document.getElementById('login-cancelado'); if(canc) canc.style.display='none';
+  fecharPainelMimba();
+  const pmBtn = document.getElementById('sidebar-btn-painel-mimba'); if(pmBtn) pmBtn.style.display='none';
   // restaurar campos e esconder o seletor
   const box = document.getElementById('login-seletor'); if(box){ box.style.display='none'; box.innerHTML=''; }
   const fu = document.getElementById('login-user'); const fs = document.getElementById('login-senha');

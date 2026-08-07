@@ -67,16 +67,30 @@ flags de teste que façam sentido + deploy) quando o pacote da V1.5 estiver pron
   (`criar-checkout-trial`), mas o formulário em si (campos de cartão/endereço) precisa ser construído numa
   sessão nesse outro repo.
 
-### Fase 3 — Painel admin da plataforma + Dashboard de métricas de uso (mesma audiência, construir junto)
-- Público interno Mimba (não o cliente cabanha) — visão de todas as cabanhas ativas, status de
-  assinatura, métricas de uso (animais cadastrados, módulos usados, frequência de acesso), logs de
-  provisionamento.
-- **Decidido — acesso restrito a Pedro e sócio por enquanto.** Reaproveita o login atual (Supabase Auth):
-  um flag simples de "staff" (ex.: em `usuarios_master`, hoje com 1 conta única `admin@arandu.app`, ou uma
-  tabela nova `mimba_staff` com os `auth.users.id` autorizados) — não precisa de sistema de auth novo, só
-  uma policy/RPC que checa esse flag antes de expor dado cross-tenant. Ainda assim é RLS/acesso cross-tenant
-  de verdade (não por schema de cabanha) — vale uma revisão rápida com o `revisor-isolamento` antes de
-  liberar, mesmo sendo só 2 contas.
+### Fase 3 — Painel admin da plataforma + Dashboard de métricas de uso ✅ CONSTRUÍDA (2026-08-02)
+- **`mimba_staff`** (tabela nova, RLS habilitada deny-all + grants revogados de anon/authenticated — só
+  acessível via função `SECURITY DEFINER`) substitui a ideia de reaproveitar `usuarios_master` (achado:
+  essa tabela é legada, com seu próprio `senha_hash`, **desconectada** do Supabase Auth atual — não dava
+  pra reaproveitar sem refatorar o que já funciona). Hoje tem 2 linhas: Pedro e Thiago.
+- **`sou_staff_mimba()`** — RPC que checa o flag. **`admin_listar_cabanhas()`** — RPC única que junta os 2
+  itens do roadmap geral (painel + métricas): itera todos os tenants, agrega `animais_count`/
+  `usuarios_count` por cabanha (dado agregado, nunca linha individual), devolve status/plano/trial/
+  provisionamento. Ambas checam `sou_staff_mimba()` internamente — nega antes de tocar em qualquer dado se
+  quem chama não é staff.
+- **Frontend**: botão "Painel Mimba" na sidebar (só visível pra staff, checado a cada login) abre uma tela
+  cheia separada — cross-tenant de verdade, não define `TENANT_SCHEMA` nenhum. Métricas no topo (cabanhas
+  ativas/em teste/bloqueadas, total de animais na plataforma) + tabela por cabanha.
+- **Revisão de isolamento**: aprovada. Gate atômico (sem race condition possível dentro de uma única
+  invocação SQL), `schema_name` usado em `execute format()` vem só do provisionamento (não é input de
+  usuário) e os 7 schemas reais batem 1:1 com `tenants.schema_name` — sem vetor de SQL injection. Único
+  ajuste sugerido (não bloqueante, aplicado): `mimba_staff` ganhou `ENABLE ROW LEVEL SECURITY` como defesa
+  em profundidade (mesmo sem grant hoje, protege contra um `GRANT` futuro concedido por engano).
+- Testado via servidor local com `_rpc` simulado: botão aparece só pra staff, painel abre/fecha, métricas e
+  tabela renderizam a partir do retorno da RPC, estado de erro (sem acesso/RPC falhou) cai num aviso
+  amigável em vez de quebrar a tela.
+- **Não incluído nesta fase** (ficou de fora do roadmap original e não foi pedido): logs de provisionamento
+  detalhados por cabanha (`provision_log` já existe no banco, dá pra expor depois se fizer falta) e
+  frequência de acesso por usuário (precisaria de tracking novo, não existe hoje).
 - Combinar os dois itens do roadmap geral numa tela só evita duas iniciativas separadas pro mesmo público.
 
 ### Fase 4 — Portal do cliente + Relatórios em PDF (cliente-facing, mais isolados entre si)
