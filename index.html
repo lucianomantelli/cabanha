@@ -306,6 +306,7 @@
     .sidebar.open { transform:translateX(0); }
     #sidebar-backdrop.open { display:block; }
     .main { margin-left:0; padding:1rem; padding-top:4rem; max-width:100vw; }
+    #trial-banner-topo { margin:-1rem -1rem 1rem; flex-wrap:wrap; }
     .metrics { grid-template-columns:1fr 1fr; }
     .two-col { grid-template-columns:1fr; }
   }
@@ -512,6 +513,19 @@
     <a class="login-btn" style="display:block;text-decoration:none;box-sizing:border-box" href="mailto:app.mimba@gmail.com">Falar com a Mimba</a>
     <div style="margin-top:12px"><a href="#" onclick="fazerLogout();return false;" style="font-size:12px;color:var(--text2)">← Voltar ao login</a></div>
   </div>
+  <!-- V1.5 (Fase 2, complemento): trial cancelado pelo próprio admin antes da cobrança. -->
+  <div class="login-box" id="login-cancelado" style="display:none;text-align:center">
+    <div class="login-logo">
+      <div class="login-logo-title">Mimba</div>
+      <div class="login-logo-sub">Teste cancelado</div>
+    </div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.6;margin:12px 0 18px">
+      O período de teste de <strong id="cancelado-nome-cabanha"></strong> foi cancelado — nenhuma cobrança
+      será feita. Se mudar de ideia, fale com a gente pra reativar.
+    </div>
+    <a class="login-btn" style="display:block;text-decoration:none;box-sizing:border-box" href="mailto:app.mimba@gmail.com">Falar com a Mimba</a>
+    <div style="margin-top:12px"><a href="#" onclick="fazerLogout();return false;" style="font-size:12px;color:var(--text2)">← Voltar ao login</a></div>
+  </div>
   <div class="login-box" id="definir-senha-box" style="display:none">
     <div class="login-logo">
       <div class="login-logo-title">Mimba</div>
@@ -576,6 +590,14 @@
 </div>
 
 <div class="main">
+
+<!-- V1.5 (Fase 2, complemento): banner de trial perto do vencimento — fixo no topo em toda
+     página (não é um toast que some sozinho, fica até o usuário fechar ou o trial acabar). -->
+<div id="trial-banner-topo" style="display:none;align-items:center;gap:10px;position:sticky;top:0;z-index:40;margin:-1.75rem -1.75rem 1.25rem;padding:10px 1.75rem;background:var(--amber-l);color:var(--amber-d);border-bottom:1px solid var(--amber);font-size:12px">
+  <span id="trial-banner-texto" style="flex:1"></span>
+  <button class="btn btn-sm" onclick="_cancelarTrialClick()" style="background:transparent;border-color:var(--amber-d);color:var(--amber-d);white-space:nowrap">Cancelar teste</button>
+  <button onclick="_fecharTrialBanner()" title="Fechar aviso" aria-label="Fechar aviso" style="background:none;border:none;cursor:pointer;color:var(--amber-d);font-size:18px;line-height:1;padding:0 4px">×</button>
+</div>
 
 <!-- DASHBOARD -->
 <div class="page active" id="page-dashboard">
@@ -10918,12 +10940,15 @@ function _limparEstadoLocal() {
 // Entrar numa cabanha: define o schema e carrega o usuário do schema pela identidade global
 async function _entrarCabanha(cab) {
   // V1.5 (Fase 2, trial automático): cobrança do fim do trial falhou -> bloqueado na hora,
-  // sem acessar dado nenhum da cabanha. 'trial' e 'ativo' entram normalmente.
-  if (cab.status === 'bloqueado') {
+  // ou o próprio admin cancelou o trial antes da cobrança -> cancelado. Nenhum dos dois
+  // acessa dado nenhum da cabanha. 'trial' e 'ativo' entram normalmente.
+  if (cab.status === 'bloqueado' || cab.status === 'cancelado') {
     document.getElementById('login-box-main').style.display = 'none';
     document.getElementById('login-restaurando').style.display = 'none';
-    document.getElementById('bloqueado-nome-cabanha').textContent = cab.nome_exibicao || cab.nome_cabanha || 'sua cabanha';
-    document.getElementById('login-bloqueado').style.display = '';
+    const idBox = cab.status === 'bloqueado' ? 'login-bloqueado' : 'login-cancelado';
+    const idNome = cab.status === 'bloqueado' ? 'bloqueado-nome-cabanha' : 'cancelado-nome-cabanha';
+    document.getElementById(idNome).textContent = cab.nome_exibicao || cab.nome_cabanha || 'sua cabanha';
+    document.getElementById(idBox).style.display = '';
     return;
   }
   TENANT_SCHEMA = cab.schema_name;
@@ -10974,6 +10999,48 @@ function _aplicarCorPrimaria(cor) {
   }
 }
 
+// Banner de trial perto do vencimento (V1.5, Fase 2 — complemento). Só aparece nos últimos
+// 7 dias (evita cansar o usuário por 30 dias inteiros) e é dispensável — o fechamento fica
+// guardado por dia (chave inclui a data), então volta a aparecer no dia seguinte se ainda
+// estiver no período de aviso, ficando mais insistente conforme o prazo aperta.
+function _atualizarBannerTrial() {
+  const el = document.getElementById('trial-banner-topo');
+  if (!el) return;
+  if (TENANT_INFO?.status !== 'trial' || !TENANT_INFO?.trial_fim) { el.style.display = 'none'; return; }
+
+  const dias = Math.ceil((new Date(TENANT_INFO.trial_fim) - HOJE) / 864e5);
+  if (dias > 7) { el.style.display = 'none'; return; }
+
+  const hojeStr = HOJE.toISOString().slice(0, 10);
+  const chaveDispensa = `trial_banner_fechado_${TENANT_INFO.tenant_id}_${hojeStr}`;
+  if (localStorage.getItem(chaveDispensa)) { el.style.display = 'none'; return; }
+
+  const texto = dias > 0
+    ? `Seu período de teste termina em ${dias} dia(s) — depois disso, a cobrança automática é feita no cartão cadastrado.`
+    : 'Seu período de teste termina hoje — a cobrança automática será feita no cartão cadastrado.';
+  document.getElementById('trial-banner-texto').textContent = texto;
+  el.style.display = 'flex';
+}
+
+function _fecharTrialBanner() {
+  const el = document.getElementById('trial-banner-topo');
+  if (el) el.style.display = 'none';
+  if (TENANT_INFO?.tenant_id) {
+    const hojeStr = HOJE.toISOString().slice(0, 10);
+    try { localStorage.setItem(`trial_banner_fechado_${TENANT_INFO.tenant_id}_${hojeStr}`, '1'); } catch(e) {}
+  }
+}
+
+async function _cancelarTrialClick() {
+  if (!TENANT_INFO?.tenant_id) return;
+  const nome = TENANT_INFO.nome_exibicao || TENANT_INFO.nome_cabanha || 'esta cabanha';
+  if (!confirm(`Cancelar o período de teste de "${nome}"?\n\nNenhuma cobrança será feita, mas o acesso é interrompido na hora. Essa ação não pode ser desfeita por aqui — se mudar de ideia, você vai precisar falar com a Mimba pra reativar.`)) return;
+  const ok = await _rpc('cancelar_trial', { p_tenant_id: TENANT_INFO.tenant_id });
+  if (ok !== true) return alert('Não foi possível cancelar. Confira se você é administrador desta cabanha.');
+  alert('Teste cancelado. Você será desconectado agora.');
+  fazerLogout();
+}
+
 // Pós-login: mostra o app (reaproveitado pelo login direto e pelo seletor)
 function _entrarApp() {
   const user = usuarioAtual;
@@ -10996,7 +11063,8 @@ function _entrarApp() {
     else { logoEl.removeAttribute('src'); logoEl.style.display='none'; if(monoEl) monoEl.style.display=''; }
   }
   _aplicarCorPrimaria(TENANT_INFO?.cor_primaria);
-  // V1.5 (Fase 2, trial automático): avisa quantos dias faltam do trial.
+  // V1.5 (Fase 2, trial automático): avisa quantos dias faltam do trial (badge pequeno,
+  // sempre visível) + banner de topo (só perto do vencimento, dispensável).
   const trialEl = document.getElementById('sidebar-trial-aviso');
   if (trialEl) {
     if (TENANT_INFO?.status === 'trial' && TENANT_INFO?.trial_fim) {
@@ -11007,6 +11075,7 @@ function _entrarApp() {
       trialEl.style.display = 'none';
     }
   }
+  _atualizarBannerTrial();
   if(nomeCab) document.title = `${nomeCab} — Mimba`;
   const usrSub = document.getElementById('usuarios-sub');
   if(usrSub) usrSub.textContent = 'Controle de acesso ao sistema' + (nomeCab ? ` — ${nomeCab}` : '');
@@ -11039,6 +11108,7 @@ function fazerLogout() {
   // restaurar a tela normal de login (pode estar escondida por causa da tela de bloqueio)
   document.getElementById('login-box-main').style.display='';
   const bloq = document.getElementById('login-bloqueado'); if(bloq) bloq.style.display='none';
+  const canc = document.getElementById('login-cancelado'); if(canc) canc.style.display='none';
   // restaurar campos e esconder o seletor
   const box = document.getElementById('login-seletor'); if(box){ box.style.display='none'; box.innerHTML=''; }
   const fu = document.getElementById('login-user'); const fs = document.getElementById('login-senha');
